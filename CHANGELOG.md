@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
 - Initial project scaffolding with monorepo (pnpm workspaces)
 - @agenttrace/sdk: core tracing, SQLite storage, cost tracking
 - @agenttrace/dashboard: Express backend + vanilla JS frontend

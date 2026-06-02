@@ -235,7 +235,10 @@ function main(): void {
 
         const statusRaw = flags.status ? String(flags.status) : '';
         if (statusRaw) {
-          const allowed = statusRaw.split(',').map((s) => s.trim()).filter(Boolean);
+          const allowed = statusRaw
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean);
           if (allowed.length) {
             runs = runs.filter((r) => allowed.includes(r.status));
           }
@@ -267,7 +270,10 @@ function main(): void {
         }
         const statusRaw = flags.status ? String(flags.status) : '';
         if (statusRaw) {
-          const statuses = statusRaw.split(',').map((s) => s.trim()).filter(Boolean);
+          const statuses = statusRaw
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean);
           if (statuses.length) {
             filter.status = statuses;
           }
@@ -347,8 +353,7 @@ const isMain = (() => {
     if (!invoked) return false;
     const thisFile = fileURLToPath(import.meta.url);
     // Normalize for cross-platform (esp. Windows backslashes)
-    return invoked === thisFile ||
-      invoked.replace(/\\/g, '/') === thisFile.replace(/\\/g, '/');
+    return invoked === thisFile || invoked.replace(/\\/g, '/') === thisFile.replace(/\\/g, '/');
   } catch {
     return false;
   }
