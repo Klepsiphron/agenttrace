@@ -1,4 +1,5 @@
 # AgentTrace Launch Campaign
+
 ## Prepared: 2026-06-02
 
 ---
@@ -8,6 +9,7 @@
 **Title:** Show HN: AgentTrace – open source AI agent observability, fully local
 
 **Text:**
+
 ```
 I built AgentTrace because I was tired of sending my agent's prompts and
 outputs to third-party clouds just to debug them.
@@ -18,7 +20,7 @@ telemetry.
 
 Features:
 - TypeScript SDK (npm install @agenttrace/sdk)
-- Python SDK (pip install agenttrace) 
+- Python SDK (pip install agenttrace)
 - CLI: agenttrace runs, agenttrace stats, agenttrace export
 - Local web dashboard on localhost
 - Automatic cost calculation for GPT-4o, Claude 4, Gemini, Llama
@@ -51,6 +53,7 @@ Zero cloud dependency, fully open source (MIT).
 **Topics:** Developer Tools, Open Source, Artificial Intelligence
 
 **Launch day prep:**
+
 - Get 10+ people to upvote on launch day
 - Prepare a short demo GIF
 - Engage with every comment
@@ -60,9 +63,11 @@ Zero cloud dependency, fully open source (MIT).
 ## Reddit Posts
 
 ### r/LocalLLaMa
+
 **Title:** AgentTrace – local-first AI agent observability, no cloud
 
 **Body:**
+
 ```
 Built an open source tool for tracing AI agent runs that keeps
 everything local. No cloud accounts, no telemetry, no prompts
@@ -77,9 +82,11 @@ github.com/Klepsiphron/agenttrace
 ```
 
 ### r/MachineLearning
+
 **Title:** Open source alternative to LangSmith/LangFuse, fully local
 
 **Body:**
+
 ```
 I needed agent observability but didn't want to send prompts to a
 third-party cloud, so I built AgentTrace.
@@ -97,9 +104,11 @@ github.com/Klepsiphron/agenttrace
 ```
 
 ### r/typescript
+
 **Title:** AgentTrace – TypeScript SDK for tracing AI agent runs locally
 
 **Body:**
+
 ```
 npm install @agenttrace/sdk - trace any async function, see tokens,
 cost, latency, tool calls. Everything stores in SQLite locally.
@@ -109,9 +118,11 @@ github.com/Klepsiphron/agenttrace
 ```
 
 ### r/Python
+
 **Title:** AgentTrace – Python SDK for AI agent observability
 
 **Body:**
+
 ```
 pip install agenttrace - drop-in tracing for Python AI agents.
 Context manager, decorator, or direct call. Local SQLite, no cloud.
@@ -124,6 +135,7 @@ github.com/Klepsiphron/agenttrace
 ## Twitter/X
 
 **Tweet 1 (Launch):**
+
 ```
 Just open-sourced AgentTrace 🔍
 
@@ -140,6 +152,7 @@ github.com/Klepsiphron/agenttrace
 ```
 
 **Tweet 2 (Technical):**
+
 ```
 AgentTrace cost tracking knows 6+ LLM models:
 gpt-4o, gpt-4o-mini, claude-sonnet-4, claude-haiku-4,
@@ -153,6 +166,7 @@ github.com/Klepsiphron/agenttrace
 ```
 
 **Tweet 3 (Comparison):**
+
 ```
 Why AgentTrace vs LangSmith/LangFuse?
 

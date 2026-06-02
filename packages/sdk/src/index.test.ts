@@ -457,7 +457,13 @@ describe('export() otel format', () => {
         status: 'success',
         costUsd: 0.123,
         latencyMs: 10,
-        tokens: { promptTokens: 11, completionTokens: 22, totalTokens: 33, model: 'gpt-x', provider: 'openai' },
+        tokens: {
+          promptTokens: 11,
+          completionTokens: 22,
+          totalTokens: 33,
+          model: 'gpt-x',
+          provider: 'openai',
+        },
         metadata: { user: 'u1', count: 5, ok: true, obj: { a: 1 } },
       }),
     ];
@@ -489,7 +495,9 @@ describe('export() otel format', () => {
     mockStorage.getTraces.mockReturnValue([]);
     const otlp = JSON.parse(agent.export('otel'));
     expect(otlp.resourceSpans[0].resource.attributes.length).toBeGreaterThan(0);
-    const svc = otlp.resourceSpans[0].resource.attributes.find((a: { key: string }) => a.key === 'service.name');
+    const svc = otlp.resourceSpans[0].resource.attributes.find(
+      (a: { key: string }) => a.key === 'service.name',
+    );
     expect(svc.value.stringValue).toBe('agenttrace');
     expect(otlp.resourceSpans[0].scopeSpans[0].spans).toEqual([]);
     agent.close();

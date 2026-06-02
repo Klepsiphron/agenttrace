@@ -113,7 +113,10 @@ function buildOtelAttributes(trace: Trace): Array<{ key: string; value: any }> {
     attrs.push({ key: 'agenttrace.input', value: { stringValue: stringifyForAttr(trace.input) } });
   }
   if (trace.output != null) {
-    attrs.push({ key: 'agenttrace.output', value: { stringValue: stringifyForAttr(trace.output) } });
+    attrs.push({
+      key: 'agenttrace.output',
+      value: { stringValue: stringifyForAttr(trace.output) },
+    });
   }
   return attrs;
 }
