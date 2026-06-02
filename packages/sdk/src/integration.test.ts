@@ -18,9 +18,9 @@ describe('AgentTrace Integration', () => {
 
   afterEach(() => {
     agenttrace.close();
-    try { unlinkSync(testDb); } catch {}
-    try { unlinkSync(testDb + '-wal'); } catch {}
-    try { unlinkSync(testDb + '-shm'); } catch {}
+    try { unlinkSync(testDb); } catch (_) { void 0; }
+    try { unlinkSync(testDb + '-wal'); } catch (_) { void 0; }
+    try { unlinkSync(testDb + '-shm'); } catch (_) { void 0; }
   });
 
   it('should trace a simple function', async () => {
