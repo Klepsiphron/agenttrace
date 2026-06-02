@@ -4,7 +4,7 @@
  */
 /* eslint-disable @typescript-eslint/no-explicit-any -- SQLite row mapping uses loose any (pre-existing pattern) */
 
-import { randomUUID } from 'node:crypto';
+import { randomUUID, createHash } from 'node:crypto';
 import { TraceStorage } from './storage.js';
 import {
   Trace,
@@ -47,6 +47,107 @@ function defaultCostCalculator(tokens: TokenUsage, model?: string): number {
 
   const rate = rates[model || ''] || { prompt: 0.001, completion: 0.002 };
   return (tokens.promptTokens * rate.prompt + tokens.completionTokens * rate.completion) / 1000;
+}
+
+// ---- OpenTelemetry (OTLP JSON) export helpers (no external deps) ----
+
+function toOtelId(id: string, length: number): string {
+  const cleaned = id.replace(/-/g, '');
+  if (/^[0-9a-fA-F]{32}$/.test(cleaned)) {
+    return cleaned.toLowerCase().slice(0, length);
+  }
+  // Fallback for non-UUID ids (e.g. test data like 'trace-1'); deterministic
+  return createHash('sha256').update(id).digest('hex').slice(0, length);
+}
+
+function toUnixNano(timestampMs: number): string {
+  return String(BigInt(Math.floor(timestampMs)) * 1000000n);
+}
+
+function toOtelAttrValue(v: unknown): any {
+  if (v === null || v === undefined) return undefined;
+  const t = typeof v;
+  if (t === 'string') return { stringValue: v as string };
+  if (t === 'number') {
+    return Number.isInteger(v as number) ? { intValue: v as number } : { doubleValue: v as number };
+  }
+  if (t === 'boolean') return { boolValue: v as boolean };
+  return { stringValue: JSON.stringify(v) };
+}
+
+function stringifyForAttr(v: unknown, maxLen = 2048): string {
+  const s = typeof v === 'string' ? v : JSON.stringify(v);
+  if (s.length <= maxLen) return s;
+  return s.slice(0, maxLen - 3) + '...';
+}
+
+function buildOtelAttributes(trace: Trace): Array<{ key: string; value: any }> {
+  const attrs: Array<{ key: string; value: any }> = [];
+  attrs.push({ key: 'agenttrace.status', value: { stringValue: trace.status } });
+  attrs.push({ key: 'agenttrace.latency_ms', value: { intValue: trace.latencyMs } });
+  attrs.push({ key: 'agenttrace.cost_usd', value: { doubleValue: trace.costUsd } });
+  attrs.push({ key: 'agenttrace.run_id', value: { stringValue: trace.runId } });
+  const tok = trace.tokens || { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
+  attrs.push({ key: 'agenttrace.tokens.prompt', value: { intValue: tok.promptTokens } });
+  attrs.push({ key: 'agenttrace.tokens.completion', value: { intValue: tok.completionTokens } });
+  attrs.push({ key: 'agenttrace.tokens.total', value: { intValue: tok.totalTokens } });
+  if (tok.model) {
+    attrs.push({ key: 'agenttrace.model', value: { stringValue: tok.model } });
+  }
+  if (tok.provider) {
+    attrs.push({ key: 'agenttrace.provider', value: { stringValue: tok.provider } });
+  }
+  if (trace.error) {
+    attrs.push({ key: 'agenttrace.error', value: { stringValue: trace.error } });
+  }
+  // metadata
+  const meta = trace.metadata || {};
+  for (const [k, v] of Object.entries(meta)) {
+    const otelVal = toOtelAttrValue(v);
+    if (otelVal) {
+      attrs.push({ key: `agenttrace.metadata.${k}`, value: otelVal });
+    }
+  }
+  // input/output (stringified, truncated)
+  if (trace.input != null) {
+    attrs.push({ key: 'agenttrace.input', value: { stringValue: stringifyForAttr(trace.input) } });
+  }
+  if (trace.output != null) {
+    attrs.push({ key: 'agenttrace.output', value: { stringValue: stringifyForAttr(trace.output) } });
+  }
+  return attrs;
+}
+
+function buildResourceAttributes(): Array<{ key: string; value: any }> {
+  return [
+    { key: 'service.name', value: { stringValue: 'agenttrace' } },
+    { key: 'telemetry.sdk.name', value: { stringValue: 'agenttrace' } },
+    { key: 'telemetry.sdk.version', value: { stringValue: VERSION } },
+  ];
+}
+
+function traceToOtelSpan(trace: Trace): any {
+  const traceId = toOtelId(trace.id, 32);
+  const spanId = toOtelId(trace.id, 16);
+  const endMs = trace.createdAt || Date.now();
+  const startMs = Math.max(0, endMs - (trace.latencyMs || 0));
+  const startTimeUnixNano = toUnixNano(startMs);
+  const endTimeUnixNano = toUnixNano(endMs);
+  const attributes = buildOtelAttributes(trace);
+  const isSuccess = trace.status === 'success';
+  const status: any = isSuccess
+    ? { code: 1 } // STATUS_CODE_OK
+    : { code: 2, message: trace.error || trace.status }; // STATUS_CODE_ERROR
+  return {
+    traceId,
+    spanId,
+    name: trace.name,
+    kind: 1, // SPAN_KIND_INTERNAL
+    startTimeUnixNano,
+    endTimeUnixNano,
+    attributes,
+    status,
+  };
 }
 
 export class AgentTrace {
@@ -199,13 +300,32 @@ export class AgentTrace {
   }
 
   /**
-   * Export traces to JSON or CSV
+   * Export traces to JSON, CSV, or OpenTelemetry (OTLP JSON)
    */
   export(format: ExportFormat = 'json', filter: TraceFilter = {}): string {
     const traces = this.storage.getTraces(filter);
 
     if (format === 'json') {
       return JSON.stringify(traces, null, 2);
+    }
+
+    if (format === 'otel') {
+      const resourceAttributes = buildResourceAttributes();
+      const spans = traces.map((t) => traceToOtelSpan(t));
+      const otlp = {
+        resourceSpans: [
+          {
+            resource: { attributes: resourceAttributes },
+            scopeSpans: [
+              {
+                scope: { name: 'agenttrace' },
+                spans,
+              },
+            ],
+          },
+        ],
+      };
+      return JSON.stringify(otlp, null, 2);
     }
 
     // CSV

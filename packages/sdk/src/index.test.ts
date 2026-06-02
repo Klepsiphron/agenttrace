@@ -382,3 +382,130 @@ describe('export()', () => {
     agent.close();
   });
 });
+
+describe('export() otel format', () => {
+  it('exports traces as OTLP JSON with correct top-level structure', () => {
+    const agent = new AgentTrace({ silent: true });
+    const traces = [makeTrace({ name: 'otel-op' })];
+    mockStorage.getTraces.mockReturnValue(traces);
+
+    const otlpJson = agent.export('otel', { runId: 'run-1' });
+    const parsed = JSON.parse(otlpJson);
+
+    expect(mockStorage.getTraces).toHaveBeenCalledWith({ runId: 'run-1' });
+    expect(parsed).toHaveProperty('resourceSpans');
+    expect(Array.isArray(parsed.resourceSpans)).toBe(true);
+    expect(parsed.resourceSpans.length).toBe(1);
+    expect(parsed.resourceSpans[0]).toHaveProperty('resource');
+    expect(parsed.resourceSpans[0]).toHaveProperty('scopeSpans');
+    expect(Array.isArray(parsed.resourceSpans[0].scopeSpans)).toBe(true);
+    expect(parsed.resourceSpans[0].scopeSpans.length).toBe(1);
+    expect(parsed.resourceSpans[0].scopeSpans[0].scope.name).toBe('agenttrace');
+    expect(Array.isArray(parsed.resourceSpans[0].scopeSpans[0].spans)).toBe(true);
+    agent.close();
+  });
+
+  it('maps trace to OTLP span with traceId/spanId (UUID normalized), kind, times, name', () => {
+    const agent = new AgentTrace({ silent: true });
+    const traceUuid = '12345678-1234-5678-9abc-123456789def';
+    const traces = [
+      makeTrace({
+        id: traceUuid,
+        name: 'span-name',
+        status: 'success',
+        latencyMs: 42,
+        createdAt: 1_700_000_000_042,
+      }),
+    ];
+    mockStorage.getTraces.mockReturnValue(traces);
+
+    const otlpJson = agent.export('otel');
+    const parsed = JSON.parse(otlpJson);
+    const span = parsed.resourceSpans[0].scopeSpans[0].spans[0];
+
+    expect(span.traceId).toBe('12345678123456789abc123456789def'); // 32 hex, dashes removed
+    expect(span.spanId).toBe('1234567812345678'); // first 16 hex chars
+    expect(span.name).toBe('span-name');
+    expect(span.kind).toBe(1); // SPAN_KIND_INTERNAL
+    // start = createdAt - latencyMs (both in ms) then *1e6 for unix nano
+    expect(span.startTimeUnixNano).toBe(String(BigInt(1_700_000_000_000) * 1000000n));
+    expect(span.endTimeUnixNano).toBe(String(BigInt(1_700_000_000_042) * 1000000n));
+    agent.close();
+  });
+
+  it('sets STATUS_CODE_OK (1) for success, STATUS_CODE_ERROR (2) for errors with message', () => {
+    const agent = new AgentTrace({ silent: true });
+    const successTraces = [makeTrace({ id: 's-uuid', status: 'success' })];
+    const errorTraces = [makeTrace({ id: 'e-uuid', status: 'error', error: 'boom' })];
+    mockStorage.getTraces.mockReturnValue(successTraces);
+    let otlp = JSON.parse(agent.export('otel'));
+    let span = otlp.resourceSpans[0].scopeSpans[0].spans[0];
+    expect(span.status).toEqual({ code: 1 });
+
+    mockStorage.getTraces.mockReturnValue(errorTraces);
+    otlp = JSON.parse(agent.export('otel'));
+    span = otlp.resourceSpans[0].scopeSpans[0].spans[0];
+    expect(span.status).toEqual({ code: 2, message: 'boom' });
+    agent.close();
+  });
+
+  it('includes attributes for metadata, tokens, cost, status', () => {
+    const agent = new AgentTrace({ silent: true });
+    const traces = [
+      makeTrace({
+        id: 'attr-uuid',
+        status: 'success',
+        costUsd: 0.123,
+        latencyMs: 10,
+        tokens: { promptTokens: 11, completionTokens: 22, totalTokens: 33, model: 'gpt-x', provider: 'openai' },
+        metadata: { user: 'u1', count: 5, ok: true, obj: { a: 1 } },
+      }),
+    ];
+    mockStorage.getTraces.mockReturnValue(traces);
+
+    const otlp = JSON.parse(agent.export('otel'));
+    const attrs = otlp.resourceSpans[0].scopeSpans[0].spans[0].attributes;
+    const get = (k: string) => attrs.find((a: any) => a.key === k)?.value;
+
+    expect(get('agenttrace.status')?.stringValue).toBe('success');
+    expect(get('agenttrace.cost_usd')?.doubleValue).toBe(0.123);
+    expect(get('agenttrace.latency_ms')?.intValue).toBe(10);
+    expect(get('agenttrace.tokens.prompt')?.intValue).toBe(11);
+    expect(get('agenttrace.tokens.completion')?.intValue).toBe(22);
+    expect(get('agenttrace.tokens.total')?.intValue).toBe(33);
+    expect(get('agenttrace.model')?.stringValue).toBe('gpt-x');
+    expect(get('agenttrace.provider')?.stringValue).toBe('openai');
+    expect(get('agenttrace.metadata.user')?.stringValue).toBe('u1');
+    expect(get('agenttrace.metadata.count')?.intValue).toBe(5);
+    expect(get('agenttrace.metadata.ok')?.boolValue).toBe(true);
+    expect(get('agenttrace.metadata.obj')?.stringValue).toBe('{"a":1}');
+    // also run_id etc
+    expect(get('agenttrace.run_id')).toBeTruthy();
+    agent.close();
+  });
+
+  it('includes resource attributes and handles empty traces', () => {
+    const agent = new AgentTrace({ silent: true });
+    mockStorage.getTraces.mockReturnValue([]);
+    const otlp = JSON.parse(agent.export('otel'));
+    expect(otlp.resourceSpans[0].resource.attributes.length).toBeGreaterThan(0);
+    const svc = otlp.resourceSpans[0].resource.attributes.find((a: any) => a.key === 'service.name');
+    expect(svc.value.stringValue).toBe('agenttrace');
+    expect(otlp.resourceSpans[0].scopeSpans[0].spans).toEqual([]);
+    agent.close();
+  });
+
+  it('handles non-UUID trace ids via hash fallback for traceId/spanId', () => {
+    const agent = new AgentTrace({ silent: true });
+    const traces = [makeTrace({ id: 'trace-xyz-123' })];
+    mockStorage.getTraces.mockReturnValue(traces);
+    const otlp = JSON.parse(agent.export('otel'));
+    const span = otlp.resourceSpans[0].scopeSpans[0].spans[0];
+    expect(span.traceId).toMatch(/^[0-9a-f]{32}$/);
+    expect(span.spanId).toMatch(/^[0-9a-f]{16}$/);
+    // length checks
+    expect(span.traceId.length).toBe(32);
+    expect(span.spanId.length).toBe(16);
+    agent.close();
+  });
+});

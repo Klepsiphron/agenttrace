@@ -115,7 +115,7 @@ export interface FrameworkIntegration {
 }
 
 /** Export format */
-export type ExportFormat = 'json' | 'csv';
+export type ExportFormat = 'json' | 'csv' | 'otel';
 
 /** Dashboard server config */
 export interface DashboardConfig {
