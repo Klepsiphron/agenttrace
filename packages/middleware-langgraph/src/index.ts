@@ -241,7 +241,25 @@ export class AgentTraceMiddleware implements NodeMiddleware {
   }): void {
     const storage = (this.agent as any).storage;
     const cfg = (this.agent as any).config || {};
-    const runId = (this.agent as any).currentRunId || randomUUID();
+    const currentRun = (this.agent as any).currentRunId as string | null;
+    const runId = currentRun || randomUUID();
+
+    // Ensure a run row exists (TS storage.createTrace does not auto-create stub runs like the Python port;
+    // without this, traces with ad-hoc runIds (no prior startRun) hit FK constraint).
+    if (!currentRun && storage.getRun && storage.createRun) {
+      if (!storage.getRun(runId)) {
+        try {
+          storage.createRun({
+            id: runId,
+            name: `langgraph-${runId.substring(0, 8)}`,
+            startedAt: Date.now(),
+            metadata: { auto: true, framework: 'langgraph' },
+          });
+        } catch {
+          // ignore (race, already exists, etc.)
+        }
+      }
+    }
 
     const trace = {
       id: randomUUID(),
