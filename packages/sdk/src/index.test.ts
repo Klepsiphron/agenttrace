@@ -465,7 +465,7 @@ describe('export() otel format', () => {
 
     const otlp = JSON.parse(agent.export('otel'));
     const attrs = otlp.resourceSpans[0].scopeSpans[0].spans[0].attributes;
-    const get = (k: string) => attrs.find((a: any) => a.key === k)?.value;
+    const get = (k: string) => attrs.find((a: { key: string }) => a.key === k)?.value;
 
     expect(get('agenttrace.status')?.stringValue).toBe('success');
     expect(get('agenttrace.cost_usd')?.doubleValue).toBe(0.123);
@@ -489,7 +489,7 @@ describe('export() otel format', () => {
     mockStorage.getTraces.mockReturnValue([]);
     const otlp = JSON.parse(agent.export('otel'));
     expect(otlp.resourceSpans[0].resource.attributes.length).toBeGreaterThan(0);
-    const svc = otlp.resourceSpans[0].resource.attributes.find((a: any) => a.key === 'service.name');
+    const svc = otlp.resourceSpans[0].resource.attributes.find((a: { key: string }) => a.key === 'service.name');
     expect(svc.value.stringValue).toBe('agenttrace');
     expect(otlp.resourceSpans[0].scopeSpans[0].spans).toEqual([]);
     agent.close();
