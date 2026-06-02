@@ -1,37 +1,47 @@
 # AgentTrace Product Roadmap
 
-## v0.1.0 (Current) -- Foundation
+## v0.1.0 ✅ Foundation
 
 - [x] TypeScript SDK (trace, cost, SQLite storage)
+- [x] Python SDK (context manager + decorator, 23 tests)
+- [x] Full CLI (init, dashboard, runs, traces, stats, export, version)
 - [x] Express dashboard (dark theme, runs list, trace details, stats, export)
-- [x] CLI stub
-- [x] GitHub Actions CI
-- [x] OSS hygiene (CONTRIBUTING, SECURITY, CODE_OF_CONDUCT, CHANGELOG)
+- [x] OpenTelemetry export (OTLP JSON format)
+- [x] GitHub Actions CI (Node 20+22 matrix)
+- [x] OSS hygiene (CONTRIBUTING, SECURITY, CODE_OF_CONDUCT, CHANGELOG, dependabot)
 - [x] Examples (LangGraph, CrewAI, custom)
+- [x] Landing page (GitHub Pages)
+- [x] Comparison page (vs Langfuse/LangSmith)
+- [x] Branch protection + CODEOWNERS
+- [x] Publish pipeline (PyPI + npm on release tag)
 
-## v0.2.0 (Next) -- Usability
+## v0.2.0 🔄 In Progress -- Integration
 
-- [ ] **Python SDK** -- must-have, 70%+ of AI agent code is Python
-- [ ] **Full CLI** -- init, dashboard, runs, traces, stats, export commands
-- [ ] **OpenTelemetry export** -- industry standard, enables integration with existing tools
-- [ ] **Framework middleware** -- LangGraph callback handler, CrewAI integration
-- [ ] **npm publishing** -- `npm install @agenttrace/sdk` works
-- [ ] **PyPI publishing** -- `pip install agenttrace` works
+- [x] Full CLI -- init, dashboard, runs, traces, stats, export commands
+- [x] OpenTelemetry export -- industry standard, enables integration with existing tools
+- [x] Python SDK -- must-have, 70%+ of AI agent code is Python
+- [ ] Framework middleware -- LangGraph callback handler, CrewAI integration (GROK WORKING)
+- [ ] Documentation site -- proper docs with search, examples, API reference
+- [ ] README demo GIF -- visual proof for landing page
+- [ ] GitHub Sponsors -- enable sponsorship
+- [ ] npm publishing -- `npm install @agenttrace/sdk` works (needs NPM_TOKEN)
+- [ ] PyPI publishing -- `pip install agenttrace` works (needs PYPI_TOKEN)
 
-## v0.3.0 -- Growth
+## v0.3.0 📋 Planned -- Growth
 
-- [ ] **Landing page** -- simple static site with demo GIF, docs, install instructions
-- [ ] **Documentation site** -- proper docs with search, examples, API reference
-- [ ] **GitHub Sponsors** -- enable sponsorship
-- [ ] **Comparison page** -- "Why AgentTrace vs Langfuse/LangSmith" (honest, not FUD)
+- [ ] Evaluation framework -- basic trace evaluation (pass/fail/custom)
+- [ ] Alerting -- webhook notifications on failures
+- [ ] Multi-agent tracing -- trace across multiple agents
+- [ ] Cost budgets -- set spending limits, get alerts
+- [ ] User guide -- step-by-step tutorials for common use cases
 
-## v1.0.0 -- Monetization
+## v1.0.0 🎯 Monetization
 
-- [ ] **Hosted version** -- team dashboards, shared traces, cloud storage
-- [ ] **SSO/SAML** -- enterprise auth
-- [ ] **Audit logs** -- compliance feature
-- [ ] **Usage-based pricing** -- free tier (1K traces/mo), paid ($29/mo for 50K)
-- [ ] **Stripe integration** -- payment processing
+- [ ] Hosted version -- team dashboards, shared traces, cloud storage
+- [ ] SSO/SAML -- enterprise auth
+- [ ] Audit logs -- compliance feature
+- [ ] Usage-based pricing -- free tier (1K traces/mo), paid ($29/mo for 50K)
+- [ ] Stripe integration -- payment processing
 
 ## Positioning Statement
 
