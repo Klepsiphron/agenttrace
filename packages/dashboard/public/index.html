@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AgentTrace • Dashboard</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="topbar-inner">
+        <div class="brand">
+          <span class="logo">◉</span>
+          <div>
+            <h1>AgentTrace</h1>
+            <span class="subtitle">Local Observability</span>
+          </div>
+        </div>
+        <div class="top-actions">
+          <button id="refresh-btn" class="btn btn-secondary" title="Refresh data">⟳ Refresh</button>
+          <div class="export-group">
+            <button id="export-json-btn" class="btn btn-secondary">Export JSON</button>
+            <button id="export-csv-btn" class="btn btn-secondary">Export CSV</button>
+          </div>
+          <span class="version">v0.0.0</span>
+        </div>
+      </div>
+    </header>
+
+    <main class="container">
+      <!-- Summary Stats -->
+      <section class="stats-grid" id="stats">
+        <div class="stat-card">
+          <div class="stat-value" id="total-runs">0</div>
+          <div class="stat-label">Total Runs</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="success-rate">0%</div>
+          <div class="stat-label">Success Rate</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="avg-latency">0ms</div>
+          <div class="stat-label">Avg Latency</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="total-cost">$0.0000</div>
+          <div class="stat-label">Total Cost (USD)</div>
+        </div>
+      </section>
+
+      <!-- Filters -->
+      <section class="toolbar">
+        <div class="filter-group" id="filters" role="group" aria-label="Filter runs by status">
+          <button class="filter-btn active" data-status="all">All</button>
+          <button class="filter-btn" data-status="success">Success</button>
+          <button class="filter-btn" data-status="failure">Failure</button>
+          <button class="filter-btn" data-status="running">Running</button>
+        </div>
+        <div class="toolbar-spacer"></div>
+        <div class="status-hint">Auto-refreshes every 5s</div>
+      </section>
+
+      <!-- Runs -->
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Recent Agent Runs</h2>
+          <span id="runs-count" class="count-badge">0 runs</span>
+        </div>
+        <div id="runs-list" class="runs-list" aria-live="polite">
+          <!-- Populated by JS -->
+          <div class="empty">Loading runs…</div>
+        </div>
+      </section>
+
+      <!-- Traces for selected run -->
+      <section id="traces-section" class="panel" style="display: none">
+        <div class="panel-header">
+          <h2>Traces for <span id="selected-run-name" class="run-name"></span></h2>
+          <span id="traces-count" class="count-badge">0 traces</span>
+        </div>
+        <div id="traces-list" class="traces-list">
+          <!-- Populated by JS -->
+        </div>
+      </section>
+
+      <!-- Trace Details -->
+      <section id="details-section" class="panel" style="display: none">
+        <div class="panel-header">
+          <h2>Trace Details</h2>
+          <button id="close-details-btn" class="btn btn-ghost" aria-label="Close details">
+            ✕ Close
+          </button>
+        </div>
+        <div id="trace-details" class="trace-details">
+          <!-- Populated by JS: tokens, cost, latency, tool calls, input/output -->
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <span
+        >AgentTrace — data lives on disk •
+        <a href="https://github.com/your-org/agenttrace" target="_blank" rel="noopener"
+          >GitHub</a
+        ></span
+      >
+    </footer>
+
+    <script src="app.js"></script>
+  </body>
+</html>
