@@ -14,6 +14,8 @@ AI agents are black boxes. When one fails, you don't know which tool call broke,
 - **CLI** -- Query traces, stats, exports from the terminal
 - **Local dashboard** -- Dark-themed web UI for debugging runs
 - **TypeScript + Python** -- SDKs for both ecosystems
+- **Framework middleware** -- LangGraph and CrewAI integrations
+- **OpenTelemetry export** -- OTLP JSON for integration with existing tools
 - **Framework agnostic** -- Works with LangGraph, CrewAI, AutoGen, or custom agents
 
 ## Quickstart
@@ -49,47 +51,43 @@ result = agent.trace("my-op", lambda: call_llm(input))
 ### CLI
 
 ```bash
-npx agenttrace init           # Create database
-npx agenttrace runs           # List recent runs
-npx agenttrace stats          # Show statistics
-npx agenttrace export --format json --output traces.json
-npx agenttrace dashboard      # Start local dashboard
+npx agenttrace init                              # Create database
+npx agenttrace runs --limit 10 --status success  # List recent runs
+npx agenttrace stats                             # Show statistics
+npx agenttrace export --format json              # Export traces
+npx agenttrace dashboard                         # Start local dashboard
+npx agenttrace version                           # Show version
 ```
 
 ## Packages
 
-| Package                 | Description         |
-| ----------------------- | ------------------- |
-| `@agenttrace/sdk`       | TypeScript SDK      |
-| `@agenttrace/dashboard` | Local web dashboard |
-| `@agenttrace/cli`       | CLI tool            |
-| `agenttrace` (PyPI)     | Python SDK          |
+| Package                            | Registry | Description           |
+| ---------------------------------- | -------- | --------------------- |
+| `@agenttrace/sdk`                  | npm      | TypeScript SDK        |
+| `agenttrace`                       | PyPI     | Python SDK            |
+| `@agenttrace/dashboard`            | npm      | Local web dashboard   |
+| `@agenttrace/cli`                  | npm      | CLI tool              |
+| `@agenttrace/middleware-langgraph` | npm      | LangGraph integration |
+| `agenttrace-middleware-crewai`     | PyPI     | CrewAI integration    |
 
-## Architecture
+## Why AgentTrace?
 
-```
-┌─────────────────────────────────────────────────┐
-│                   Your Agent                     │
-│  const result = await trace('name', async () => {│
-│    // agent logic                                │
-│  });                                             │
-└───────────────────┬─────────────────────────────┘
-                    │
-                    ▼
-┌─────────────────────────────────────────────────┐
-│              AgentTrace SDK                      │
-│  - Collects traces, tool calls, token usage      │
-│  - Calculates cost                                │
-│  - Stores in SQLite                               │
-└───────────────────┬─────────────────────────────┘
-                    │
-        ┌──────────┴──────────┐
-        ▼                     ▼
-┌──────────────┐    ┌──────────────────────┐
-│  CLI         │    │  Dashboard (local)    │
-│  runs, stats │    │  traces, costs, tests │
-└──────────────┘    └──────────────────────┘
-```
+|                            | AgentTrace  |    Langfuse     |    LangSmith    |
+| -------------------------- | :---------: | :-------------: | :-------------: |
+| **Local-first (no cloud)** |     ✅      | ❌ (Docker/K8s) | ❌ (cloud only) |
+| **Open source**            |     MIT     |       MIT       |     Closed      |
+| **CLI**                    |     ✅      |       ❌        |       ❌        |
+| **Framework lock-in**      |    None     |      None       | LangGraph only  |
+| **Setup**                  | npm install | Docker compose  |     Sign up     |
+| **Data leaves machine**    |    Never    |  Cloud option   |     Always      |
+
+**Choose AgentTrace** when you need privacy, simplicity, and zero-config observability. No accounts, no cloud, no telemetry.
+
+## Documentation
+
+- [Full documentation](https://klepsiphron.github.io/agenttrace/)
+- [API reference](https://klepsiphron.github.io/agenttrace/api.html)
+- [Installation guide](https://klepsiphron.github.io/agenttrace/install.html)
 
 ## Examples
 
