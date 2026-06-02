@@ -11,41 +11,59 @@ AI agents are black boxes. When one fails, you don't know which tool call broke,
 - **Drop-in SDK** -- Wrap any async function with `trace()` in one line
 - **Cost tracking** -- Automatic cost calculation for 6+ LLM models
 - **SQLite storage** -- All traces local, no cloud, no telemetry
+- **CLI** -- Query traces, stats, exports from the terminal
 - **Local dashboard** -- Dark-themed web UI for debugging runs
-- **CLI tool** -- Query, export, and analyze traces from the terminal
+- **TypeScript + Python** -- SDKs for both ecosystems
 - **Framework agnostic** -- Works with LangGraph, CrewAI, AutoGen, or custom agents
 
 ## Quickstart
 
+### TypeScript
+
 ```bash
 npm install @agenttrace/sdk
-npx agenttrace init
 ```
 
 ```typescript
 import { init, trace } from '@agenttrace/sdk';
 
 const agent = init();
-
-async function myAgent(input: string) {
-  return await trace('my-agent', async () => {
-    const result = await callLLM(input);
-    return result;
-  });
-}
+const result = await trace('my-agent', async () => {
+  return await callLLM(input);
+});
 ```
 
+### Python
+
 ```bash
-npx agenttrace dashboard  # Open http://localhost:3000
+pip install agenttrace
+```
+
+```python
+from agenttrace import init, trace
+
+agent = init()
+result = agent.trace("my-op", lambda: call_llm(input))
+```
+
+### CLI
+
+```bash
+npx agenttrace init           # Create database
+npx agenttrace runs           # List recent runs
+npx agenttrace stats          # Show statistics
+npx agenttrace export --format json --output traces.json
+npx agenttrace dashboard      # Start local dashboard
 ```
 
 ## Packages
 
 | Package | Description |
 |---------|-------------|
-| `@agenttrace/sdk` | Core tracing SDK |
+| `@agenttrace/sdk` | TypeScript SDK |
 | `@agenttrace/dashboard` | Local web dashboard |
-| `@agenttrace/cli` | CLI for querying traces |
+| `@agenttrace/cli` | CLI tool |
+| `agenttrace` (PyPI) | Python SDK |
 
 ## Architecture
 
@@ -59,27 +77,18 @@ npx agenttrace dashboard  # Open http://localhost:3000
                     │
                     ▼
 ┌─────────────────────────────────────────────────┐
-│              @agenttrace/sdk                     │
+│              AgentTrace SDK                      │
 │  - Collects traces, tool calls, token usage      │
 │  - Calculates cost                                │
 │  - Stores in SQLite                               │
 └───────────────────┬─────────────────────────────┘
                     │
-                    ▼
-┌─────────────────────────────────────────────────┐
-│           SQLite Database (local)                │
-│  - runs, traces, tool_calls tables               │
-│  - Full query support                             │
-└───────────────────┬─────────────────────────────┘
-                    │
-                    ▼
-┌─────────────────────────────────────────────────┐
-│           Dashboard (localhost:3000)              │
-│  - Recent runs list                               │
-│  - Trace detail view                              │
-│  - Cost/success/latency stats                     │
-│  - Export to JSON/CSV                             │
-└─────────────────────────────────────────────────┘
+        ┌──────────┴──────────┐
+        ▼                     ▼
+┌──────────────┐    ┌──────────────────────┐
+│  CLI         │    │  Dashboard (local)    │
+│  runs, stats │    │  traces, costs, tests │
+└──────────────┘    └──────────────────────┘
 ```
 
 ## Examples
