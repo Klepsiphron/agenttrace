@@ -147,12 +147,19 @@ describe('CLI commands (comprehensive)', () => {
     if (tmpDb) rmrf(tmpDb);
   });
 
-  function runCmd(args: string[]) {
+  async function runCmd(args: string[]) {
     process.argv = ['node', 'agenttrace-io', ...args];
     try {
-      main();
+      const res = main();
+      if (res && typeof (res as any).then === 'function') {
+        await (res as Promise<void>).catch((e: unknown) => {
+          const msg = String((e as { message?: string }).message || e);
+          if (!msg.includes('process.exit')) throw e;
+        });
+      }
     } catch (e: unknown) {
-      if (!String((e as { message?: string }).message).includes('process.exit')) throw e;
+      const msg = String((e as { message?: string }).message || e);
+      if (!msg.includes('process.exit')) throw e;
     }
   }
 
@@ -241,7 +248,7 @@ describe('CLI commands (comprehensive)', () => {
 
     it('--status filters by status', async () => {
       await seedData(tmpDb);
-      runCmd(['runs', '--status', 'completed']);
+      runCmd(['runs', '--status', 'success']);
       const o = out();
       expect(o).toContain('test-run');
     });
@@ -288,7 +295,7 @@ describe('CLI commands (comprehensive)', () => {
 
     it('--status filters traces', async () => {
       await seedData(tmpDb);
-      runCmd(['traces', '--status', 'error']);
+      await runCmd(['traces', '--status', 'error']);
       const o = out();
       expect(o).toContain('trace-2');
     });

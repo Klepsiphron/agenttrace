@@ -16,6 +16,14 @@
       "import": "./dist/benchmark.js"
     }
   },
+  "peerDependencies": {
+    "better-sqlite3": "^11.0.0"
+  },
+  "peerDependenciesMeta": {
+    "better-sqlite3": {
+      "optional": false
+    }
+  },
   "files": [
     "dist"
   ],
@@ -23,5 +31,8 @@
     "build": "tsc -p tsconfig.json",
     "dev": "tsc -p tsconfig.json --watch",
     "test": "vitest run --config ../../vitest.config.ts packages/sdk"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.11"
   }
 }
