@@ -4,7 +4,8 @@
  */
 
 import { describe, expect, it, beforeEach, afterEach } from 'vitest';
-import { AgentTrace } from './index';
+import { AgentTrace, score } from './index';
+import { TraceStorage } from './storage';
 import { randomUUID } from 'node:crypto';
 import { unlinkSync } from 'node:fs';
 
@@ -137,5 +138,48 @@ describe('AgentTrace Integration', () => {
     const failedTraces = agenttrace.getTraces({ status: ['error'] });
     expect(failedTraces.length).toBe(1);
     expect(failedTraces[0].status).toBe('error');
+  });
+
+  it('should support evaluate and store scores in SQLite (retrievable via storage)', async () => {
+    const runId = agenttrace.startRun('eval-run');
+
+    await agenttrace.trace('eval-op-1', async () => 'short', {
+      tokens: { promptTokens: 10, completionTokens: 5, totalTokens: 15 },
+    });
+    await agenttrace.trace('eval-op-2', async () => 'much longer output here', {
+      tokens: { promptTokens: 20, completionTokens: 10, totalTokens: 30 },
+    });
+
+    const traces = agenttrace.getTraces({ runId });
+    expect(traces.length).toBe(2);
+
+    const lenScorer = score('output-len', (trace) => {
+      const out = trace.output ? String(trace.output).length : 0;
+      return Math.min(out / 10, 1);
+    });
+
+    const results = await agenttrace.evaluate({ scorers: [lenScorer], runId });
+    expect(results.length).toBe(2);
+    expect(results[0].scores['output-len']).toBeGreaterThan(0);
+    expect(results[0].errors).toEqual({});
+    expect(results[1].scores['output-len']).toBeGreaterThan(0);
+
+    // Verify stored in SQLite via direct storage
+    const storage = new TraceStorage(testDb);
+    try {
+      const allScores = storage.getScores();
+      const t1Scores = storage.getScores(traces[0].id);
+      expect(allScores.length).toBeGreaterThanOrEqual(2);
+      expect(t1Scores.length).toBe(1);
+      expect(t1Scores[0].name).toBe('output-len');
+      expect(typeof t1Scores[0].value).toBe('number');
+    } finally {
+      storage.close();
+    }
+
+    // also test evaluateTrace
+    const single = await agenttrace.evaluateTrace(traces[0].id, [lenScorer]);
+    expect(single.traceId).toBe(traces[0].id);
+    expect(single.scores['output-len']).toBeDefined();
   });
 });

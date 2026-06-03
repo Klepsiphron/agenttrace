@@ -124,3 +124,24 @@ export interface DashboardConfig {
   openBrowser?: boolean;
   dbPath?: string;
 }
+
+/** Scorer function that evaluates a trace and returns a numeric score */
+export interface Scorer {
+  name: string;
+  fn: (trace: Trace) => number | Promise<number>;
+}
+
+/** Result of running scorers against a trace */
+export interface ScorerResult {
+  traceId: string;
+  scores: Record<string, number>;
+  errors: Record<string, string>;
+}
+
+/** Options for running evaluations */
+export interface EvaluateOptions {
+  scorers: Scorer[];
+  runId?: string;
+  traceIds?: string[];
+  concurrency?: number;
+}

@@ -79,6 +79,17 @@ export class TraceStorage {
       CREATE INDEX IF NOT EXISTS idx_tool_calls_trace_id ON tool_calls(trace_id);
       CREATE INDEX IF NOT EXISTS idx_tool_calls_name ON tool_calls(name);
 
+      CREATE TABLE IF NOT EXISTS scores (
+        id TEXT PRIMARY KEY,
+        trace_id TEXT NOT NULL REFERENCES traces(id),
+        name TEXT NOT NULL,
+        value REAL NOT NULL,
+        created_at INTEGER NOT NULL
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_scores_trace_id ON scores(trace_id);
+      CREATE INDEX IF NOT EXISTS idx_scores_name ON scores(name);
+
       CREATE TABLE IF NOT EXISTS version (
         key TEXT PRIMARY KEY,
         value TEXT NOT NULL
@@ -291,6 +302,40 @@ export class TraceStorage {
 
     const rows = this.db.prepare(sql).all(...params) as any[];
     return rows.map((r) => this.rowToTrace(r));
+  }
+
+  // ---- Score operations (for evaluation framework) ----
+
+  createScore(id: string, traceId: string, name: string, value: number): void {
+    const now = Date.now();
+    this.db
+      .prepare(
+        `
+      INSERT INTO scores (id, trace_id, name, value, created_at)
+      VALUES (?, ?, ?, ?, ?)
+    `,
+      )
+      .run(id, traceId, name, value, now);
+  }
+
+  getScores(
+    traceId?: string,
+  ): Array<{ id: string; traceId: string; name: string; value: number; createdAt: number }> {
+    let sql = 'SELECT * FROM scores';
+    const params: any[] = [];
+    if (traceId) {
+      sql += ' WHERE trace_id = ?';
+      params.push(traceId);
+    }
+    sql += ' ORDER BY created_at DESC';
+    const rows = this.db.prepare(sql).all(...params) as any[];
+    return rows.map((r: any) => ({
+      id: r.id,
+      traceId: r.trace_id,
+      name: r.name,
+      value: r.value,
+      createdAt: r.created_at,
+    }));
   }
 
   // ---- Stats ----

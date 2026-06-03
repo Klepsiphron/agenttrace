@@ -15,6 +15,9 @@ import {
   TokenUsage,
   ToolCall,
   ExportFormat,
+  Scorer,
+  ScorerResult,
+  EvaluateOptions,
 } from './types.js';
 
 export const VERSION = '0.1.0';
@@ -32,6 +35,9 @@ export type {
   DashboardConfig,
   AgentFramework,
   FrameworkIntegration,
+  Scorer,
+  ScorerResult,
+  EvaluateOptions,
 } from './types.js';
 
 export { TraceStorage } from './storage.js';
@@ -363,6 +369,86 @@ export class AgentTrace {
   close(): void {
     this.storage.close();
   }
+
+  /**
+   * Evaluate traces using the provided scorers.
+   * If traceIds provided, scores only those; if runId, scores traces in that run; otherwise all traces.
+   */
+  async evaluate(options: EvaluateOptions): Promise<ScorerResult[]> {
+    const { scorers, runId, traceIds, concurrency } = options;
+    if (!scorers || scorers.length === 0) {
+      return [];
+    }
+
+    let traces: Trace[];
+    if (traceIds && traceIds.length > 0) {
+      traces = traceIds.map((id) => this.getTrace(id)).filter((t): t is Trace => t != null);
+    } else if (runId) {
+      traces = this.getTraces({ runId });
+    } else {
+      traces = this.getTraces();
+    }
+
+    return this.scoreLoop(traces, scorers, concurrency);
+  }
+
+  /**
+   * Score a single trace by id.
+   */
+  async evaluateTrace(traceId: string, scorers: Scorer[]): Promise<ScorerResult> {
+    const trace = this.getTrace(traceId);
+    if (!trace) {
+      return { traceId, scores: {}, errors: {} };
+    }
+    return this.scoreTrace(trace, scorers);
+  }
+
+  /**
+   * Internal helper to iterate traces with limited concurrency, run scorers, store scores.
+   */
+  private async scoreLoop(
+    traces: Trace[],
+    scorers: Scorer[],
+    concurrency?: number,
+  ): Promise<ScorerResult[]> {
+    if (traces.length === 0) return [];
+    const limit = Math.max(1, concurrency ?? 5);
+    const results: ScorerResult[] = [];
+    for (let i = 0; i < traces.length; i += limit) {
+      const chunk = traces.slice(i, i + limit);
+      const chunkResults = await Promise.all(chunk.map((t) => this.scoreTrace(t, scorers)));
+      results.push(...chunkResults);
+    }
+    return results;
+  }
+
+  /**
+   * Internal: run all scorers on one trace (in parallel), catch errors, store successful scores.
+   */
+  private async scoreTrace(trace: Trace, scorers: Scorer[]): Promise<ScorerResult> {
+    const traceId = trace.id;
+    const scores: Record<string, number> = {};
+    const errors: Record<string, string> = {};
+
+    await Promise.all(
+      scorers.map(async (scorer) => {
+        try {
+          const val = await Promise.resolve(scorer.fn(trace));
+          if (typeof val === 'number' && Number.isFinite(val)) {
+            scores[scorer.name] = val;
+            const id = randomUUID();
+            this.storage.createScore(id, traceId, scorer.name, val);
+          } else {
+            errors[scorer.name] = `Invalid score returned: ${val}`;
+          }
+        } catch (e: any) {
+          errors[scorer.name] = e instanceof Error ? e.message : String(e);
+        }
+      }),
+    );
+
+    return { traceId, scores, errors };
+  }
 }
 
 // Singleton for convenience
@@ -378,4 +464,11 @@ export function getAgentTrace(): AgentTrace {
     instance = new AgentTrace();
   }
   return instance;
+}
+
+/**
+ * Helper to create a Scorer from name + function.
+ */
+export function score(name: string, fn: Scorer['fn']): Scorer {
+  return { name, fn };
 }

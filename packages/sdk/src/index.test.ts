@@ -1,5 +1,10 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import type { Trace, TraceStats, Run, TokenUsage } from './types.js';
+import type {
+  Trace,
+  TraceStats,
+  Run,
+  TokenUsage,
+} from './types.js';
 
 const { mockStorage, MockTraceStorage } = vi.hoisted(() => {
   const mockStorage = {
@@ -25,6 +30,8 @@ const { mockStorage, MockTraceStorage } = vi.hoisted(() => {
     ),
     cleanup: vi.fn(() => 0),
     close: vi.fn(),
+    createScore: vi.fn(),
+    getScores: vi.fn(() => []),
   };
 
   return {
@@ -39,7 +46,7 @@ vi.mock('./storage.js', () => ({
   TraceStorage: MockTraceStorage,
 }));
 
-import { AgentTrace, init, PACKAGE_NAME, VERSION } from './index.js';
+import { AgentTrace, init, PACKAGE_NAME, VERSION, score } from './index.js';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -514,6 +521,137 @@ describe('export() otel format', () => {
     // length checks
     expect(span.traceId.length).toBe(32);
     expect(span.spanId.length).toBe(16);
+    agent.close();
+  });
+});
+
+describe('score()', () => {
+  it('creates a Scorer with name and fn', () => {
+    const s = score('my-score', (t: Trace) => t.latencyMs / 1000);
+    expect(s.name).toBe('my-score');
+    expect(typeof s.fn).toBe('function');
+    const trace = makeTrace({ latencyMs: 500 });
+    expect(s.fn(trace)).toBe(0.5);
+  });
+});
+
+describe('evaluate() and evaluateTrace()', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockStorage.getTraces.mockReturnValue([]);
+    mockStorage.getTrace.mockReturnValue(null);
+    mockStorage.createScore.mockClear();
+    mockStorage.getScores.mockReturnValue([]);
+  });
+
+  it('evaluate() runs scorers against traces and returns results', async () => {
+    const agent = new AgentTrace({ silent: true });
+    const traces = [
+      makeTrace({ id: 't1', output: 'hello' }),
+      makeTrace({ id: 't2', output: 'world!!' }),
+    ];
+    mockStorage.getTraces.mockReturnValue(traces);
+    mockStorage.getTrace.mockImplementation((id: string) => traces.find((t) => t.id === id) || null);
+
+    const lenScorer: Scorer = {
+      name: 'len',
+      fn: (t: Trace) => (t.output ? String(t.output).length : 0),
+    };
+    const results = await agent.evaluate({ scorers: [lenScorer] });
+
+    expect(results).toHaveLength(2);
+    expect(results[0]).toEqual({ traceId: 't1', scores: { len: 5 }, errors: {} });
+    expect(results[1]).toEqual({ traceId: 't2', scores: { len: 7 }, errors: {} });
+    expect(mockStorage.createScore).toHaveBeenCalledTimes(2);
+    agent.close();
+  });
+
+  it('evaluate() supports runId and traceIds filters', async () => {
+    const agent = new AgentTrace({ silent: true });
+    const all = [makeTrace({ id: 'a', runId: 'r1' }), makeTrace({ id: 'b', runId: 'r2' })];
+    mockStorage.getTraces.mockReturnValue([all[0]]);
+    mockStorage.getTrace.mockImplementation((id) => all.find((t) => t.id === id) || null);
+
+    const s: Scorer = { name: 's', fn: () => 1 };
+
+    const byRun = await agent.evaluate({ scorers: [s], runId: 'r1' });
+    expect(byRun).toHaveLength(1);
+    expect(mockStorage.getTraces).toHaveBeenCalledWith({ runId: 'r1' });
+
+    mockStorage.getTraces.mockClear();
+    const byIds = await agent.evaluate({ scorers: [s], traceIds: ['b'] });
+    expect(byIds).toHaveLength(1);
+    expect(byIds[0].traceId).toBe('b');
+    agent.close();
+  });
+
+  it('evaluateTrace() scores a single trace', async () => {
+    const agent = new AgentTrace({ silent: true });
+    const t = makeTrace({ id: 'single', latencyMs: 123 });
+    mockStorage.getTrace.mockReturnValue(t);
+
+    const latScorer: Scorer = { name: 'lat', fn: (tr: Trace) => tr.latencyMs };
+    const res = await agent.evaluateTrace('single', [latScorer]);
+
+    expect(res).toEqual({ traceId: 'single', scores: { lat: 123 }, errors: {} });
+    expect(mockStorage.createScore).toHaveBeenCalledWith(expect.any(String), 'single', 'lat', 123);
+    agent.close();
+  });
+
+  it('Scorer errors are caught and reported in errors field', async () => {
+    const agent = new AgentTrace({ silent: true });
+    const t = makeTrace({ id: 'errt' });
+    mockStorage.getTrace.mockReturnValue(t);
+
+    const bad: Scorer = {
+      name: 'bad',
+      fn: () => {
+        throw new Error('scorer boom');
+      },
+    };
+    const ok: Scorer = { name: 'ok', fn: () => 0.9 };
+
+    const res = await agent.evaluateTrace('errt', [bad, ok]);
+
+    expect(res.scores).toEqual({ ok: 0.9 });
+    expect(res.errors.bad).toBe('scorer boom');
+    // only the ok one stored
+    expect(mockStorage.createScore).toHaveBeenCalledTimes(1);
+    agent.close();
+  });
+
+  it('Scores are stored in SQLite and retrievable', async () => {
+    const agent = new AgentTrace({ silent: true });
+    const t = makeTrace({ id: 'storet' });
+    mockStorage.getTrace.mockReturnValue(t);
+    mockStorage.getScores.mockReturnValue([
+      { id: 'sc1', traceId: 'storet', name: 'testsc', value: 0.42, createdAt: Date.now() },
+    ]);
+
+    const sc: Scorer = { name: 'testsc', fn: () => 0.42 };
+    await agent.evaluateTrace('storet', [sc]);
+
+    expect(mockStorage.createScore).toHaveBeenCalledWith(expect.any(String), 'storet', 'testsc', 0.42);
+
+    const retrieved = mockStorage.getScores('storet');
+    expect(retrieved).toHaveLength(1);
+    expect(retrieved[0].name).toBe('testsc');
+    expect(retrieved[0].value).toBe(0.42);
+    agent.close();
+  });
+
+  it('evaluate respects concurrency option (processes in batches)', async () => {
+    const agent = new AgentTrace({ silent: true });
+    const traces = Array.from({ length: 5 }, (_, i) => makeTrace({ id: `c${i}` }));
+    mockStorage.getTraces.mockReturnValue(traces);
+    mockStorage.getTrace.mockImplementation((id: string) => traces.find((tr) => tr.id === id) || null);
+
+    const s: Scorer = { name: 'c', fn: (tr: Trace) => tr.id.length };
+    const results = await agent.evaluate({ scorers: [s], concurrency: 2 });
+
+    expect(results).toHaveLength(5);
+    // called 5 times (once per trace)
+    expect(mockStorage.createScore).toHaveBeenCalledTimes(5);
     agent.close();
   });
 });
