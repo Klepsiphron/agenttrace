@@ -6,6 +6,7 @@
 import { randomUUID, createHash } from 'node:crypto';
 import { EventEmitter } from 'node:events';
 import { TraceStorage } from './storage.js';
+import { TokenBucketRateLimiter } from './rate-limiter.js';
 import {
   Trace,
   Run,
@@ -229,6 +230,7 @@ export class AgentTrace {
   private registeredAlerts: AlertCondition[] = [];
   private usageEmitter = new EventEmitter();
   private _cleanupInterval?: NodeJS.Timeout | ReturnType<typeof setInterval>;
+  private rateLimiter: TokenBucketRateLimiter | null = null;
 
   constructor(config: TraceConfig = {}) {
     const dbPath = config.dbPath || './agenttrace.db';
@@ -249,6 +251,16 @@ export class AgentTrace {
       maxTracesPerMinute: config.maxTracesPerMinute ?? 0,
       burstAllowance: config.burstAllowance ?? 10,
     };
+
+    // Initialize rate limiter if any rate limit is configured
+    if (this.config.maxTracesPerSecond > 0 || this.config.maxTracesPerMinute > 0) {
+      this.rateLimiter = new TokenBucketRateLimiter({
+        maxTracesPerSecond: this.config.maxTracesPerSecond,
+        maxTracesPerMinute: this.config.maxTracesPerMinute,
+        burstAllowance: this.config.burstAllowance,
+      });
+    }
+
     this.setupRetentionCleanup();
   }
 

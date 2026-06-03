@@ -50,22 +50,12 @@ export class TokenBucketRateLimiter {
   tryConsume(): boolean {
     this.refill();
 
-    // If per-second limit is disabled (maxTracesPerSecond=0), skip that check
-    const secondOk =
-      this.secondBucket.maxTokens === this.secondBucket.tokens + (this.secondBucket.maxTokens - this.secondBucket.tokens) &&
-      this.secondBucket.refillRatePerMs === 0
-        ? true
-        : this.secondBucket.tokens >= 1;
-
-    // If per-minute limit is disabled (maxTracesPerMinute=0), skip that check
-    const minuteOk =
-      this.minuteBucket.refillRatePerMs === 0
-        ? true
-        : this.minuteBucket.tokens >= 1;
+    const secondOk = this.secondBucket.refillRatePerMs === 0 || this.secondBucket.tokens >= 1;
+    const minuteOk = this.minuteBucket.refillRatePerMs === 0 || this.minuteBucket.tokens >= 1;
 
     if (secondOk && minuteOk) {
-      this.secondBucket.tokens -= 1;
-      this.minuteBucket.tokens -= 1;
+      if (this.secondBucket.refillRatePerMs > 0) this.secondBucket.tokens -= 1;
+      if (this.minuteBucket.refillRatePerMs > 0) this.minuteBucket.tokens -= 1;
       return true;
     }
 
