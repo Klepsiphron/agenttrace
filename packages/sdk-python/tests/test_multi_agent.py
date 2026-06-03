@@ -223,7 +223,7 @@ def test_trace_context_in_export():
     try:
         p = agent.trace("p", lambda: "p", tokens=TokenUsage())
         # get the trace id via query since trace returns result not id
-        traces = agent.get_traces(limit=1)
+        traces = agent.get_traces({"limit": 1})
         p_tr = traces[0]
         c_ctx = agent.create_child(TraceContext(p_tr.id))
         agent.trace("c", lambda: "c", context=c_ctx, tokens=TokenUsage())
