@@ -3,7 +3,7 @@
  * Drop-in tracing for any AI agent
  */
 
-import { randomUUID, createHash } from 'node:crypto';
+import { randomUUID, createHash, createHmac } from 'node:crypto';
 import { EventEmitter } from 'node:events';
 import { TraceStorage } from './storage.js';
 import { TokenBucketRateLimiter } from './rate-limiter.js';
@@ -1012,10 +1012,52 @@ export class AgentTrace {
 
     if (alert.webhook) {
       try {
+        const url = new URL(alert.webhook);
+        const host = url.hostname;
+        const bareHost = host.replace(/^\[|\]$/g, '');
+        const isLoopback =
+          host === 'localhost' ||
+          bareHost === 'localhost' ||
+          bareHost === '127.0.0.1' ||
+          host.startsWith('127.') ||
+          bareHost === '::1';
+        if (url.protocol !== 'https:' && !isLoopback) {
+          throw new Error('webhook must use HTTPS');
+        }
+        let is172Private = false;
+        if (bareHost.startsWith('172.')) {
+          const second = parseInt(bareHost.split('.')[1] || '0', 10);
+          is172Private = second >= 16 && second <= 31;
+        }
+        const isPrivate =
+          bareHost.startsWith('10.') ||
+          bareHost.startsWith('192.168.') ||
+          bareHost.startsWith('169.254.') ||
+          is172Private ||
+          bareHost.startsWith('fc00:') ||
+          bareHost.startsWith('fe80:');
+        if (isPrivate) {
+          throw new Error('webhook URL resolves to private IP');
+        }
+
+        const webhooks = this.storage.getWebhooks ? this.storage.getWebhooks() : [];
+        const wh = webhooks.find((w: { url?: string; secret?: string }) => w.url === alert.webhook);
+        const secret = wh?.secret;
+
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+          'User-Agent': `AgentTrace/${VERSION}`,
+        };
+        if (secret) {
+          const sig = createHmac('sha256', secret).update(JSON.stringify(payload)).digest('hex');
+          headers['X-AgentTrace-Signature'] = `sha256=${sig}`;
+        }
+
         const resp = await fetch(alert.webhook, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'User-Agent': 'AgentTrace/0.2' },
+          headers,
           body: JSON.stringify(payload),
+          signal: AbortSignal.timeout(10000),
         });
         delivered = resp.ok;
         if (!resp.ok) {

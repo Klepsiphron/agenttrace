@@ -16,6 +16,14 @@ updates:
           - 'typescript-eslint'
           - '@typescript-eslint/*'
           - 'eslint-config-prettier'
+  - package-ecosystem: 'pip'
+    directory: '/packages/sdk-python'
+    schedule:
+      interval: 'weekly'
+    open-pull-requests-limit: 5
+    labels:
+      - 'dependencies'
+      - 'python'
   - package-ecosystem: 'github-actions'
     directory: '/'
     schedule:

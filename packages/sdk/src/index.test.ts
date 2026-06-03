@@ -31,6 +31,11 @@ const { mockStorage, MockTraceStorage } = vi.hoisted(() => {
     setRetentionPolicy: vi.fn(),
     getSetting: vi.fn(),
     setSetting: vi.fn(),
+    getWebhooks: vi.fn(() => []),
+    getStoredAlerts: vi.fn(() => []),
+    saveAlert: vi.fn(),
+    insertAlertHistory: vi.fn(),
+    getAlertHistory: vi.fn(() => []),
   };
 
   return {
