@@ -245,6 +245,9 @@ export class AgentTrace {
       cleanupIntervalHours:
         config.cleanupIntervalHours !== undefined ? config.cleanupIntervalHours : persisted.cleanupIntervalHours,
       tenantId: config.tenantId ?? '',
+      maxTracesPerSecond: config.maxTracesPerSecond ?? 0,
+      maxTracesPerMinute: config.maxTracesPerMinute ?? 0,
+      burstAllowance: config.burstAllowance ?? 10,
     };
     this.setupRetentionCleanup();
   }

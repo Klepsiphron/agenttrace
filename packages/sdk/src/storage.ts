@@ -28,6 +28,7 @@ import {
 export class TraceStorage {
   private db: Database;
   private dbPath: string;
+  private _droppedTraces: number = 0;
 
   constructor(dbPath: string = './agenttrace.db') {
     this.dbPath = dbPath;
@@ -1142,6 +1143,7 @@ export class TraceStorage {
       avgTokensPerTrace: totalTraces.c > 0 ? totalTokens.v / totalTraces.c : 0,
       topTools: topToolsMapped,
       topErrors: topErrorsMapped,
+      droppedTraces: this._droppedTraces || 0,
     };
   }
 
