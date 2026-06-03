@@ -322,7 +322,9 @@ async function runMain(): Promise<void> {
               .split(',')
               .map((s) => s.trim())
               .filter(Boolean);
-            return allowed.length ? allRuns.filter((r) => allowed.includes(r.status)) : allRuns;
+            return allowed.length
+              ? allRuns.filter((r: Run) => allowed.includes(r.status))
+              : allRuns;
           })()
         : allRuns;
 
