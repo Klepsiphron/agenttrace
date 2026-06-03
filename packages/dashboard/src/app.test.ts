@@ -43,12 +43,12 @@ describe('AgentTrace Dashboard Frontend (app.js)', () => {
 
   beforeEach(() => {
     // Save originals
-    const g = global as unknown as Record<string, unknown>;
-    originalWindow = g.window;
-    originalDocument = g.document;
-    originalFetch = g.fetch;
-    originalSetInterval = g.setInterval;
-    originalClearInterval = g.clearInterval;
+    const globalShim = global as unknown as Record<string, unknown>;
+    originalWindow = globalShim.window;
+    originalDocument = globalShim.document;
+    originalFetch = globalShim.fetch;
+    originalSetInterval = globalShim.setInterval;
+    originalClearInterval = globalShim.clearInterval;
 
     // Setup JSDOM with minimal dashboard skeleton (matches what index.html provides)
     dom = new JSDOM(
@@ -90,17 +90,17 @@ describe('AgentTrace Dashboard Frontend (app.js)', () => {
       },
     );
 
-    const g2 = global as unknown as Record<string, unknown> & { window?: unknown; document?: unknown };
-    g2.window = dom.window;
-    g2.document = dom.window.document;
-    g2.HTMLElement = dom.window.HTMLElement;
-    g2.Event = dom.window.Event;
-    g2.MouseEvent = dom.window.MouseEvent;
+    const globalDom = global as unknown as Record<string, unknown> & { window?: unknown; document?: unknown };
+    globalDom.window = dom.window;
+    globalDom.document = dom.window.document;
+    globalDom.HTMLElement = dom.window.HTMLElement;
+    globalDom.Event = dom.window.Event;
+    globalDom.MouseEvent = dom.window.MouseEvent;
 
     // Mock fetch - must be on the JSDOM window (code runs via eval in that context)
     fetchMock = vi.fn();
     dom.window.fetch = fetchMock as unknown as typeof fetch;
-    g2.fetch = fetchMock;
+    globalDom.fetch = fetchMock;
 
     // Mock timers / intervals for auto-refresh - install on window too
     intervalId = null;
@@ -113,8 +113,8 @@ describe('AgentTrace Dashboard Frontend (app.js)', () => {
     });
     dom.window.setInterval = setIntMock as unknown as typeof setInterval;
     dom.window.clearInterval = clearIntMock as unknown as typeof clearInterval;
-    g.setInterval = setIntMock;
-    g.clearInterval = clearIntMock;
+    globalDom.setInterval = setIntMock;
+    globalDom.clearInterval = clearIntMock;
 
     // JSDOM does not implement alert by default (export error path uses it)
     (dom.window as Record<string, unknown>).alert = vi.fn();
@@ -142,25 +142,25 @@ describe('AgentTrace Dashboard Frontend (app.js)', () => {
       createObjectURL: vi.fn(() => 'blob:mock-url'),
       revokeObjectURL: vi.fn(),
     };
-    g.Blob = MockBlob;
-    g.URL = mockURL;
+    globalDom.Blob = MockBlob;
+    globalDom.URL = mockURL;
     dom.window.Blob = MockBlob as unknown as typeof Blob;
     dom.window.URL = mockURL as unknown as typeof URL;
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
-    const g = global as unknown as Record<string, unknown>;
-    g.window = originalWindow;
-    g.document = originalDocument;
-    g.fetch = originalFetch;
-    g.setInterval = originalSetInterval;
-    g.clearInterval = originalClearInterval;
-    delete g.Blob;
-    delete g.URL;
-    delete g.HTMLElement;
-    delete g.Event;
-    delete g.MouseEvent;
+    const globalShim = global as unknown as Record<string, unknown>;
+    globalShim.window = originalWindow;
+    globalShim.document = originalDocument;
+    globalShim.fetch = originalFetch;
+    globalShim.setInterval = originalSetInterval;
+    globalShim.clearInterval = originalClearInterval;
+    delete globalShim.Blob;
+    delete globalShim.URL;
+    delete globalShim.HTMLElement;
+    delete globalShim.Event;
+    delete globalShim.MouseEvent;
   });
 
   function loadAppScript() {

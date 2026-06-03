@@ -175,6 +175,7 @@ Commands:
   stats                Show summary statistics
   costs                Show cost breakdown by model (or --daily)
   export               Export traces to JSON or CSV
+  benchmark            Run performance benchmark suite (prints JSON results)
   tree                 Show parent/child/related trace tree (multi-agent)
   alerts               Manage alerts: list | test --name N | history
   version              Show CLI version

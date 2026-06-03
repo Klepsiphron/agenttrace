@@ -39,8 +39,8 @@ COPY . .
 # Build all packages (TS -> JS for sdk, dashboard, cli, langgraph middleware)
 RUN pnpm build
 
-# Remove dev dependencies for smaller runtime image
-RUN pnpm prune --prod
+# Remove dev dependencies for smaller runtime image (use reinstall to avoid interactive prompt from prune)
+RUN rm -rf node_modules && pnpm install --frozen-lockfile --prod
 
 # ============================================
 # Runtime stage: minimal image with built app

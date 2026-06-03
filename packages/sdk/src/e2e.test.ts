@@ -20,8 +20,8 @@ function cleanupDbFiles(dbPath: string): void {
   for (const suffix of ['', '-wal', '-shm']) {
     try {
       unlinkSync(dbPath + suffix);
-    } catch {
-      // ignore missing
+    } catch (_) {
+      /* ignore */
     }
   }
 }
@@ -34,8 +34,8 @@ describe('AgentTrace E2E (real SQLite)', () => {
     const cleanup = () => {
       try {
         agent.close();
-      } catch {
-        // ignore
+      } catch (_) {
+        /* ignore */
       }
       cleanupDbFiles(db);
     };

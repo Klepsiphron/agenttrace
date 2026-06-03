@@ -53,157 +53,84 @@ Several strong products address LLM/agent observability. They excel for teams bu
 
 ## Our Approach: Local-First, CLI-First, Privacy-First
 
-AgentTrace makes a deliberate bet: the 80% use case for many developers and small teams is "I want to understand what just happened in this agent run on my machine, right now, without leaving my terminal or sending anything anywhere."
+AgentTrace bets on a common 80% case: "I want to understand what just happened in *this* agent run on *my* machine, right now — without accounts, Docker, or data leaving."
 
-We optimize ruthlessly for that:
+- **Storage is one SQLite file** (`agenttrace.db`). WAL + normalized schema (runs, traces, tool_calls, scores, alerts, links). Own it, query it with `sqlite3`, rsync it, or `.gitignore` it. No servers or volumes.
+- **CLI is primary.** `npx agenttrace runs`, `stats`, `costs --daily`, `tree`, `export --format otel`, `alerts` etc. stay in your terminal flow.
+- **Dashboard is tiny and local.** `npx agenttrace dashboard` starts an embedded Express UI against the same DB. No separate frontend install.
+- **Zero cloud by default.** Data leaves only via explicit export or a webhook *you* configure.
+- **Framework-agnostic + middlewares.** Works for raw calls or custom loops. Ships LangGraph (TS) and CrewAI (Py) auto-instrumentation for nodes/tasks/tools.
+- **Cost built-in.** ~15 models with 2026 rates + `registerModelRate()`. Per-trace + breakdowns.
+- **TS + Py parity.** Same DB schema; mixed teams share one file.
 
-- **Storage is a single SQLite file** (`agenttrace.db` by default, configurable). WAL mode, foreign keys, normalized schema (runs, traces, tool_calls, scores, alerts, links). You own the file. You can `ls -l`, `sqlite3 agenttrace.db`, `rsync` it, add it to a tarball with your eval datasets, or `.gitignore` it. No server, no volumes, no migrations to manage for the common case.
-- **CLI is not a second-class citizen.** The `@agenttrace/cli` package (invoked via `npx agenttrace` or global install) is the primary way many users interact with their traces: list runs, filter traces, view stats and cost breakdowns, render trace trees for multi-agent flows, test alerts, and export. If your workflow is "run agent, immediately check what happened," the CLI keeps you in flow.
-- **Dashboard is local and optional.** `npx agenttrace dashboard` (or `agenttrace dashboard --port 4000`) starts a tiny Express server serving a dark-themed static UI + REST API against the same local DB. No separate frontend repo, no `npm run dev` in another directory. Close it when you're done.
-- **Zero cloud by default, explicit escape hatches.** Nothing phones home. The only ways data leaves are: (1) you call `export('otel' | 'json' | 'csv')`, (2) you register a webhook alert that fires on your conditions, or (3) you point an external OTEL collector at the exported spans. We provide the primitives; you stay in control.
-- **Framework agnostic with optional auto-instrumentation.** Works with raw OpenAI/Anthropic calls, custom agent loops, LangGraph, CrewAI, or anything else. We ship middleware that hooks into LangGraph's node lifecycle (TS) and CrewAI's event bus (Python) to capture node/task/tool timing and tokens with minimal boilerplate.
-- **Cost tracking is table stakes, not a premium feature.** We ship approximate 2026 rates for 15+ models (GPT-4o family, Claude 4 family, Gemini 2.x, Llama 3.1/4 variants, etc.) and a `registerModelRate()` escape hatch. Cost is computed per trace and rolled up in stats and cost breakdowns by model and day.
-- **Cross-language parity.** The TypeScript and Python SDKs produce compatible DB schemas. A mixed TS/Python team (or a single dev using both) can share one `agenttrace.db`.
+We deliberately skip full prompt registries, heavy experiment platforms, and multi-tenant hosting (other tools do those well). We solve "show me the traces and costs for what I just ran, locally, instantly."
 
-We are *not* trying to be the one platform that does prompt management, large-scale experiment tracking, human annotation queues, SOC2-certified multi-tenant hosting, and everything else. Those are valuable; other tools do them well. We solve the "show me the traces and costs for what I just ran, locally, instantly" problem extremely well and get out of the way.
-
-Honest limitations (as of the current release): evaluation is post-hoc scorer application rather than a full experiment harness with datasets and trials (stronger support is on the roadmap); there is no built-in prompt versioning or playground; no team collaboration or hosted dashboard (yet); the project is young with a small community; visualizations in the local dashboard are functional but not as polished as mature platforms; and our auto token extraction in middlewares relies on common response shapes (you can always pass `tokens` explicitly).
+**Honest limitations today:** post-hoc evals (full harness planned); no prompt versioning/playground; no team collab or hosted tier (yet); young project/small community; dashboard UI is functional, not as rich as mature platforms; middleware token extraction is heuristic (pass `tokens` explicitly when needed).
 
 ## Key Features with Code Examples
 
-### Drop-in tracing (TypeScript)
+**TypeScript drop-in:**
 
 ```typescript
-import { init, trace } from '@agenttrace/sdk';
-
-const agent = init({ dbPath: './agenttrace.db' });
-
-async function researchAgent(query: string) {
-  return await trace('research-agent', async () => {
-    const searchResults = await trace('web-search', async () => {
-      // ... tool call ...
-      return results;
-    }, { model: 'gpt-4o-mini', tokens: { promptTokens: 120, completionTokens: 80, totalTokens: 200 } });
-
-    const summary = await trace('summarize', async () => {
-      const res = await callLLM({ model: 'claude-sonnet-4', messages: [...] });
-      return res;
-    });
-
-    return { summary, sources: searchResults.length };
-  });
-}
+import { init } from '@agenttrace/sdk';
+const agent = init();
+const result = await agent.trace('research-agent', async () => {
+  const search = await agent.trace('web-search', async () => callTool(q), { model: 'gpt-4o-mini', tokens: {promptTokens:120, completionTokens:80, totalTokens:200} });
+  const summary = await agent.trace('summarize', async () => callLLM(...));
+  return { summary, sources: search.length };
+});
 ```
 
-The outer `trace` creates (or joins) a run. Nested calls automatically capture latency, status, input/output (truncated for storage), and any manually supplied tokens/cost metadata. Errors are caught, status set to 'error', and rethrown.
+`agent.trace()` (and nested calls) auto-capture latency/status/input/output/tokens/cost. Errors set status and rethrow. (The published examples/README also show a convenience `trace` import in some snippets.)
 
-### Context manager + decorator (Python)
+**Python (context + decorator):**
 
 ```python
 from agenttrace import init, trace
-
 agent = init(db_path="./traces.db")
-
-# Context manager (recommended for explicit output setting)
-async with agent.trace("research-node") as t:
-    response = await llm.ainvoke(...)
-    t.set_output(response.content)
-    t.set_tokens({"prompt_tokens": 340, "completion_tokens": 120, "total_tokens": 460})
-    t.set_model("gpt-4o-mini")
-
-# Decorator form
+async with agent.trace("node") as t:
+    out = await llm.ainvoke(...)
+    t.set_output(out); t.set_tokens({...}); t.set_model("gpt-4o-mini")
 @agent.trace("summarize")
-def summarize(state):
-    ...
-    return result
-
-# Or direct callable wrapper
-result = agent.trace("postprocess", lambda: do_work(input))
+def fn(state): ...
 ```
 
-The Python SDK supports sync/async, and the same DB can be read by the TS CLI/dashboard.
+**Middlewares (auto):**
 
-### Framework middleware (auto-instrumentation)
+LangGraph (TS): `AgentTraceMiddleware` hooks before/afterNode/onError, extracts common usage_metadata shapes.
 
-For LangGraph (TypeScript):
+CrewAI (Py): `AgentTraceCrewAI` subscribes to task/tool events on the bus and records with framework metadata.
 
-```typescript
-import { AgentTraceMiddleware } from '@agenttrace/middleware-langgraph';
-
-const mw = new AgentTraceMiddleware({ dbPath: './agenttrace.db' });
-const agent = mw.getAgentTrace();
-agent.startRun('langgraph-research');
-
-// Later when compiling your graph, register the middleware
-// (exact registration depends on your LangGraph version; beforeNode/afterNode/onError are invoked around nodes)
-```
-
-For CrewAI (Python):
-
-```python
-from agenttrace_middleware.crewai_hook import AgentTraceCrewAI
-
-mw = AgentTraceCrewAI(db_path="./traces.db")
-# ... define your crew with tasks/tools ...
-result = crew.kickoff()
-mw.close()  # or let it go out of scope
-```
-
-The middleware extracts timing, attempts to pull token usage from common `usage_metadata`, `response_metadata`, LiteLLM-style dicts, etc., and records per-node or per-task/tool traces with `framework: 'langgraph'` / `'crewai'` metadata.
-
-### Runs, stats, cost breakdowns, and trees (CLI)
+**CLI (primary interface):**
 
 ```bash
-npx agenttrace init                 # ensures agenttrace.db exists with schema
+npx agenttrace init
 npx agenttrace runs --limit 20
-npx agenttrace traces --run-id abc123 --status success
 npx agenttrace stats
 npx agenttrace costs --daily
-npx agenttrace tree --trace-id def456   # shows parent/child/linked traces
+npx agenttrace tree --trace-id <id>
 npx agenttrace export --format otel --output spans.json
+npx agenttrace dashboard   # localhost UI
 ```
 
-The `stats` command shows total runs/traces, success rate, avg latency, total cost, top tools, top errors. `costs` breaks it down by model or day. `tree` visualizes multi-agent or hierarchical flows using `parentId` + manual `linkTraces()` relationships.
+`stats`/`costs` give aggregates + top tools/errors. `tree` renders parent/child/linked traces.
 
-### Evaluations (post-hoc scoring)
+**Evals (post-hoc):**
 
 ```typescript
-const results = await agent.evaluate({
-  runId: 'my-run',
-  scorers: [
-    { name: 'relevance', fn: (trace) => llmJudgeRelevance(trace.output) },
-    { name: 'tool_success_rate', fn: (trace) => {
-      const tools = trace.toolCalls || [];
-      return tools.length ? tools.filter(t => t.success).length / tools.length : 0;
-    }},
-  ],
-  concurrency: 3,
-});
+await agent.evaluate({ runId: 'r1', scorers: [
+  { name: 'relevance', fn: t => judge(t.output) },
+  { name: 'tool_ok', fn: t => (t.toolCalls||[]).filter(x=>x.success).length / (t.toolCalls||[]).length || 0 }
+]});
 ```
 
-Scores are stored in the `scores` table and surface in stats/exports. You can also call `evaluateTrace` for a single trace or register scorers that run automatically in some flows. This is intentionally simple; richer experiment orchestration is planned.
+Scores persist to the DB.
 
-### Alerts (local webhooks on conditions)
+**Alerts + OTEL:**
 
-```typescript
-agent.registerAlert({
-  name: 'high-cost',
-  condition: (stats) => (stats.totalCostUsd || 0) > 5.0,
-  webhook: 'https://hooks.slack.com/...',
-  cooldown: 3600, // seconds
-});
-```
+Register conditions on stats (e.g. `totalCostUsd > 5`); auto-checked on traces; webhook delivery with local history.
 
-After traces, `checkAlerts()` (called automatically inside `trace()`) evaluates persisted conditions against current aggregate stats and fires webhooks (with delivery history stored locally). Useful for "stop the agent" or "notify me" during long runs or overnight evals.
-
-### OpenTelemetry export (no extra SDKs)
-
-```typescript
-const otelJson = agent.export('otel', { runId: '...' });
-// POST to your collector, or save for jaeger/grafana/tempo import
-```
-
-Spans include `agenttrace.*` attributes for status, cost, tokens, model, latency, input/output (truncated), metadata, etc. Resource is `service.name: agenttrace`.
+`export('otel')` produces zero-dep OTLP JSON with `agenttrace.*` attrs (cost, tokens, model, etc.).
 
 ## Comparison Table
 
@@ -245,118 +172,67 @@ We compete on *simplicity and guarantees*, not on breadth of lifecycle features.
 
 ## Getting Started
 
-### TypeScript (Node)
+**TypeScript:**
 
 ```bash
 npm install @agenttrace/sdk
-# Optional but recommended for CLI + dashboard
-npm install -D @agenttrace/cli @agenttrace/dashboard
+npx agenttrace init
 ```
 
-```typescript
-import { init, trace } from '@agenttrace/sdk';
-
+```ts
+import { init } from '@agenttrace/sdk';
 const agent = init();
-// ... wrap your agent entrypoint or individual steps as shown earlier ...
-const result = await myAgent(userInput);
-
-// Later, or in another process:
-console.log(agent.getStats());
+await agent.trace('my-agent', async () => { ... });
 ```
 
-Run `npx agenttrace dashboard` in the same directory (it looks for `./agenttrace.db` or uses `AGENTTRACE_DB_PATH`).
-
-### Python
+**Python:**
 
 ```bash
 pip install agenttrace
-# For CrewAI middleware: pip install agenttrace-middleware-crewai
 ```
 
-```python
+```py
 from agenttrace import init, trace
-
-agent = init(db_path="./agenttrace.db")
-# use context, decorator, or direct call as shown earlier
+agent = init()
+with agent.trace("op") as t: ...
 ```
 
-The CLI and dashboard are still invoked via `npx agenttrace ...` (they are Node packages that read the shared SQLite format).
+CLI/dashboard (cross-language): `npx agenttrace runs`, `stats`, `dashboard`, `export --format otel`.
 
-### With examples in the repo
+See `examples/langgraph/`, `examples/crewai/`, `examples/custom/` in the repo.
 
-See `examples/langgraph/`, `examples/crewai/`, and `examples/custom/` for runnable end-to-end agents.
+**Workflow:** `npx agenttrace init` → run agent → `npx agenttrace stats` → `npx agenttrace dashboard` (localhost:3000) → `export` when needed.
 
-### Basic workflow
+Register custom rates or pass `tokens` explicitly; OTEL export needs no extra SDKs.
 
-1. `npx agenttrace init`
-2. Run your instrumented agent (multiple times, with different inputs).
-3. `npx agenttrace runs --limit 5`
-4. `npx agenttrace stats`
-5. `npx agenttrace dashboard` (open http://localhost:3000)
-6. When ready to analyze elsewhere: `npx agenttrace export --format json --output traces.json` or OTEL.
+## What's Next
 
-### Custom cost rates or hallucination detection
+Early focus (v0.2–v0.3): richer evals (datasets, trials, judges, experiment views), more middlewares + streaming token support, better dashboard viz (histograms, flame graphs), improved alerts/budgets + terminal polish, docs and scorer examples.
 
-```typescript
-import { init, registerModelRate } from '@agenttrace/sdk';
+Longer term: optional hosted tier for teams (shared traces, SSO) while the local MIT tool stays free and complete.
 
-registerModelRate('my-fine-tuned-llama', 0.0005, 0.0015);
-
-const agent = init({
-  costCalculator: (tokens, model) => { /* your fn */ },
-  hallucinationDetector: (output, expected) => /* return boolean */,
-});
-```
-
-### Export + external tools
-
-The OTEL export is pure JSON with no runtime dependency on the OpenTelemetry SDKs. Point your collector at the file or pipe it into existing pipelines.
-
-## What's Next (Roadmap)
-
-We are early. Current focus (v0.2 / v0.3 timeframe) is on making the local experience even more delightful and filling the most common gaps reported by early users:
-
-- Stronger evaluation harness (datasets, trials, built-in LLM judges, experiment tracking and comparison views) — see plans in the repo.
-- More framework middlewares and better automatic token extraction (additional providers, streaming support).
-- Richer local dashboard visualizations (cost/latency histograms, flame graphs for traces, score distributions).
-- Alerting and budgets with more delivery channels and better UX in CLI.
-- Improved live terminal feedback (optional spinners/progress during long traces).
-- Documentation, tutorials, and a library of reusable scorers.
-
-Longer term (v1.0 and beyond), we expect to offer an optional hosted tier for teams that want shared traces, SSO, audit logs, and collaboration while still having the local tool as the excellent free/offline/on-prem foundation. The local product will always remain free, MIT, and fully functional.
-
-We are honest about scope: we will not try to match every feature of the larger platforms in the near term. We will double down on zero-friction local tracing, cost visibility, CLI ergonomics, and privacy guarantees. If those are the constraints that matter most to you, AgentTrace should feel like it was built for your workflow.
+We won't chase every feature of larger platforms. We double down on zero-friction local tracing, CLI ergonomics, cost visibility, and privacy. If those constraints matter most to you, this should feel purpose-built.
 
 ## Try It
 
 ```bash
-# TypeScript
-npm install @agenttrace/sdk
-npx agenttrace init
-
-# Python
+npm install @agenttrace/sdk && npx agenttrace init
+# or
 pip install agenttrace
 ```
 
-Repo: https://github.com/Klepsiphron/agenttrace
+Repo + examples: https://github.com/Klepsiphron/agenttrace
 
-Docs and examples are in the repo. Issues and discussions are welcome — especially around "here's the exact gap I'm hitting with current tools" or "I tried the middleware with X framework and tokens weren't captured."
-
-We built the tool we wanted for our own agent work. If it resonates, star the repo, try it on your next agent, and tell us what to improve. The best observability tools are the ones that disappear into the background so you can focus on making the agents themselves reliable and cheap.
+File issues for framework gaps or middleware token misses. We built the tool we wanted; feedback on real gaps drives the next cuts.
 
 Happy tracing.
 
 ---
 
-**Sources / Further Reading** (approximate as of research in 2026):
+**Sources** (2026 research): Langfuse self-hosting (Docker Compose with multiple services) and pricing; LangSmith pricing ($39/seat + trace usage, self-host Enterprise); Braintrust pricing (Pro $249, self-host Enterprise); Helicone self-host Docker; Arize Phoenix (pip install, ~9k stars, local-first with OTEL). See project docs/comparison.md and ROADMAP.md. Pricing and details evolve.
 
-- Langfuse self-hosting and pricing pages
-- LangSmith pricing and LangChain observability docs
-- Braintrust pricing and self-hosting notes
-- Helicone self-hosting announcement and pricing
-- Arize Phoenix GitHub and site (pip install, OTEL focus, ~9k stars)
-- Project comparison.md and ROADMAP.md in the AgentTrace repo
+---
 
-Data and plans evolve; the point of this post is not to declare a permanent ranking but to explain why a deliberately simple, local, file-based tool still has a place in a crowded category.
+**Sources** (research 2026): Langfuse self-host/pricing, LangSmith pricing docs, Braintrust pricing, Helicone self-host posts, Arize Phoenix GitHub/site (9k+ stars, pip/Docker local), project ROADMAP/comparison.md.
 
-(Word count target: ~2600. Written for AI/ML engineers and developer-tooling enthusiasts who value pragmatism and control.)
+Plans and pricing change; this explains why a deliberately simple local file+CLI tool still fills a real gap. (~2500 words target; for AI/ML engineers and dev-tooling readers.)
