@@ -3,12 +3,23 @@
  * Automatic tracing for LangGraph node executions (JS/TS)
  */
 import { randomUUID } from 'node:crypto';
-import { AgentTrace, type TraceConfig, type TokenUsage } from '@agenttrace/sdk';
+import { AgentTrace, type TraceConfig, type TokenUsage, type TraceStorage } from '@agenttrace/sdk';
 
 export const VERSION = '0.2.0';
 export const PACKAGE_NAME = '@agenttrace/middleware-langgraph';
 
 export type { TraceConfig } from '@agenttrace/sdk';
+
+/**
+ * LangGraph node configuration object passed around middleware hooks.
+ * This is a loose bag; LangGraph populates configurable, tags, metadata etc.
+ */
+export interface LangGraphNodeConfig {
+  [key: string]: unknown;
+  configurable?: Record<string, unknown>;
+  tags?: string[];
+  metadata?: Record<string, unknown>;
+}
 
 /**
  * Approximate NodeMiddleware interface implemented for LangGraph.
@@ -17,9 +28,25 @@ export type { TraceConfig } from '@agenttrace/sdk';
  * or graph middleware support in your LangGraph version).
  */
 export interface NodeMiddleware {
-  beforeNode?(nodeName: string, state: any, config?: any): any | Promise<any>;
-  afterNode?(nodeName: string, state: any, result: any, config?: any): any | Promise<any>;
-  onError?(nodeName: string, state: any, error: Error, config?: any): void | Promise<void>;
+  beforeNode?(nodeName: string, state: unknown, config?: LangGraphNodeConfig): unknown | Promise<unknown>;
+  afterNode?(nodeName: string, state: unknown, result: unknown, config?: LangGraphNodeConfig): unknown | Promise<unknown>;
+  onError?(nodeName: string, state: unknown, error: Error, config?: LangGraphNodeConfig): void | Promise<void>;
+}
+
+/** Shape of AgentTrace's internal (required/defaulted) config. */
+interface AgentTraceInternalConfig {
+  dbPath: string;
+  maxTraces: number;
+  autoCleanup: boolean;
+  costCalculator: (tokens: TokenUsage, model?: string) => number;
+  hallucinationDetector: (output: unknown, expected?: unknown) => boolean;
+  silent: boolean;
+}
+
+interface AgentTraceInternals {
+  config: AgentTraceInternalConfig;
+  storage: TraceStorage;
+  currentRunId: string | null;
 }
 
 export class AgentTraceMiddleware implements NodeMiddleware {
@@ -38,7 +65,7 @@ export class AgentTraceMiddleware implements NodeMiddleware {
     return this.agent;
   }
 
-  beforeNode(nodeName: string, state: any, config?: any): any | Promise<any> {
+  beforeNode(nodeName: string, state: unknown, _config?: LangGraphNodeConfig): unknown | Promise<unknown> {
     if (!this.pending[nodeName]) {
       this.pending[nodeName] = [];
     }
@@ -49,7 +76,7 @@ export class AgentTraceMiddleware implements NodeMiddleware {
     return state;
   }
 
-  afterNode(nodeName: string, state: any, result: any, config?: any): any | Promise<any> {
+  afterNode(nodeName: string, state: unknown, result: unknown, _config?: LangGraphNodeConfig): unknown | Promise<unknown> {
     const stack = this.pending[nodeName] || [];
     const startInfo = stack.pop() || { startTime: Date.now(), input: state };
     if (stack.length === 0) {
@@ -73,7 +100,7 @@ export class AgentTraceMiddleware implements NodeMiddleware {
     return result;
   }
 
-  onError(nodeName: string, state: any, error: Error, config?: any): void | Promise<void> {
+  onError(nodeName: string, state: unknown, error: Error, _config?: LangGraphNodeConfig): void | Promise<void> {
     const stack = this.pending[nodeName] || [];
     const startInfo = stack.pop() || { startTime: Date.now(), input: state };
     if (stack.length === 0) {
@@ -103,7 +130,7 @@ export class AgentTraceMiddleware implements NodeMiddleware {
     this.agent.close();
   }
 
-  private extractTokens(result: any, state: any): TokenUsage {
+  private extractTokens(result: unknown, state: unknown): TokenUsage {
     const search = [result, state].filter(Boolean);
     for (const cand of search) {
       if (!cand) continue;
@@ -127,80 +154,92 @@ export class AgentTraceMiddleware implements NodeMiddleware {
     return { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
   }
 
-  private extractFromCandidate(cand: any): TokenUsage {
+  private extractFromCandidate(cand: unknown): TokenUsage {
     if (!cand || typeof cand !== 'object')
       return { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
 
+    const c = cand as Record<string, unknown>;
+
     // Modern LangChain: usage_metadata
-    const um =
-      cand.usage_metadata || cand.additional_kwargs?.usage_metadata || cand.kwargs?.usage_metadata;
-    if (um && (um.total_tokens != null || um.totalTokens != null)) {
-      return {
-        promptTokens: um.input_tokens ?? um.prompt_tokens ?? um.promptTokens ?? 0,
-        completionTokens: um.output_tokens ?? um.completion_tokens ?? um.completionTokens ?? 0,
-        totalTokens: um.total_tokens ?? um.totalTokens ?? 0,
-        model: cand.response_metadata?.model_name || cand.name,
-      };
+    const additional = c.additional_kwargs as Record<string, unknown> | undefined;
+    const kw = c.kwargs as Record<string, unknown> | undefined;
+    const um = c.usage_metadata || additional?.usage_metadata || kw?.usage_metadata;
+    if (um != null && typeof um === 'object') {
+      const u = um as Record<string, unknown>;
+      if (u.total_tokens != null || u.totalTokens != null) {
+        const rm = c.response_metadata as Record<string, unknown> | undefined;
+        return {
+          promptTokens: (u.input_tokens ?? u.prompt_tokens ?? u.promptTokens ?? 0) as number,
+          completionTokens: (u.output_tokens ?? u.completion_tokens ?? u.completionTokens ?? 0) as number,
+          totalTokens: (u.total_tokens ?? u.totalTokens ?? 0) as number,
+          model: (rm?.model_name || c.name) as string | undefined,
+        };
+      }
     }
 
     // Older tokenUsage in response_metadata
-    const rm = cand.response_metadata || {};
-    const tu =
+    const rm = (c.response_metadata || {}) as Record<string, unknown>;
+    const tuRaw =
       rm.tokenUsage ||
       rm.token_usage ||
       rm.usage ||
-      cand.tokenUsage ||
-      cand.usage ||
-      cand.llmOutput?.tokenUsage;
-    if (tu && (tu.totalTokens != null || tu.total_tokens != null || tu.total != null)) {
-      return {
-        promptTokens: tu.promptTokens ?? tu.prompt_tokens ?? tu.input_tokens ?? tu.inputTokens ?? 0,
-        completionTokens:
-          tu.completionTokens ?? tu.completion_tokens ?? tu.output_tokens ?? tu.outputTokens ?? 0,
-        totalTokens: tu.totalTokens ?? tu.total_tokens ?? tu.total ?? 0,
-        model: rm.model_name,
-      };
+      c.tokenUsage ||
+      c.usage ||
+      (c.llmOutput as Record<string, unknown> | undefined)?.tokenUsage;
+    if (tuRaw != null && typeof tuRaw === 'object') {
+      const tu = tuRaw as Record<string, unknown>;
+      if (tu.totalTokens != null || tu.total_tokens != null || tu.total != null) {
+        return {
+          promptTokens: (tu.promptTokens ?? tu.prompt_tokens ?? tu.input_tokens ?? tu.inputTokens ?? 0) as number,
+          completionTokens:
+            (tu.completionTokens ?? tu.completion_tokens ?? tu.output_tokens ?? tu.outputTokens ?? 0) as number,
+          totalTokens: (tu.totalTokens ?? tu.total_tokens ?? tu.total ?? 0) as number,
+          model: rm.model_name as string | undefined,
+        };
+      }
     }
 
     // Direct on object
-    if (cand.totalTokens != null || cand.total_tokens != null) {
+    if (c.totalTokens != null || c.total_tokens != null) {
       return {
-        promptTokens: cand.promptTokens ?? cand.prompt_tokens ?? cand.input_tokens ?? 0,
+        promptTokens: (c.promptTokens ?? c.prompt_tokens ?? c.input_tokens ?? 0) as number,
         completionTokens:
-          cand.completionTokens ?? cand.completion_tokens ?? cand.output_tokens ?? 0,
-        totalTokens: cand.totalTokens ?? cand.total_tokens ?? 0,
-        model: cand.model,
+          (c.completionTokens ?? c.completion_tokens ?? c.output_tokens ?? 0) as number,
+        totalTokens: (c.totalTokens ?? c.total_tokens ?? 0) as number,
+        model: c.model as string | undefined,
       };
     }
 
     return { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
   }
 
-  private deepFindUsage(roots: any[]): TokenUsage | null {
-    const seen = new Set<any>();
-    const queue = [...roots];
+  private deepFindUsage(roots: unknown[]): TokenUsage | null {
+    const seen = new Set<unknown>();
+    const queue: unknown[] = [...roots];
     while (queue.length) {
       const cur = queue.shift();
       if (!cur || typeof cur !== 'object' || seen.has(cur)) continue;
       seen.add(cur);
 
       // check keys that look like usage
-      for (const [k, v] of Object.entries(cur)) {
+      const curObj = cur as Record<string, unknown>;
+      for (const [k, v] of Object.entries(curObj)) {
         if (/usage|token/i.test(k) && v && typeof v === 'object') {
+          const vo = v as Record<string, unknown>;
           const p =
-            (v as any).promptTokens ?? (v as any).prompt_tokens ?? (v as any).input_tokens ?? 0;
+            (vo.promptTokens ?? vo.prompt_tokens ?? vo.input_tokens ?? 0) as number;
           const c =
-            (v as any).completionTokens ??
-            (v as any).completion_tokens ??
-            (v as any).output_tokens ??
-            0;
-          const t = (v as any).totalTokens ?? (v as any).total_tokens ?? (v as any).total ?? 0;
+            (vo.completionTokens ??
+            vo.completion_tokens ??
+            vo.output_tokens ??
+            0) as number;
+          const t = (vo.totalTokens ?? vo.total_tokens ?? vo.total ?? 0) as number;
           if (t || p || c) {
             return {
               promptTokens: p,
               completionTokens: c,
               totalTokens: t,
-              model: (v as any).model,
+              model: vo.model as string | undefined,
             };
           }
         }
@@ -211,7 +250,8 @@ export class AgentTraceMiddleware implements NodeMiddleware {
   }
 
   private computeCost(tokens: TokenUsage, model?: string): number {
-    const cfg = (this.agent as any).config || {};
+    const internals = this.agent as unknown as AgentTraceInternals;
+    const cfg = internals.config || ({} as AgentTraceInternalConfig);
     const calc = cfg.costCalculator;
     if (typeof calc === 'function') {
       return calc(tokens, model || tokens.model);
@@ -239,9 +279,10 @@ export class AgentTraceMiddleware implements NodeMiddleware {
     costUsd: number;
     error?: string;
   }): void {
-    const storage = (this.agent as any).storage;
-    const cfg = (this.agent as any).config || {};
-    const currentRun = (this.agent as any).currentRunId as string | null;
+    const internals = this.agent as unknown as AgentTraceInternals;
+    const storage = internals.storage;
+    const cfg = internals.config || ({} as AgentTraceInternalConfig);
+    const currentRun = internals.currentRunId;
     const runId = currentRun || randomUUID();
 
     // Ensure a run row exists (TS storage.createTrace does not auto-create stub runs like the Python port;
@@ -255,8 +296,8 @@ export class AgentTraceMiddleware implements NodeMiddleware {
             startedAt: Date.now(),
             metadata: { auto: true, framework: 'langgraph' },
           });
-        } catch {
-          // ignore (race, already exists, etc.)
+        } catch (_) {
+          /* ignore (race, already exists, etc.) */
         }
       }
     }
