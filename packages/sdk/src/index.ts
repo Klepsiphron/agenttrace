@@ -415,6 +415,13 @@ export class AgentTrace {
       } catch (_) {
         /* alerts must never cause trace() to fail */
       }
+
+      // Fire-and-forget webhook delivery for trace complete/error
+      if (status === 'success') {
+        this.triggerWebhook('trace.complete', { traceId, runId: trace.runId, name, latencyMs, costUsd }).catch(() => {});
+      } else {
+        this.triggerWebhook('trace.error', { traceId, runId: trace.runId, name, error }).catch(() => {});
+      }
     }
 
     return result!;
@@ -461,7 +468,7 @@ export class AgentTrace {
    * Get summary statistics
    */
   getStats(): TraceStats {
-    return this.storage.getStats();
+    return this.storage.getStats(this.config.tenantId || undefined);
   }
 
   /**
@@ -501,6 +508,7 @@ export class AgentTrace {
       durationMs: record.durationMs ?? 0,
       status: record.status || 'success',
       metadata: record.metadata || {},
+      tenantId: this.config.tenantId || undefined,
     };
     this.storage.recordAgentUsage(full);
     this.usageEmitter.emit('usage', full);
@@ -510,14 +518,14 @@ export class AgentTrace {
    * Query recorded agent usage records.
    */
   getAgentUsage(filter: AgentUsageFilter = {}): AgentUsageRecord[] {
-    return this.storage.getAgentUsage(filter);
+    return this.storage.getAgentUsage(filter, this.config.tenantId || undefined);
   }
 
   /**
    * Get aggregated usage statistics across agent actions.
    */
   getUsageStats(agentName?: string, fromDate?: number, toDate?: number): UsageStats {
-    return this.storage.getUsageStats(agentName, fromDate, toDate);
+    return this.storage.getUsageStats(agentName, fromDate, toDate, this.config.tenantId || undefined);
   }
 
   /**

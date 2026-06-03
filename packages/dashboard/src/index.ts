@@ -30,7 +30,7 @@ export interface ApiKeyRecord {
 }
 
 /** In-memory key store. Key = SHA-256 hash, Value = record. */
-const apiKeyStore = new Map<string, ApiKeyRecord>();
+export const apiKeyStore = new Map<string, ApiKeyRecord>();
 
 function sha256(input: string): string {
   return crypto.createHash('sha256').update(input).digest('hex');
@@ -45,7 +45,7 @@ function generateApiKey(): string {
  * Create a new API key. Returns { record, plaintextKey }.
  * The plaintext key is shown once; only the hash is stored.
  */
-function createApiKey(name: string): { record: ApiKeyRecord; plaintextKey: string } {
+export function createApiKey(name: string): { record: ApiKeyRecord; plaintextKey: string } {
   const plaintextKey = generateApiKey();
   const hash = sha256(plaintextKey);
   const id = crypto.randomBytes(8).toString('hex');

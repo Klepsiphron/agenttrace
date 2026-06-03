@@ -1616,6 +1616,61 @@ export class TraceStorage {
     };
   }
 
+  // ── Project / Multi-tenant CRUD ─────────────────────────────────
+
+  createProject(name: string): Project {
+    const id = randomUUID();
+    const apiKey = `at_${randomBytes(24).toString('hex')}`;
+    const now = Date.now();
+    this.db.prepare(
+      'INSERT INTO projects (id, name, api_key, created_at) VALUES (?, ?, ?, ?)'
+    ).run(id, name, apiKey, now);
+    return { id, name, apiKey, createdAt: now };
+  }
+
+  getProject(apiKey: string): Project | null {
+    const row = this.db
+      .prepare('SELECT id, name, api_key, created_at FROM projects WHERE api_key = ?')
+      .get(apiKey) as { id: string; name: string; api_key: string; created_at: number } | undefined;
+    if (!row) return null;
+    return {
+      id: row.id,
+      name: row.name,
+      apiKey: row.api_key,
+      createdAt: row.created_at,
+    };
+  }
+
+  getProjectById(id: string): Project | null {
+    const row = this.db
+      .prepare('SELECT id, name, api_key, created_at FROM projects WHERE id = ?')
+      .get(id) as { id: string; name: string; api_key: string; created_at: number } | undefined;
+    if (!row) return null;
+    return {
+      id: row.id,
+      name: row.name,
+      apiKey: row.api_key,
+      createdAt: row.created_at,
+    };
+  }
+
+  listProjects(): Project[] {
+    const rows = this.db
+      .prepare('SELECT id, name, api_key, created_at FROM projects ORDER BY created_at DESC')
+      .all() as Array<{ id: string; name: string; api_key: string; created_at: number }>;
+    return rows.map((r) => ({
+      id: r.id,
+      name: r.name,
+      apiKey: r.api_key,
+      createdAt: r.created_at,
+    }));
+  }
+
+  deleteProject(id: string): boolean {
+    const res = this.db.prepare('DELETE FROM projects WHERE id = ?').run(id);
+    return (res.changes ?? 0) > 0;
+  }
+
   close(): void {
     this.db.close();
   }

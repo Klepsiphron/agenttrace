@@ -19,7 +19,7 @@ services:
       - "8888:8888"
     environment:
       # Set your Datadog API key here or via .env file
-      - DD_API_KEY=${DD_API_KEY:-}
+      - DD_API_KEY=${DD_API_KEY:-your-datadog-api-key}
     depends_on:
       jaeger:
         condition: service_started

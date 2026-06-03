@@ -69,7 +69,7 @@ services:
       # Database: PostgreSQL connection string
       # The app reads AGENTTRACE_DB_PATH; for PG we use DATABASE_URL
       # If DATABASE_URL is set, the SDK should use it; otherwise falls back to SQLite
-      DATABASE_URL: postgresql://${POSTGRES_USER:-agenttrace}:${POSTGRES_PASSWORD:-}@postgres:5432/${POSTGRES_DB:-agenttrace}
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-agenttrace}
       # Fallback SQLite path (used if DATABASE_URL is not supported by current SDK)
       AGENTTRACE_DB_PATH: /app/data/agenttrace.db
       NODE_ENV: production

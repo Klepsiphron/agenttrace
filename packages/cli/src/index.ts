@@ -231,11 +231,11 @@ Options (by command):
     --limit N            Max entries (default 30)
     --since DURATION     e.g. 1h, 30m, 2d (from now backwards)
   webhook:
-    add <url> <events...>
+    add --url <url> --events <e1,e2,...>
                          Register a webhook for the given event types
     list                 List all configured webhooks
-    remove <id>          Remove a webhook by ID (prefix match)
-    test <id>            Send a test payload to a webhook by ID
+    remove --id <id>     Remove a webhook by ID (prefix match)
+    test --id <id>       Send a test payload to a webhook by ID
     Events: trace.complete, trace.error, run.complete, run.error, cost.threshold, agent.inactive
   cleanup:
     --days N             Override retention days (default: use policy setting)
@@ -1271,9 +1271,18 @@ async function runMain(): Promise<void> {
     case 'webhook': {
       const sub = webhookSub || 'list';
       const dbp = getDbPath();
-      const agent = new AgentTrace({ dbPath: dbp, silent: true });
-      try {
-        if (sub === 'list' || sub === '') {
+      const dbExists = existsSync(dbp);
+      if (sub === 'list' || sub === '') {
+        if (!dbExists) {
+          if (useJson) {
+            console.log('[]');
+          } else {
+            console.log('No webhooks configured.');
+          }
+          break;
+        }
+        const agent = new AgentTrace({ dbPath: dbp, silent: true });
+        try {
           const webhooks = agent.getWebhooks();
           if (useJson) {
             console.log(JSON.stringify(webhooks, null, 2));
@@ -1282,40 +1291,49 @@ async function runMain(): Promise<void> {
           } else {
             printWebhooksTable(webhooks);
           }
-          break;
+        } finally {
+          agent.close();
         }
+        break;
+      }
+      // For add/remove/test, require existing db
+      if (!dbExists) {
+        console.error(`No ${dbp} found in current directory.`);
+        console.error('Run "agenttrace-io init" to create one.');
+        process.exit(1);
+      }
+      const agent = new AgentTrace({ dbPath: dbp, silent: true });
+      try {
         if (sub === 'add') {
-          const url = webhookPositionals[0];
-          const events = webhookPositionals.slice(1);
+          const url = flags.url ? String(flags.url) : '';
+          const eventsRaw = flags.events ? String(flags.events) : '';
           if (!url) {
-            console.error('Usage: agenttrace-io webhook add <url> <event1> [event2] ...');
+            console.error('Usage: agenttrace-io webhook add --url <url> --events <event1,event2,...>');
             console.error('Events: trace.complete, trace.error, run.complete, run.error, cost.threshold, agent.inactive');
             process.exit(1);
           }
-          if (events.length === 0) {
-            console.error('At least one event is required.');
+          if (!eventsRaw) {
+            console.error('At least one event is required (--events).');
             console.error('Events: trace.complete, trace.error, run.complete, run.error, cost.threshold, agent.inactive');
             process.exit(1);
           }
+          const events = eventsRaw.split(',').map((e) => e.trim()).filter(Boolean);
           const id = agent.addWebhook(url, events as import('@agenttrace-io/sdk').WebhookEvent[]);
           if (useJson) {
             console.log(JSON.stringify({ id, url, events }, null, 2));
           } else {
-            console.log(`Webhook added: ${id.substring(0, 8)}`);
-            console.log(`  URL:    ${url}`);
-            console.log(`  Events: ${events.join(', ')}`);
+            console.log(`Registered webhook: ${id.substring(0, 8)} -> ${url} (${events.join(',')})`);
           }
           break;
         }
         if (sub === 'remove') {
-          const id = webhookPositionals[0];
+          const id = flags.id ? String(flags.id) : '';
           if (!id) {
-            console.error('Usage: agenttrace-io webhook remove <id>');
+            console.error('Usage: agenttrace-io webhook remove --id <id>');
             process.exit(1);
           }
-          // Find by prefix match
           const webhooks = agent.getWebhooks();
-          const match = webhooks.find((w) => w.id.startsWith(id));
+          const match = webhooks.find((w) => w.id.startsWith(id) || w.id === id);
           if (!match) {
             console.error(`Webhook '${id}' not found.`);
             process.exit(1);
@@ -1324,18 +1342,18 @@ async function runMain(): Promise<void> {
           if (useJson) {
             console.log(JSON.stringify({ id: match.id, removed: true }, null, 2));
           } else {
-            console.log(`Webhook ${match.id.substring(0, 8)} removed.`);
+            console.log(`Removed webhook ${match.id.substring(0, 8)}.`);
           }
           break;
         }
         if (sub === 'test') {
-          const id = webhookPositionals[0];
+          const id = flags.id ? String(flags.id) : '';
           if (!id) {
-            console.error('Usage: agenttrace-io webhook test <id>');
+            console.error('Usage: agenttrace-io webhook test --id <id>');
             process.exit(1);
           }
           const webhooks = agent.getWebhooks();
-          const match = webhooks.find((w) => w.id.startsWith(id));
+          const match = webhooks.find((w) => w.id.startsWith(id) || w.id === id);
           if (!match) {
             console.error(`Webhook '${id}' not found.`);
             process.exit(1);
