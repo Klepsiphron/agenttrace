@@ -1099,7 +1099,7 @@ export class AgentTrace {
    * Export traces to JSON, CSV, or OpenTelemetry (OTLP JSON)
    */
   export(format: ExportFormat = 'json', filter: TraceFilter = {}): string {
-    const traces = this.storage.getTraces(filter);
+    const traces = this.storage.getTraces(filter, this.config.tenantId || undefined);
 
     if (format === 'json') {
       return JSON.stringify(traces, null, 2);

@@ -4,7 +4,7 @@ AgentTrace + Discord Bot Example
 
 A Discord bot using `discord.py` with AgentTrace tracing on every command.
 Shows async context-manager usage, decorator usage, manual token/metadata
-attachment, and run-level grouping.
+attachment, run-level grouping, and error tracking.
 
 Run (from this directory):
     pip install -r requirements.txt
@@ -22,13 +22,14 @@ Public install:
 
 import asyncio
 import os
+import random
 import time
 from typing import Optional
 
 import discord
 from discord.ext import commands
 
-from agenttrace import init, trace, TokenUsage
+from agenttrace import init, trace, score, evaluate_trace, TokenUsage
 
 # ---------------------------------------------------------------------------
 # 1. Initialise AgentTrace
@@ -198,8 +199,126 @@ async def research_command(ctx: commands.Context, *, topic: str) -> None:
 
 
 # ---------------------------------------------------------------------------
-# 5. Graceful shutdown
+# 5. Error tracking – trace errors and failures
+# -----------------------------------------------------------------------------
+
+@bot.command(name="flaky")
+async def flaky_command(ctx: commands.Context) -> None:
+    """
+    !flaky  –  Simulates a command that sometimes fails.
+    Demonstrates error tracing: exceptions are captured in the trace
+    with status="error" and the error message attached.
+    """
+    async with trace(
+        "flaky-command",
+        input={"user": str(ctx.author)},
+    ) as t:
+        t.set_metadata({
+            "channel_id": ctx.channel.id,
+            "command": "flaky",
+        })
+
+        # Simulate intermittent failure (50% chance)
+        if random.random() < 0.5:
+            raise RuntimeError("Simulated intermittent failure – provider timeout")
+
+        t.set_output("Success! This time it worked.")
+        await ctx.send("Operation succeeded!")
+
+
+@bot.command(name="fail")
+async def fail_command(ctx: commands.Context, *, input_text: str = "") -> None:
+    """
+    !fail [text]  –  Always fails. Demonstrates error capture + scoring.
+    The trace records the error, then we score the failure for quality tracking.
+    """
+    async with trace(
+        "fail-command",
+        input={"text": input_text, "user": str(ctx.author)},
+        model="gpt-4o-mini",
+    ) as t:
+        t.set_metadata({
+            "channel_id": ctx.channel.id,
+            "command": "fail",
+        })
+
+        # Simulate a provider error
+        error_msg = "ProviderError: rate limit exceeded (429)"
+        t.set_output(None)
+        await ctx.send(f"Command failed: {error_msg}")
+        raise Exception(error_msg)
+
+
+@bot.command(name="errors")
+async def errors_command(ctx: commands.Context) -> None:
+    """
+    !errors  –  Query and display recent error traces.
+    Demonstrates filtering traces by status to surface failures.
+    """
+    error_traces = agent.trace(
+        "error-query",
+        lambda: agent.get_traces(filter={"status": ["error"], "limit": 10}),
+        input={"command": "errors"},
+    )
+
+    if not error_traces:
+        await ctx.send("No error traces recorded yet. Try `!flaky` or `!fail` first.")
+        return
+
+    lines = ["**Recent Error Traces**", "```"]
+    for tr in error_traces:
+        error_msg = tr.error or "(no error message)"
+        lines.append(f"  [{tr.name}] {error_msg[:80]}")
+    lines.append("```")
+
+    # Also show error rate from stats
+    stats = agent.get_stats()
+    error_count = len(agent.get_traces(filter={"status": ["error"]}))
+    lines.append(f"\nTotal errors: {error_count}  |  Success rate: {stats.success_rate:.1%}")
+
+    await ctx.send("\n".join(lines))
+
+
 # ---------------------------------------------------------------------------
+# 6. Global error handler – trace unhandled command errors
+# -----------------------------------------------------------------------------
+
+@bot.event
+async def on_command_error(ctx: commands.Context, error: commands.CommandError) -> None:
+    """
+    Global error handler that traces any unhandled command errors.
+    This ensures even unexpected failures are recorded in AgentTrace.
+    """
+    error_name = type(error).__name__
+    error_msg = str(error)
+
+    # Trace the error
+    agent.trace(
+        "unhandled-command-error",
+        lambda: None,  # no return value – we just want the error recorded
+        input={
+            "command": ctx.command.name if ctx.command else "unknown",
+            "user": str(ctx.author),
+            "error_type": error_name,
+            "error_message": error_msg,
+        },
+    )
+
+    # Send user-friendly message
+    if isinstance(error, commands.CommandNotFound):
+        await ctx.send(f"Unknown command. Type `!help` for available commands.")
+    elif isinstance(error, commands.MissingRequiredArgument):
+        await ctx.send(f"Missing required argument: `{error.param.name}`")
+    elif isinstance(error, commands.CommandInvokeError):
+        await ctx.send(f"Command failed: {error_msg[:200]}")
+    else:
+        await ctx.send(f"Error ({error_name}): {error_msg[:200]}")
+
+
+# ---------------------------------------------------------------------------
+# 7. Graceful shutdown
+# ---------------------------------------------------------------------------
+
 async def shutdown() -> None:
     """Complete the run and close the agent."""
     global _current_run_id
@@ -210,8 +329,9 @@ async def shutdown() -> None:
 
 
 # ---------------------------------------------------------------------------
-# 6. Entrypoint
+# 8. Entrypoint
 # ---------------------------------------------------------------------------
+
 def main() -> None:
     token = os.environ.get("DISCORD_TOKEN")
     if not token:
