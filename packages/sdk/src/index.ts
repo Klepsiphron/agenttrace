@@ -518,23 +518,23 @@ export class AgentTrace {
   /**
    * List API keys (masked/previewed, no secrets).
    */
-  listApiKeys(): ApiKey[] {
-    return this.storage.listApiKeys();
+  listApiKeys(): { id: string; name: string; createdAt: number; lastUsedAt: number | null; enabled: boolean }[] {
+    return this.storage.getApiKeys();
   }
 
   /**
    * Revoke an API key by its id. Returns true if deleted.
    */
-  revokeApiKey(id: string): boolean {
-    if (!id) return false;
-    return this.storage.revokeApiKey(id);
+  revokeApiKey(id: string): void {
+    if (!id) return;
+    this.storage.revokeApiKey(id);
   }
 
   /**
    * Validate a raw API key string (e.g. from header). Returns matching metadata or null.
    * Side effect: updates lastUsedAt on success.
    */
-  validateApiKey(key: string): ApiKey | null {
+  validateApiKey(key: string): { valid: boolean; permissions: string[] } {
     return this.storage.validateApiKey(key);
   }
 
