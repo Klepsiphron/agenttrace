@@ -1,3 +1,5 @@
+
+
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { JSDOM } from 'jsdom';
 import fs from 'fs';
@@ -88,17 +90,17 @@ describe('AgentTrace Dashboard Frontend (app.js)', () => {
       },
     );
 
-    const g = global as unknown as Record<string, unknown> & { window?: unknown; document?: unknown };
-    g.window = dom.window;
-    g.document = dom.window.document;
-    g.HTMLElement = dom.window.HTMLElement;
-    g.Event = dom.window.Event;
-    g.MouseEvent = dom.window.MouseEvent;
+    const g2 = global as unknown as Record<string, unknown> & { window?: unknown; document?: unknown };
+    g2.window = dom.window;
+    g2.document = dom.window.document;
+    g2.HTMLElement = dom.window.HTMLElement;
+    g2.Event = dom.window.Event;
+    g2.MouseEvent = dom.window.MouseEvent;
 
     // Mock fetch - must be on the JSDOM window (code runs via eval in that context)
     fetchMock = vi.fn();
     dom.window.fetch = fetchMock as unknown as typeof fetch;
-    g.fetch = fetchMock;
+    g2.fetch = fetchMock;
 
     // Mock timers / intervals for auto-refresh - install on window too
     intervalId = null;

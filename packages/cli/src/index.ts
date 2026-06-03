@@ -234,20 +234,19 @@ function parseArgs(argv: string[]): ParsedArgs {
     if (typeof arg !== 'string' || !arg.startsWith('--')) continue;
     // flag
     const eqIdx = arg.indexOf('=');
-    let key: string;
-    let val: string | boolean = true;
     if (eqIdx !== -1) {
-      key = arg.slice(2, eqIdx);
-      val = arg.slice(eqIdx + 1);
+      const key = arg.slice(2, eqIdx);
+      const val = arg.slice(eqIdx + 1);
+      flags[key] = val;
     } else {
-      key = arg.slice(2);
+      const key = arg.slice(2);
       const next = args[i + 1];
-      if (i + 1 < args.length && typeof next === 'string' && !next.startsWith('-')) {
-        val = next;
-        i++;
-      }
+      const val: string | boolean =
+        i + 1 < args.length && typeof next === 'string' && !next.startsWith('-')
+          ? (i++, next)
+          : true;
+      flags[key] = val;
     }
-    flags[key] = val;
   }
   return { command, flags };
 }
@@ -273,20 +272,19 @@ async function runMain(): Promise<void> {
   const useJson = !!flags.json;
 
   // detect subcommand for alerts (e.g. alerts list, alerts test)
-  let alertsSub: string | undefined;
-  if (command === 'alerts') {
+  const alertsSub: string | undefined = (() => {
+    if (command !== 'alerts') return undefined;
     const argvArgs = process.argv.slice(2);
     const idx = argvArgs.indexOf('alerts');
-    if (idx !== -1) {
-      for (let k = idx + 1; k < argvArgs.length; k++) {
-        const c = argvArgs[k];
-        if (typeof c === 'string' && !c.startsWith('-')) {
-          alertsSub = c;
-          break;
-        }
+    if (idx === -1) return undefined;
+    for (let k = idx + 1; k < argvArgs.length; k++) {
+      const c = argvArgs[k];
+      if (typeof c === 'string' && !c.startsWith('-')) {
+        return c;
       }
     }
-  }
+    return undefined;
+  })();
 
   switch (command) {
       case 'init': {
@@ -314,18 +312,19 @@ async function runMain(): Promise<void> {
         const trace = getAgentTrace();
         const rawLimit = flags.limit ? parseInt(String(flags.limit), 10) : NaN;
         const lim = Number.isFinite(rawLimit) && rawLimit > 0 ? rawLimit : 20;
-        let runs = trace.getRuns(Math.max(1, Math.min(1000, lim)));
+        const allRuns = trace.getRuns(Math.max(1, Math.min(1000, lim)));
 
         const statusRaw = flags.status ? String(flags.status) : '';
-        if (statusRaw) {
-          const allowed = statusRaw
-            .split(',')
-            .map((s) => s.trim())
-            .filter(Boolean);
-          if (allowed.length) {
-            runs = runs.filter((r) => allowed.includes(r.status));
-          }
-        }
+        const runs =
+          statusRaw
+            ? (() => {
+                const allowed = statusRaw
+                  .split(',')
+                  .map((s) => s.trim())
+                  .filter(Boolean);
+                return allowed.length ? allRuns.filter((r) => allowed.includes(r.status)) : allRuns;
+              })()
+            : allRuns;
 
         trace.close();
 
@@ -433,14 +432,15 @@ async function runMain(): Promise<void> {
           process.exit(1);
         }
         const tr = getAgentTrace();
-        let tree: TraceTreeNode;
-        try {
-          tree = tr.getTraceTree(String(traceId));
-        } catch (e: unknown) {
-          console.error('Error:', e instanceof Error ? e.message : String(e));
-          tr.close();
-          process.exit(1);
-        }
+        const tree: TraceTreeNode = (() => {
+          try {
+            return tr.getTraceTree(String(traceId));
+          } catch (e: unknown) {
+            console.error('Error:', e instanceof Error ? e.message : String(e));
+            tr.close();
+            process.exit(1);
+          }
+        })();
         tr.close();
 
         if (useJson) {
@@ -567,7 +567,7 @@ async function runMain(): Promise<void> {
 function main(): void {
   try {
     const result = runMain();
-    if (result && typeof (result as any).then === 'function') { // eslint-disable-line @typescript-eslint/no-explicit-any
+    if (result && typeof (result as Promise<unknown>).then === 'function') {
       (result as Promise<void>).catch((err: unknown) => {
         console.error('Error:', err instanceof Error ? err.message : String(err));
         process.exit(1);

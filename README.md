@@ -59,6 +59,34 @@ npx agenttrace dashboard                         # Start local dashboard
 npx agenttrace version                           # Show version
 ```
 
+### Docker (self-hosting)
+
+Run the full AgentTrace dashboard + API as a containerized service. The dashboard (UI + REST API) listens on port 4317.
+
+```bash
+# From repo root (includes Dockerfile + docker-compose.yml)
+docker compose up -d
+```
+
+- Dashboard: http://localhost:4317
+- DB persisted via Docker volume (`agenttrace-data`)
+- Stop: `docker compose down`
+
+Build only:
+
+```bash
+docker build -t agenttrace .
+```
+
+Run ad-hoc with volume:
+
+```bash
+docker run -p 4317:4317 -v agenttrace-data:/app/data \
+  -e AGENTTRACE_DB_PATH=/app/data/agenttrace.db agenttrace
+```
+
+See `docker-compose.yml` and `Dockerfile` for configuration details (multi-stage Alpine build, pnpm + Python for native deps, prod-pruned image).
+
 ## Packages
 
 | Package                            | Registry | Description           |

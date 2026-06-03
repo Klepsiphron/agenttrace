@@ -10,6 +10,9 @@ from .core import (
     init,
     get_agent_trace,
     trace,
+    score,
+    evaluate,
+    evaluate_trace,
 )
 from .types import (
     Trace,
@@ -20,6 +23,9 @@ from .types import (
     TraceFilter,
     TraceStats,
     ExportFormat,
+    Scorer,
+    ScorerResult,
+    EvaluateOptions,
 )
 
 __all__ = [
@@ -27,6 +33,9 @@ __all__ = [
     "init",
     "trace",
     "get_agent_trace",
+    "score",
+    "evaluate",
+    "evaluate_trace",
     "VERSION",
     "PACKAGE_NAME",
     # types
@@ -38,4 +47,7 @@ __all__ = [
     "TraceFilter",
     "TraceStats",
     "ExportFormat",
+    "Scorer",
+    "ScorerResult",
+    "EvaluateOptions",
 ]

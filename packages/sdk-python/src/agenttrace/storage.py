@@ -9,7 +9,7 @@ import json
 import sqlite3
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 from .types import (
     Run,
@@ -99,6 +99,17 @@ class TraceStorage:
             CREATE INDEX IF NOT EXISTS idx_traces_cost ON traces(cost_usd);
             CREATE INDEX IF NOT EXISTS idx_tool_calls_trace_id ON tool_calls(trace_id);
             CREATE INDEX IF NOT EXISTS idx_tool_calls_name ON tool_calls(name);
+
+            CREATE TABLE IF NOT EXISTS scores (
+                id TEXT PRIMARY KEY,
+                trace_id TEXT NOT NULL REFERENCES traces(id),
+                name TEXT NOT NULL,
+                value REAL NOT NULL,
+                created_at INTEGER NOT NULL
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_scores_trace_id ON scores(trace_id);
+            CREATE INDEX IF NOT EXISTS idx_scores_name ON scores(name);
 
             CREATE TABLE IF NOT EXISTS version (
                 key TEXT PRIMARY KEY,
@@ -491,6 +502,39 @@ class TraceStorage:
         )
         self.conn.commit()
         return to_delete
+
+    # ---- Scores (for evaluation) ----
+
+    def create_score(self, id: str, trace_id: str, name: str, value: float) -> None:
+        """Store a score for a trace (called by evaluate)."""
+        now = int(time.time() * 1000)
+        self.conn.execute(
+            "INSERT INTO scores (id, trace_id, name, value, created_at) VALUES (?, ?, ?, ?, ?)",
+            (id, trace_id, name, value, now),
+        )
+        self.conn.commit()
+
+    def get_scores(
+        self, trace_id: Optional[str] = None
+    ) -> list[dict[str, Any]]:
+        """Retrieve scores, optionally for a specific trace. Matches TS shape (camelCase keys in dict)."""
+        sql = "SELECT * FROM scores"
+        params: list[Any] = []
+        if trace_id:
+            sql += " WHERE trace_id = ?"
+            params.append(trace_id)
+        sql += " ORDER BY created_at DESC"
+        rows = self.conn.execute(sql, params).fetchall()
+        return [
+            {
+                "id": r["id"],
+                "traceId": r["trace_id"],
+                "name": r["name"],
+                "value": float(r["value"]),
+                "createdAt": r["created_at"],
+            }
+            for r in rows
+        ]
 
     # ---- Helpers ----
 

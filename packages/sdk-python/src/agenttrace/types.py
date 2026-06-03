@@ -124,3 +124,30 @@ class TraceStats:
 # For type hints on cost calc etc.
 CostCalculator = Callable[[TokenUsage, Optional[str]], float]
 HallucinationDetector = Callable[[Any, Optional[Any]], bool]
+
+
+@dataclass
+class Scorer:
+    """Scorer function that evaluates a trace and returns a numeric score."""
+
+    name: str
+    fn: Callable[[Trace], Any]
+
+
+@dataclass
+class ScorerResult:
+    """Result of running scorers against a trace."""
+
+    trace_id: str
+    scores: dict[str, float] = field(default_factory=dict)
+    errors: dict[str, str] = field(default_factory=dict)
+
+
+@dataclass
+class EvaluateOptions:
+    """Options for running evaluations (mirrors TS)."""
+
+    scorers: list[Scorer]
+    run_id: Optional[str] = None
+    trace_ids: Optional[list[str]] = None
+    concurrency: Optional[int] = None

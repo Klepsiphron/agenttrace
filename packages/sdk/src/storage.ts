@@ -113,6 +113,18 @@ export class TraceStorage {
       CREATE INDEX IF NOT EXISTS idx_alert_history_alert_name ON alert_history(alert_name);
       CREATE INDEX IF NOT EXISTS idx_alert_history_triggered_at ON alert_history(triggered_at);
 
+      CREATE TABLE IF NOT EXISTS trace_links (
+        id TEXT PRIMARY KEY,
+        source_trace_id TEXT NOT NULL,
+        target_trace_id TEXT NOT NULL,
+        relation TEXT NOT NULL DEFAULT 'related',
+        created_at INTEGER NOT NULL,
+        FOREIGN KEY (source_trace_id) REFERENCES traces(id) ON DELETE CASCADE,
+        FOREIGN KEY (target_trace_id) REFERENCES traces(id) ON DELETE CASCADE
+      );
+      CREATE INDEX IF NOT EXISTS idx_trace_links_source ON trace_links(source_trace_id);
+      CREATE INDEX IF NOT EXISTS idx_trace_links_target ON trace_links(target_trace_id);
+
       CREATE TABLE IF NOT EXISTS version (
         key TEXT PRIMARY KEY,
         value TEXT NOT NULL
@@ -622,12 +634,8 @@ export class TraceStorage {
   }
 
   getCostBreakdown(runId?: string): CostBreakdown {
-    let where = '';
-    const params: unknown[] = [];
-    if (runId) {
-      where = ' WHERE run_id = ?';
-      params.push(runId);
-    }
+    const where = runId ? ' WHERE run_id = ?' : '';
+    const params: unknown[] = runId ? [runId] : [];
 
     const totalCost = this.db
       .prepare(`SELECT SUM(cost_usd) as v FROM traces${where}`)

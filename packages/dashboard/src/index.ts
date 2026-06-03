@@ -65,15 +65,16 @@ export function createDashboardApp(dbPath?: string): DashboardApp {
   app.get('/api/runs', (req: Request, res: Response) => {
     try {
       const limit = req.query.limit ? parseInt(String(req.query.limit), 10) : 200;
-      let runs = trace.getRuns(Math.max(1, Math.min(1000, limit || 200)));
+      const allRuns = trace.getRuns(Math.max(1, Math.min(1000, limit || 200)));
 
       const status = req.query.status as string | undefined;
-      if (status) {
-        const allowed = status.split(',').filter(Boolean);
-        if (allowed.length) {
-          runs = runs.filter((r) => allowed.includes(r.status));
-        }
-      }
+      const runs =
+        status
+          ? (() => {
+              const allowed = status.split(',').filter(Boolean);
+              return allowed.length ? allRuns.filter((r) => allowed.includes(r.status)) : allRuns;
+            })()
+          : allRuns;
 
       res.json(runs);
     } catch (err) {

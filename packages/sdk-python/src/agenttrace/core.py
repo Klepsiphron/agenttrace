@@ -5,6 +5,7 @@ Drop-in tracing for any AI agent (Python port)
 
 from __future__ import annotations
 
+import asyncio
 import json
 import time
 import uuid
@@ -13,10 +14,13 @@ from typing import Any, Optional, TypeVar, cast
 
 from .storage import TraceStorage
 from .types import (
+    EvaluateOptions,
     ExportFormat,
     HallucinationDetector,
     Run,
     RunStatus,
+    Scorer,
+    ScorerResult,
     Status,
     TokenUsage,
     ToolCall,
@@ -453,6 +457,112 @@ class AgentTrace:
             lines.append(",".join("" if x is None else str(x) for x in r))
         return "\n".join(lines)
 
+    # ---- Evaluation ----
+
+    def evaluate(
+        self,
+        scorers: list[Scorer] | list[Callable[[Trace], Any]],
+        run_id: Optional[str] = None,
+        trace_ids: Optional[list[str]] = None,
+        concurrency: Optional[int] = None,
+    ) -> list[ScorerResult]:
+        """Evaluate traces using the provided scorers.
+
+        If traceIds provided, scores only those; if runId, scores traces in that run; otherwise all traces.
+        """
+        if not scorers:
+            return []
+
+        # Normalize scorers (support bare callables or Scorer objects; name from __name__ if needed)
+        norm_scorers: list[Scorer] = []
+        for s in scorers:
+            if isinstance(s, Scorer):
+                norm_scorers.append(s)
+            elif callable(s):
+                nm = getattr(s, "__name__", "scorer") or "scorer"
+                norm_scorers.append(Scorer(name=nm, fn=s))
+        if not norm_scorers:
+            return []
+
+        if trace_ids and len(trace_ids) > 0:
+            traces: list[Trace] = [
+                t for t in (self.get_trace(tid) for tid in trace_ids) if t is not None
+            ]
+        elif run_id:
+            traces = self.get_traces({"run_id": run_id})
+        else:
+            traces = self.get_traces()
+
+        return self._score_loop(traces, norm_scorers, concurrency)
+
+    def evaluate_trace(
+        self, trace_id: str, scorers: list[Scorer] | list[Callable[[Trace], Any]]
+    ) -> ScorerResult:
+        """Score a single trace by id."""
+        trace = self.get_trace(trace_id)
+        if not trace:
+            return ScorerResult(trace_id=trace_id, scores={}, errors={})
+        norm: list[Scorer] = []
+        for s in scorers:
+            if isinstance(s, Scorer):
+                norm.append(s)
+            elif callable(s):
+                nm = getattr(s, "__name__", "scorer") or "scorer"
+                norm.append(Scorer(name=nm, fn=s))
+        if not norm:
+            return ScorerResult(trace_id=trace_id)
+        return self._score_trace(trace, norm)
+
+    def get_scores(
+        self, trace_id: Optional[str] = None
+    ) -> list[dict[str, Any]]:
+        """Retrieve stored evaluation scores (optionally for one trace)."""
+        return self.storage.get_scores(trace_id)
+
+    def _score_loop(
+        self,
+        traces: list[Trace],
+        scorers: list[Scorer],
+        concurrency: Optional[int] = None,
+    ) -> list[ScorerResult]:
+        if not traces:
+            return []
+        limit = max(1, concurrency or 5)
+        results: list[ScorerResult] = []
+        for i in range(0, len(traces), limit):
+            chunk = traces[i : i + limit]
+            chunk_results = [self._score_trace(t, scorers) for t in chunk]
+            results.extend(chunk_results)
+        return results
+
+    def _score_trace(self, trace: Trace, scorers: list[Scorer]) -> ScorerResult:
+        trace_id = trace.id
+        scores: dict[str, float] = {}
+        errors: dict[str, str] = {}
+
+        for scorer in scorers:
+            try:
+                val = scorer.fn(trace)
+                # Handle possible async scorer (coroutine)
+                if asyncio.iscoroutine(val):
+                    try:
+                        if asyncio.get_event_loop().is_running():
+                            val = 0.0  # can't await safely here; user should use sync scorer
+                        else:
+                            val = asyncio.run(val)  # py 3.7+
+                    except Exception:
+                        val = 0.0
+                if isinstance(val, (int, float)) and (val == val):  # finite
+                    scores[scorer.name] = float(val)
+                    sid = str(uuid.uuid4())
+                    self.storage.create_score(sid, trace_id, scorer.name, float(val))
+                else:
+                    errors[scorer.name] = f"Invalid score returned: {val}"
+            except Exception as e:
+                errors[scorer.name] = str(e)
+
+        return ScorerResult(trace_id=trace_id, scores=scores, errors=errors)
+
     # ---- Lifecycle ----
 
     def close(self) -> None:
@@ -497,3 +607,41 @@ def trace(
     """
     agent = get_agent_trace()
     return agent.trace(name, fn, **options)
+
+
+def score(name: str, fn: Optional[Callable[[Trace], Any]] = None) -> Any:
+    """Helper to create a Scorer from name + function, or as a decorator.
+
+    Usage:
+        s = score('output-len', lambda t: len(str(t.output or '')) / 1000)
+
+        @score('success-rate')
+        def success_rate(trace):
+            return 1.0 if trace.status == 'success' else 0.0
+
+    Returns a Scorer (dataclass with .name and .fn).
+    """
+    if fn is not None:
+        return Scorer(name=name, fn=fn)
+
+    def decorator(f: Callable[[Trace], Any]) -> Scorer:
+        return Scorer(name=name, fn=f)
+
+    return decorator
+
+
+def evaluate(
+    scorers: list[Scorer] | list[Callable[[Trace], Any]],
+    run_id: Optional[str] = None,
+    trace_ids: Optional[list[str]] = None,
+    concurrency: Optional[int] = None,
+) -> list[ScorerResult]:
+    """Top-level evaluate using the global agent instance (mirrors AgentTrace.evaluate)."""
+    agent = get_agent_trace()
+    return agent.evaluate(scorers, run_id=run_id, trace_ids=trace_ids, concurrency=concurrency)
+
+
+def evaluate_trace(trace_id: str, scorers: list[Scorer] | list[Callable[[Trace], Any]]) -> ScorerResult:
+    """Top-level evaluate_trace using the global agent."""
+    agent = get_agent_trace()
+    return agent.evaluate_trace(trace_id, scorers)

@@ -262,18 +262,14 @@ export class AgentTrace {
       context?: TraceContext;
     } = {},
   ): Promise<T> {
-    let traceId: string;
-    let parentId: string | undefined;
-    if (options.context && typeof options.context.traceId === 'string') {
-      traceId = options.context.traceId;
-      parentId = options.context.parentSpanId;
-    } else if (options.parentId) {
-      traceId = randomUUID();
-      parentId = options.parentId;
-    } else {
-      traceId = randomUUID();
-      parentId = undefined;
-    }
+    const traceId: string =
+      options.context && typeof options.context.traceId === 'string'
+        ? options.context.traceId
+        : randomUUID();
+    const parentId: string | undefined =
+      options.context && typeof options.context.traceId === 'string'
+        ? options.context.parentSpanId
+        : (options.parentId ?? undefined);
     const startTime = Date.now();
     const toolCalls: ToolCall[] = [];
     let result: T;
@@ -463,15 +459,16 @@ export class AgentTrace {
       if (cooldownMs > 0 && now - last < cooldownMs) {
         continue;
       }
-      let met = false;
-      try {
-        met = !!alert.condition(stats);
-      } catch (condErr: unknown) {
-        if (!this.config.silent) {
-          console.error(`[AgentTrace] Alert condition error for ${alert.name}:`, condErr);
+      const met = (() => {
+        try {
+          return !!alert.condition(stats);
+        } catch (condErr: unknown) {
+          if (!this.config.silent) {
+            console.error(`[AgentTrace] Alert condition error for ${alert.name}:`, condErr);
+          }
+          return false;
         }
-        continue;
-      }
+      })();
       if (met) {
         const hist = await this.deliverAlert(alert, stats, now);
         results.push(hist);
