@@ -14,8 +14,8 @@ function cleanupDb(dbPath: string): void {
     if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
     const dir = path.dirname(dbPath);
     if (fs.existsSync(dir)) fs.rmSync(dir, { recursive: true, force: true });
-  } catch {
-    // ignore
+  } catch (_) {
+    /* ignore */
   }
 }
 

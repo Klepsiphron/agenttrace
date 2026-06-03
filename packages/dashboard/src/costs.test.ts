@@ -20,15 +20,15 @@ describe('dashboard cost API endpoints (new tests)', () => {
     servers.forEach((s) => {
       try {
         s.close();
-      } catch {
-        // ignore close errors in cleanup
+      } catch (_) {
+        /* ignore close errors in cleanup */
       }
     });
     closes.forEach((c) => {
       try {
         c();
-      } catch {
-        // ignore close errors in cleanup
+      } catch (_) {
+        /* ignore close errors in cleanup */
       }
     });
     servers = [];

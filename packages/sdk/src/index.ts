@@ -326,8 +326,8 @@ export class AgentTrace {
       // Auto-check alerts after each trace (awaited so history/delivery visible to caller immediately)
       try {
         await this.checkAlerts();
-      } catch {
-        // alerts must never cause trace() to fail
+      } catch (_) {
+        /* alerts must never cause trace() to fail */
       }
     }
 

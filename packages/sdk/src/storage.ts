@@ -130,13 +130,13 @@ export class TraceStorage {
     // v2+ migration for multi-agent tracing (parent_id + trace_links)
     const verRow = this.db
       .prepare('SELECT value FROM version WHERE key = ?')
-      .get('schema_version') as any;
+      .get('schema_version') as unknown as { value: string } | undefined;
     const schemaVer = verRow ? parseInt(String(verRow.value), 10) : 0;
     if (schemaVer < 2) {
       try {
         this.db.exec('ALTER TABLE traces ADD COLUMN parent_id TEXT');
-      } catch {
-        // column may already exist (e.g. partial migration)
+      } catch (_) {
+        /* column may already exist (e.g. partial migration) */
       }
       this.db.exec(`
         CREATE TABLE IF NOT EXISTS trace_links (
@@ -445,15 +445,18 @@ export class TraceStorage {
   }
 
   getAlertHistory(): AlertHistory[] {
-    const rows = this.db.prepare('SELECT * FROM alert_history ORDER BY triggered_at DESC').all() as any[];
-    return rows.map((r: any) => ({
-      id: r.id,
-      alertName: r.alert_name,
-      triggeredAt: r.triggered_at,
-      stats: JSON.parse(r.stats || '{}'),
-      delivered: r.delivered === 1,
-      error: r.error || undefined,
-    }));
+    const rows = this.db.prepare('SELECT * FROM alert_history ORDER BY triggered_at DESC').all() as unknown[];
+    return rows.map((r) => {
+      const rec = r as Record<string, unknown>;
+      return {
+        id: rec.id as string,
+        alertName: rec.alert_name as string,
+        triggeredAt: Number(rec.triggered_at),
+        stats: JSON.parse((rec.stats as string) || '{}'),
+        delivered: rec.delivered === 1,
+        error: (rec.error as string) || undefined,
+      };
+    });
   }
 
   // ---- Multi-agent tracing (parent/child + links) v0.2 ----
@@ -465,15 +468,16 @@ export class TraceStorage {
   }
 
   getTraceParentId(traceId: string): string | null {
-    const row = this.db.prepare('SELECT parent_id FROM traces WHERE id = ?').get(traceId) as any;
-    return row && row.parent_id ? String(row.parent_id) : null;
+    const row = this.db.prepare('SELECT parent_id FROM traces WHERE id = ?').get(traceId) as unknown;
+    const rec = row as Record<string, unknown> | undefined;
+    return rec && rec.parent_id ? String(rec.parent_id) : null;
   }
 
   getChildTraceIds(parentId: string): string[] {
     const rows = this.db
       .prepare('SELECT id FROM traces WHERE parent_id = ? ORDER BY created_at ASC')
-      .all(parentId) as any[];
-    return rows.map((r: any) => String(r.id));
+      .all(parentId) as unknown[];
+    return rows.map((r) => String((r as Record<string, unknown>).id));
   }
 
   getLinkedTraceIds(traceId: string): string[] {
@@ -485,8 +489,8 @@ export class TraceStorage {
         SELECT DISTINCT source_trace_id AS id FROM trace_links WHERE target_trace_id = ? AND relation = 'related'
       `,
       )
-      .all(traceId, traceId) as any[];
-    return rows.map((r: any) => String(r.id)).filter((id) => id !== traceId);
+      .all(traceId, traceId) as unknown[];
+    return rows.map((r) => String((r as Record<string, unknown>).id)).filter((id) => id !== traceId);
   }
 
   linkTraces(traceIds: string[]): void {
@@ -549,14 +553,14 @@ export class TraceStorage {
   // ---- Stats ----
 
   getStats(): TraceStats {
-    const totalRuns = this.db.prepare('SELECT COUNT(*) as c FROM runs').get() as any;
-    const totalTraces = this.db.prepare('SELECT COUNT(*) as c FROM traces').get() as any;
+    const totalRuns = this.db.prepare('SELECT COUNT(*) as c FROM runs').get() as unknown as { c: number };
+    const totalTraces = this.db.prepare('SELECT COUNT(*) as c FROM traces').get() as unknown as { c: number };
     const successCount = this.db
       .prepare("SELECT COUNT(*) as c FROM traces WHERE status = 'success'")
-      .get() as any;
-    const avgLatency = this.db.prepare('SELECT AVG(latency_ms) as v FROM traces').get() as any;
-    const totalCost = this.db.prepare('SELECT SUM(cost_usd) as v FROM traces').get() as any;
-    const totalTokens = this.db.prepare('SELECT SUM(total_tokens) as v FROM traces').get() as any;
+      .get() as unknown as { c: number };
+    const avgLatency = this.db.prepare('SELECT AVG(latency_ms) as v FROM traces').get() as unknown as { v: number };
+    const totalCost = this.db.prepare('SELECT SUM(cost_usd) as v FROM traces').get() as unknown as { v: number };
+    const totalTokens = this.db.prepare('SELECT SUM(total_tokens) as v FROM traces').get() as unknown as { v: number };
 
     const topTools = this.db
       .prepare(
@@ -565,7 +569,15 @@ export class TraceStorage {
       FROM tool_calls GROUP BY name ORDER BY count DESC LIMIT 10
     `,
       )
-      .all() as any[];
+      .all() as unknown[];
+    const topToolsMapped = topTools.map((t) => {
+      const rec = t as Record<string, unknown>;
+      return {
+        name: rec.name as string,
+        count: Number(rec.count),
+        avgLatencyMs: Number(rec.avgLatencyMs),
+      };
+    });
 
     const topErrors = this.db
       .prepare(
@@ -575,7 +587,11 @@ export class TraceStorage {
       GROUP BY error ORDER BY count DESC LIMIT 10
     `,
       )
-      .all() as any[];
+      .all() as unknown[];
+    const topErrorsMapped = topErrors.map((e) => {
+      const rec = e as Record<string, unknown>;
+      return { error: rec.error as string, count: Number(rec.count) };
+    });
 
     const costByModelRows = this.db
       .prepare(
@@ -584,10 +600,11 @@ export class TraceStorage {
       FROM traces GROUP BY model
     `,
       )
-      .all() as any[];
+      .all() as unknown[];
     const costByModel: Record<string, number> = {};
     for (const r of costByModelRows) {
-      costByModel[r.model] = r.cost || 0;
+      const rec = r as Record<string, unknown>;
+      costByModel[rec.model as string] = Number(rec.cost) || 0;
     }
 
     return {
@@ -599,18 +616,14 @@ export class TraceStorage {
       costByModel,
       totalTokens: totalTokens.v || 0,
       avgTokensPerTrace: totalTraces.c > 0 ? totalTokens.v / totalTraces.c : 0,
-      topTools: topTools.map((t) => ({
-        name: t.name,
-        count: t.count,
-        avgLatencyMs: t.avgLatencyMs,
-      })),
-      topErrors: topErrors.map((e) => ({ error: e.error, count: e.count })),
+      topTools: topToolsMapped,
+      topErrors: topErrorsMapped,
     };
   }
 
   getCostBreakdown(runId?: string): CostBreakdown {
     let where = '';
-    const params: any[] = [];
+    const params: unknown[] = [];
     if (runId) {
       where = ' WHERE run_id = ?';
       params.push(runId);
@@ -618,27 +631,29 @@ export class TraceStorage {
 
     const totalCost = this.db
       .prepare(`SELECT SUM(cost_usd) as v FROM traces${where}`)
-      .get(...params) as any;
+      .get(...params) as unknown as { v: number };
 
     const costByModelRows = this.db
       .prepare(
         `SELECT COALESCE(model, 'unknown') as model, SUM(cost_usd) as cost FROM traces${where} GROUP BY model`,
       )
-      .all(...params) as any[];
+      .all(...params) as unknown[];
     const costByModel: Record<string, number> = {};
     for (const r of costByModelRows) {
-      costByModel[r.model] = r.cost || 0;
+      const rec = r as Record<string, unknown>;
+      costByModel[rec.model as string] = Number(rec.cost) || 0;
     }
 
     const byDayRows = this.db
       .prepare(
         `SELECT strftime('%Y-%m-%d', created_at / 1000, 'unixepoch') as day, SUM(cost_usd) as cost FROM traces${where} GROUP BY day ORDER BY day`,
       )
-      .all(...params) as any[];
+      .all(...params) as unknown[];
     const costByDay: Record<string, number> = {};
     for (const r of byDayRows) {
-      if (r.day) {
-        costByDay[r.day] = r.cost || 0;
+      const rec = r as Record<string, unknown>;
+      if (rec.day) {
+        costByDay[rec.day as string] = Number(rec.cost) || 0;
       }
     }
 
@@ -652,7 +667,7 @@ export class TraceStorage {
   // ---- Cleanup ----
 
   cleanup(maxTraces: number = 10000): number {
-    const count = this.db.prepare('SELECT COUNT(*) as c FROM traces').get() as any;
+    const count = this.db.prepare('SELECT COUNT(*) as c FROM traces').get() as unknown as { c: number };
     if (count.c <= maxTraces) return 0;
 
     const toDelete = count.c - maxTraces;

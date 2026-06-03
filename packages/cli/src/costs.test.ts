@@ -23,8 +23,8 @@ function rmrf(p: string): void {
         if (fs.existsSync(d)) fs.rmSync(d, { recursive: true, force: true });
       }
     }
-  } catch {
-    // ignore cleanup errors
+  } catch (_) {
+    /* ignore cleanup errors */
   }
 }
 

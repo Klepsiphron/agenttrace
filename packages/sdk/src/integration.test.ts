@@ -182,4 +182,101 @@ describe('AgentTrace Integration', () => {
     expect(single.traceId).toBe(traces[0].id);
     expect(single.scores['output-len']).toBeDefined();
   });
+
+  // --- Multi-agent tracing tests (added for v0.2, existing tests untouched) ---
+
+  it('TraceContext class holds traceId, parentSpanId, metadata', () => {
+    const ctx = new (await import('./index.js')).TraceContext('trace-abc', 'parent-xyz', { foo: 'bar' });
+    expect(ctx.traceId).toBe('trace-abc');
+    expect(ctx.parentSpanId).toBe('parent-xyz');
+    expect(ctx.metadata).toEqual({ foo: 'bar' });
+  });
+
+  it('createChild produces linked context with fresh traceId and parent set', async () => {
+    const { TraceContext } = await import('./index.js');
+    const parentCtx = new TraceContext('parent-trace-1', undefined, { level: 0 });
+    const childCtx = agenttrace.createChild(parentCtx);
+    expect(childCtx.traceId).not.toBe(parentCtx.traceId);
+    expect(childCtx.parentSpanId).toBe(parentCtx.traceId);
+    expect(childCtx.metadata).toEqual({ level: 0 });
+  });
+
+  it('trace() with parentId stores parentId on trace', async () => {
+    const runId = agenttrace.startRun('parent-run');
+    const parentTrace = await agenttrace.trace('parent-agent', async () => 'p', {
+      tokens: { promptTokens: 1, completionTokens: 1, totalTokens: 2 },
+    });
+    const childTrace = await agenttrace.trace('child-agent', async () => 'c', {
+      parentId: parentTrace.id,
+      tokens: { promptTokens: 1, completionTokens: 1, totalTokens: 2 },
+    });
+    expect(childTrace.parentId).toBe(parentTrace.id);
+    const fetched = agenttrace.getTrace(childTrace.id);
+    expect(fetched?.parentId).toBe(parentTrace.id);
+  });
+
+  it('trace() with context from createChild links parent/child and id matches context', async () => {
+    const runId = agenttrace.startRun('ctx-run');
+    const p = await agenttrace.trace('p-agent', async () => 1, {
+      tokens: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+    });
+    const pCtx = new (await import('./index.js')).TraceContext(p.id, undefined);
+    const cCtx = agenttrace.createChild(pCtx);
+    const c = await agenttrace.trace('c-agent', async () => 2, {
+      context: cCtx,
+      tokens: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+    });
+    expect(c.id).toBe(cCtx.traceId);
+    expect(c.parentId).toBe(p.id);
+    const tree = agenttrace.getTraceTree(p.id);
+    expect(tree.trace.id).toBe(p.id);
+    expect(tree.children.length).toBeGreaterThanOrEqual(1);
+    expect(tree.children[0].trace.id).toBe(c.id);
+  });
+
+  it('linkTraces and getTraceTree includes linked as children', async () => {
+    const runId = agenttrace.startRun('link-run');
+    const t1 = await agenttrace.trace('t1', async () => 'a', { tokens: { promptTokens: 0, completionTokens: 0, totalTokens: 0 } });
+    const t2 = await agenttrace.trace('t2', async () => 'b', { tokens: { promptTokens: 0, completionTokens: 0, totalTokens: 0 } });
+    const t3 = await agenttrace.trace('t3', async () => 'c', { tokens: { promptTokens: 0, completionTokens: 0, totalTokens: 0 } });
+    agenttrace.linkTraces([t1.id, t2.id, t3.id]);
+    const tree = agenttrace.getTraceTree(t1.id);
+    // since linked, t1 is root, should have t2,t3 under it via links
+    const childIds = tree.children.map((n: any) => n.trace.id);
+    expect(childIds).toContain(t2.id);
+    expect(childIds).toContain(t3.id);
+  });
+
+  it('getTraceTree walks up to root and includes full subtree', async () => {
+    const runId = agenttrace.startRun('tree-run');
+    const root = await agenttrace.trace('root', async () => 0, { tokens: { promptTokens: 0, completionTokens: 0, totalTokens: 0 } });
+    const c1 = await agenttrace.trace('c1', async () => 1, { parentId: root.id, tokens: { promptTokens: 0, completionTokens: 0, totalTokens: 0 } });
+    const gc = await agenttrace.trace('gc', async () => 2, { parentId: c1.id, tokens: { promptTokens: 0, completionTokens: 0, totalTokens: 0 } });
+    const treeFromLeaf = agenttrace.getTraceTree(gc.id);
+    expect(treeFromLeaf.trace.id).toBe(root.id); // walked to root
+    // depth check
+    const lvl1 = treeFromLeaf.children.find((n: any) => n.trace.id === c1.id);
+    expect(lvl1).toBeTruthy();
+    expect(lvl1!.children.length).toBe(1);
+    expect(lvl1!.children[0].trace.id).toBe(gc.id);
+  });
+
+  it('dashboard tree API and storage getTraceTree work (via sdk)', async () => {
+    const runId = agenttrace.startRun('api-tree');
+    const r = await agenttrace.trace('r', async () => 'r', { tokens: { promptTokens: 0, completionTokens: 0, totalTokens: 0 } });
+    const ch = await agenttrace.trace('ch', async () => 'ch', { parentId: r.id, tokens: { promptTokens: 0, completionTokens: 0, totalTokens: 0 } });
+    const tree = agenttrace.getTraceTree(r.id);
+    expect(tree.trace.id).toBe(r.id);
+    expect(tree.children.length).toBe(1);
+    expect(tree.children[0].trace.id).toBe(ch.id);
+    // also test storage directly
+    const { TraceStorage } = await import('./storage.js');
+    const st = new TraceStorage(testDb);
+    try {
+      const stTree = st.getTraceTree(ch.id);
+      expect(stTree.trace.id).toBe(r.id);
+    } finally {
+      st.close();
+    }
+  });
 });

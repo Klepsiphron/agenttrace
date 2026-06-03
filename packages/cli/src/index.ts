@@ -263,33 +263,32 @@ function getAgentTrace(requireDb = true): AgentTrace {
 }
 
 async function runMain(): Promise<void> {
-  try {
-    const { command, flags } = parseArgs(process.argv);
+  const { command, flags } = parseArgs(process.argv);
 
-    if (flags.help || command === 'help') {
-      printUsage();
-      return;
-    }
+  if (flags.help || command === 'help') {
+    printUsage();
+    return;
+  }
 
-    const useJson = !!flags.json;
+  const useJson = !!flags.json;
 
-    // detect subcommand for alerts (e.g. alerts list, alerts test)
-    let alertsSub: string | undefined;
-    if (command === 'alerts') {
-      const argvArgs = process.argv.slice(2);
-      const idx = argvArgs.indexOf('alerts');
-      if (idx !== -1) {
-        for (let k = idx + 1; k < argvArgs.length; k++) {
-          const c = argvArgs[k];
-          if (typeof c === 'string' && !c.startsWith('-')) {
-            alertsSub = c;
-            break;
-          }
+  // detect subcommand for alerts (e.g. alerts list, alerts test)
+  let alertsSub: string | undefined;
+  if (command === 'alerts') {
+    const argvArgs = process.argv.slice(2);
+    const idx = argvArgs.indexOf('alerts');
+    if (idx !== -1) {
+      for (let k = idx + 1; k < argvArgs.length; k++) {
+        const c = argvArgs[k];
+        if (typeof c === 'string' && !c.startsWith('-')) {
+          alertsSub = c;
+          break;
         }
       }
     }
+  }
 
-    switch (command) {
+  switch (command) {
       case 'init': {
         const dbp = getDbPath();
         if (existsSync(dbp)) {
@@ -563,6 +562,17 @@ async function runMain(): Promise<void> {
         process.exit(1);
       }
     }
+}
+
+function main(): void {
+  try {
+    const result = runMain();
+    if (result && typeof (result as any).then === 'function') { // eslint-disable-line @typescript-eslint/no-explicit-any
+      (result as Promise<void>).catch((err: unknown) => {
+        console.error('Error:', err instanceof Error ? err.message : String(err));
+        process.exit(1);
+      });
+    }
   } catch (err: unknown) {
     console.error('Error:', err instanceof Error ? err.message : String(err));
     process.exit(1);
@@ -578,16 +588,14 @@ const isMain = (() => {
     const thisFile = fileURLToPath(import.meta.url);
     // Normalize for cross-platform (esp. Windows backslashes)
     return invoked === thisFile || invoked.replace(/\\/g, '/') === thisFile.replace(/\\/g, '/');
-  } catch {
+  } catch (_) {
+    /* ignore */
     return false;
   }
 })();
 
 if (isMain) {
-  main().catch((err: unknown) => {
-    console.error('Error:', err instanceof Error ? err.message : String(err));
-    process.exit(1);
-  });
+  main();
 }
 
 export { main };
