@@ -20,16 +20,16 @@ function makeAgent(dbPath?: string, tenantId?: string): AgentTrace {
 // ── Tests ────────────────────────────────────────────────────────────
 
 describe('multi-tenant: tenant isolation', () => {
-  it('traces created by tenant-a are not visible to tenant-b', () => {
+  it('traces created by tenant-a are not visible to tenant-b', async () => {
     const db = tmpDb();
     const agentA = makeAgent(db, 'tenant-a');
     const agentB = makeAgent(db, 'tenant-b');
 
     agentA.startRun('run-a');
-    agentA.trace('op-a', async () => 'result-a');
+    await agentA.trace('op-a', async () => 'result-a');
 
     agentB.startRun('run-b');
-    agentB.trace('op-b', async () => 'result-b');
+    await agentB.trace('op-b', async () => 'result-b');
 
     const tracesA = agentA.getTraces();
     const tracesB = agentB.getTraces();
@@ -64,18 +64,18 @@ describe('multi-tenant: tenant isolation', () => {
     agentB.close();
   });
 
-  it('stats are scoped per tenant', () => {
+  it('stats are scoped per tenant', async () => {
     const db = tmpDb();
     const agentA = makeAgent(db, 'tenant-a');
     const agentB = makeAgent(db, 'tenant-b');
 
     agentA.startRun('run-a');
-    agentA.trace('op-a', async () => 'ok', {
+    await agentA.trace('op-a', async () => 'ok', {
       tokens: { promptTokens: 100, completionTokens: 50, totalTokens: 150 },
     });
 
     agentB.startRun('run-b');
-    agentB.trace('op-b', async () => 'ok', {
+    await agentB.trace('op-b', async () => 'ok', {
       tokens: { promptTokens: 200, completionTokens: 100, totalTokens: 300 },
     });
 
@@ -128,13 +128,13 @@ describe('multi-tenant: tenant isolation', () => {
     agentB.close();
   });
 
-  it('tenant with no data returns empty results', () => {
+  it('tenant with no data returns empty results', async () => {
     const db = tmpDb();
     const agentA = makeAgent(db, 'tenant-a');
     const agentB = makeAgent(db, 'tenant-b');
 
     agentA.startRun('run-a');
-    agentA.trace('op-a', async () => 'ok');
+    await agentA.trace('op-a', async () => 'ok');
 
     const tracesB = agentB.getTraces();
     const runsB = agentB.getRuns();
@@ -159,7 +159,7 @@ describe('multi-tenant: project creation', () => {
     // Insert directly into the projects table (schema already exists from migration)
     (storage as any).db
       .prepare('INSERT INTO projects (id, name, api_key, created_at) VALUES (?, ?, ?, ?)')
-      .run(id, 'My Project', apiKey, apiKey, now);
+      .run(id, 'My Project', apiKey, now);
 
     const row = (storage as any).db.prepare('SELECT * FROM projects WHERE id = ?').get(id);
     expect(row).toBeDefined();
@@ -347,17 +347,17 @@ describe('multi-tenant: API key validation', () => {
 });
 
 describe('multi-tenant: tenant-scoped queries', () => {
-  it('getTraces filters by tenant via AgentTrace config', () => {
+  it('getTraces filters by tenant via AgentTrace config', async () => {
     const db = tmpDb();
     const agentA = makeAgent(db, 'tenant-a');
     const agentB = makeAgent(db, 'tenant-b');
 
     agentA.startRun('run-a');
-    agentA.trace('op-a1', async () => 'r1');
-    agentA.trace('op-a2', async () => 'r2');
+    await agentA.trace('op-a1', async () => 'r1');
+    await agentA.trace('op-a2', async () => 'r2');
 
     agentB.startRun('run-b');
-    agentB.trace('op-b1', async () => 'r3');
+    await agentB.trace('op-b1', async () => 'r3');
 
     const tracesA = agentA.getTraces();
     const tracesB = agentB.getTraces();
@@ -369,19 +369,19 @@ describe('multi-tenant: tenant-scoped queries', () => {
     agentB.close();
   });
 
-  it('getCostBreakdown is tenant-scoped', () => {
+  it('getCostBreakdown is tenant-scoped', async () => {
     const db = tmpDb();
     const agentA = makeAgent(db, 'tenant-a');
     const agentB = makeAgent(db, 'tenant-b');
 
     agentA.startRun('run-a');
-    agentA.trace('op-a', async () => 'ok', {
+    await agentA.trace('op-a', async () => 'ok', {
       tokens: { promptTokens: 1000, completionTokens: 500, totalTokens: 1500 },
       model: 'gpt-4o',
     });
 
     agentB.startRun('run-b');
-    agentB.trace('op-b', async () => 'ok', {
+    await agentB.trace('op-b', async () => 'ok', {
       tokens: { promptTokens: 2000, completionTokens: 1000, totalTokens: 3000 },
       model: 'gpt-4o',
     });
@@ -447,12 +447,12 @@ describe('multi-tenant: tenant-scoped queries', () => {
     agentB.close();
   });
 
-  it('tenantId is stored on traces and runs', () => {
+  it('tenantId is stored on traces and runs', async () => {
     const db = tmpDb();
     const agent = makeAgent(db, 'my-tenant');
 
     const runId = agent.startRun('test-run');
-    agent.trace('test-op', async () => 'result');
+    await agent.trace('test-op', async () => 'result');
 
     const run = agent.getRun(runId);
     expect(run).not.toBeNull();
@@ -465,16 +465,16 @@ describe('multi-tenant: tenant-scoped queries', () => {
     agent.close();
   });
 
-  it('empty tenantId does not filter (sees all data)', () => {
+  it('empty tenantId does not filter (sees all data)', async () => {
     const db = tmpDb();
     const agentA = makeAgent(db, 'tenant-a');
     const agentNoTenant = makeAgent(db);
 
     agentA.startRun('run-a');
-    agentA.trace('op-a', async () => 'result-a');
+    await agentA.trace('op-a', async () => 'result-a');
 
     agentNoTenant.startRun('run-notenant');
-    agentNoTenant.trace('op-notenant', async () => 'result-nt');
+    await agentNoTenant.trace('op-notenant', async () => 'result-nt');
 
     // agent with no tenantId should see all traces
     const allTraces = agentNoTenant.getTraces();
@@ -488,13 +488,13 @@ describe('multi-tenant: tenant-scoped queries', () => {
     agentNoTenant.close();
   });
 
-  it('multiple traces from same tenant are all retrievable', () => {
+  it('multiple traces from same tenant are all retrievable', async () => {
     const db = tmpDb();
     const agent = makeAgent(db, 'tenant-x');
 
     const runId = agent.startRun('bulk-run');
     for (let i = 0; i < 10; i++) {
-      agent.trace(`op-${i}`, async () => `result-${i}`);
+      await agent.trace(`op-${i}`, async () => `result-${i}`);
     }
 
     const traces = agent.getTraces();

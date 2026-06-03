@@ -534,7 +534,7 @@ export class AgentTrace {
    * Get summary statistics
    */
   getStats(): TraceStats {
-    return this.storage.getStats();
+    return this.storage.getStats(this.config.tenantId || undefined);
   }
 
   /**
@@ -549,7 +549,7 @@ export class AgentTrace {
    * Get cost breakdown (by model, by day, total). Supports optional run filter.
    */
   getCostBreakdown(filter: { runId?: string } = {}): CostBreakdown {
-    return this.storage.getCostBreakdown(filter.runId);
+    return this.storage.getCostBreakdown(filter.runId, this.config.tenantId || undefined);
   }
 
   // ---- Agent usage tracking (for self-observability by agents) ----
@@ -632,7 +632,7 @@ export class AgentTrace {
     }
     const fullKey = `at_${randomUUID().replace(/-/g, '')}`;
     const preview = fullKey.slice(0, 12) + '****';
-    const meta = this.storage.createApiKey(name.trim());
+    const meta = this.storage.createApiKey(name.trim(), ['read', 'write'], fullKey);
     return { ...meta, key: fullKey };
   }
 

@@ -36,7 +36,7 @@ const { mockStorage, MockTraceStorage } = vi.hoisted(() => {
 
   return {
     mockStorage,
-    MockTraceStorage: vi.fn(function MockTraceStorage() {
+    MockTraceStorage: vi.fn(function MockTraceStorage(_dbPath?: string, _tenantId?: string) {
       return mockStorage;
     }),
   };
@@ -166,7 +166,7 @@ describe('AgentTrace', () => {
 
   it('constructs TraceStorage with default dbPath', () => {
     new AgentTrace();
-    expect(MockTraceStorage).toHaveBeenCalledWith('./agenttrace.db');
+    expect(MockTraceStorage).toHaveBeenCalledWith('./agenttrace.db', '');
   });
 
   it('applies constructor options', () => {
@@ -177,7 +177,7 @@ describe('AgentTrace', () => {
       silent: true,
     });
 
-    expect(MockTraceStorage).toHaveBeenCalledWith('/tmp/custom.db');
+    expect(MockTraceStorage).toHaveBeenCalledWith('/tmp/custom.db', '');
     agent.close();
   });
 
@@ -192,7 +192,7 @@ describe('init()', () => {
   it('returns an AgentTrace instance wired to storage', () => {
     const instance = init({ dbPath: '/tmp/init.db', silent: true });
     expect(instance).toBeInstanceOf(AgentTrace);
-    expect(MockTraceStorage).toHaveBeenCalledWith('/tmp/init.db');
+    expect(MockTraceStorage).toHaveBeenCalledWith('/tmp/init.db', '');
     instance.close();
   });
 });
