@@ -292,7 +292,7 @@ function getWeekStart(ts: number): number {
 
 function printSelfStats(storage: TraceStorage, useJson: boolean): void {
   // Fetch recent data (no hard limit to include historical self usage)
-  const runs = storage.getRuns(5000);
+  const runs = storage.getRuns(undefined, 5000);
   const traces = storage.getTraces({ limit: 20000 });
 
   const selfRuns = runs.filter((r) => isSelfTracked(r));
@@ -650,6 +650,41 @@ async function runMain(): Promise<void> {
       }
     }
     return undefined;
+  })();
+
+  // detect subcommand for webhooks (e.g. webhook add, webhook list, webhook remove, webhook test)
+  const webhookSub: string | undefined = (() => {
+    if (command !== 'webhook') return undefined;
+    const argvArgs = process.argv.slice(2);
+    const idx = argvArgs.indexOf('webhook');
+    if (idx === -1) return undefined;
+    for (let k = idx + 1; k < argvArgs.length; k++) {
+      const c = argvArgs[k];
+      if (typeof c === 'string' && !c.startsWith('-')) {
+        return c;
+      }
+    }
+    return undefined;
+  })();
+
+  // capture positional args for webhook commands
+  // webhook add <url> <events...>  => positional[0]=url, positional[1..]=events
+  // webhook remove <id>            => positional[0]=id
+  // webhook test <id>              => positional[0]=id
+  const webhookPositionals: string[] = (() => {
+    if (command !== 'webhook') return [];
+    const argvArgs = process.argv.slice(2);
+    const idx = argvArgs.indexOf('webhook');
+    if (idx === -1) return [];
+    const result: string[] = [];
+    for (let k = idx + 1; k < argvArgs.length; k++) {
+      const c = argvArgs[k];
+      if (typeof c === 'string' && !c.startsWith('-')) {
+        result.push(c);
+      }
+    }
+    // First positional is the subcommand; rest are args
+    return result.slice(1);
   })();
 
   // detect subcommand for retention (e.g. retention show, retention set <days>)

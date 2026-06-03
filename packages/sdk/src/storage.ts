@@ -715,9 +715,14 @@ export class TraceStorage {
       );
   }
 
-  getAgentUsage(filter: AgentUsageFilter = {}): AgentUsageRecord[] {
+  getAgentUsage(filter: AgentUsageFilter = {}, tenantId?: string): AgentUsageRecord[] {
     let sql = 'SELECT * FROM agent_usage WHERE 1=1';
     const params: unknown[] = [];
+
+    if (tenantId) {
+      sql += ' AND tenant_id = ?';
+      params.push(tenantId);
+    }
 
     if (filter.agentName) {
       sql += ' AND agent_name = ?';
@@ -764,9 +769,13 @@ export class TraceStorage {
     return rows.map((r) => this.rowToAgentUsage(r));
   }
 
-  getUsageStats(agentName?: string, fromDate?: number, toDate?: number): UsageStats {
+  getUsageStats(agentName?: string, fromDate?: number, toDate?: number, tenantId?: string): UsageStats {
     const whereParts: string[] = [];
     const params: unknown[] = [];
+    if (tenantId) {
+      whereParts.push('tenant_id = ?');
+      params.push(tenantId);
+    }
     if (agentName) {
       whereParts.push('agent_name = ?');
       params.push(agentName);
@@ -1125,9 +1134,18 @@ export class TraceStorage {
     };
   }
 
-  getCostBreakdown(runId?: string): CostBreakdown {
-    const where = runId ? ' WHERE run_id = ?' : '';
-    const params: unknown[] = runId ? [runId] : [];
+  getCostBreakdown(runId?: string, tenantId?: string): CostBreakdown {
+    const whereParts: string[] = [];
+    const params: unknown[] = [];
+    if (runId) {
+      whereParts.push('run_id = ?');
+      params.push(runId);
+    }
+    if (tenantId) {
+      whereParts.push('tenant_id = ?');
+      params.push(tenantId);
+    }
+    const where = whereParts.length ? ' WHERE ' + whereParts.join(' AND ') : '';
 
     const totalCost = this.db
       .prepare(`SELECT SUM(cost_usd) as v FROM traces${where}`)

@@ -609,7 +609,91 @@ export class AgentTrace {
     return this.storage.getWebhooks();
   }
 
-  /**\n   * Remove a webhook by ID.\n   */\n  removeWebhook(id: string): void {\n    this.storage.deleteWebhook(id);\n  }\n\n  /**\n   * Register a new webhook (alias for addWebhook). Returns the webhook ID.\n   */\n  registerWebhook(url: string, events: WebhookEvent[], secret?: string): string {\n    return this.addWebhook(url, events, secret);\n  }\n\n  /**\n   * Delete a webhook by ID (alias for removeWebhook).\n   */\n  deleteWebhook(id: string): void {\n    this.removeWebhook(id);\n  }\n\n  /**\n   * Trigger webhooks for a given event. Finds all enabled webhooks registered for\n   * the event, builds the payload, signs it if a secret is configured, and POSTs\n   * to each URL. Returns delivery results.\n   */\n  async triggerWebhook(event: WebhookEvent, payload: Record<string, unknown>): Promise<WebhookDelivery[]> {\n    const webhooks = this.storage.getEnabledWebhooksForEvent(event);\n    const results: WebhookDelivery[] = [];\n    const timestamp = Date.now();\n\n    for (const wh of webhooks) {\n      const fullPayload = { event, timestamp, ...payload };\n      const bodyStr = JSON.stringify(fullPayload);\n      const headers: Record<string, string> = {\n        'Content-Type': 'application/json',\n        'User-Agent': `AgentTrace/${VERSION}`,\n      };\n\n      if (wh.secret) {\n        const sig = createHash('sha256').update(wh.secret + '.' + bodyStr).digest('hex');\n        headers['X-AgentTrace-Signature'] = `sha256=${sig}`;\n      }\n\n      let deliveryStatus: 'success' | 'failure' = 'failure';\n      let httpStatus: number | undefined;\n      let errorMsg: string | undefined;\n\n      try {\n        const resp = await fetch(wh.url, {\n          method: 'POST',\n          headers,\n          body: bodyStr,\n        });\n        httpStatus = resp.ok ? resp.status : resp.status;\n        deliveryStatus = resp.ok ? 'success' : 'failure';\n        if (resp.ok) {\n          this.storage.resetWebhookFailures(wh.id);\n        } else {\n          this.storage.incrementWebhookFailures(wh.id);\n          errorMsg = `webhook responded ${resp.status}`;\n        }\n      } catch (e: unknown) {\n        this.storage.incrementWebhookFailures(wh.id);\n        errorMsg = e instanceof Error ? e.message : String(e);\n      }\n\n      const delivery: WebhookDelivery = {\n        id: randomUUID(),\n        webhookId: wh.id,\n        event,\n        payload: bodyStr,\n        status: deliveryStatus,\n        httpStatus,\n        error: errorMsg,\n        createdAt: timestamp,\n      };\n      results.push(delivery);\n    }\n\n    return results;\n  }\n\n  /**\n   * Test a webhook by ID: fires a test event payload to the webhook URL.
+  /**
+   * Remove a webhook by ID.
+   */
+  removeWebhook(id: string): void {
+    this.storage.deleteWebhook(id);
+  }
+
+  /**
+   * Register a new webhook (alias for addWebhook). Returns the webhook ID.
+   */
+  registerWebhook(url: string, events: WebhookEvent[], secret?: string): string {
+    return this.addWebhook(url, events, secret);
+  }
+
+  /**
+   * Delete a webhook by ID (alias for removeWebhook).
+   */
+  deleteWebhook(id: string): void {
+    this.removeWebhook(id);
+  }
+
+  /**
+   * Trigger webhooks for a given event. Finds all enabled webhooks registered for
+   * the event, builds the payload, signs it if a secret is configured, and POSTs
+   * to each URL. Returns delivery results.
+   */
+  async triggerWebhook(event: WebhookEvent, payload: Record<string, unknown>): Promise<WebhookDelivery[]> {
+    const webhooks = this.storage.getEnabledWebhooksForEvent(event);
+    const results: WebhookDelivery[] = [];
+    const timestamp = Date.now();
+
+    for (const wh of webhooks) {
+      const fullPayload = { event, timestamp, ...payload };
+      const bodyStr = JSON.stringify(fullPayload);
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'User-Agent': `AgentTrace/${VERSION}`,
+      };
+
+      if (wh.secret) {
+        const sig = createHash('sha256').update(wh.secret + '.' + bodyStr).digest('hex');
+        headers['X-AgentTrace-Signature'] = `sha256=${sig}`;
+      }
+
+      let deliveryStatus: 'success' | 'failure' = 'failure';
+      let httpStatus: number | undefined;
+      let errorMsg: string | undefined;
+
+      try {
+        const resp = await fetch(wh.url, {
+          method: 'POST',
+          headers,
+          body: bodyStr,
+        });
+        httpStatus = resp.ok ? resp.status : resp.status;
+        deliveryStatus = resp.ok ? 'success' : 'failure';
+        if (resp.ok) {
+          this.storage.resetWebhookFailures(wh.id);
+        } else {
+          this.storage.incrementWebhookFailures(wh.id);
+          errorMsg = `webhook responded ${resp.status}`;
+        }
+      } catch (e: unknown) {
+        this.storage.incrementWebhookFailures(wh.id);
+        errorMsg = e instanceof Error ? e.message : String(e);
+      }
+
+      const delivery: WebhookDelivery = {
+        id: randomUUID(),
+        webhookId: wh.id,
+        event,
+        payload: bodyStr,
+        status: deliveryStatus,
+        httpStatus,
+        error: errorMsg,
+        createdAt: timestamp,
+      };
+      results.push(delivery);
+    }
+
+    return results;
+  }
+
+  /**
+   * Test a webhook by ID: fires a test event payload to the webhook URL.
    * Returns delivery result.
    */
   async testWebhook(id: string): Promise<{ ok: boolean; status?: number; error?: string }> {
@@ -959,7 +1043,8 @@ export class AgentTrace {
       t.tokens.totalTokens,
       t.createdAt,
     ]);
-    return [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+    return [headers.join(','), ...rows.map((r) => r.join(','))].join('
+');
   }
 
   /**
