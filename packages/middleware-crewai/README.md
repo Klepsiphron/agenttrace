@@ -1,16 +1,16 @@
-# agenttrace-middleware-crewai
+# agenttrace-io-middleware-crewai
 
 CrewAI middleware for AgentTrace. Automatically traces task execution and tool usage by hooking into CrewAI's event system. Extracts token usage from CrewAI's built-in tracking (usage / token_usage on events).
 
 ## Installation
 
 ```bash
-pip install agenttrace-middleware-crewai
-# Requires: crewai (for auto event hooks) + agenttrace (pulled in automatically)
+pip install agenttrace-io-middleware-crewai
+# Requires: crewai (for auto event hooks) + agenttrace-io (pulled in automatically)
 pip install crewai
 ```
 
-The package depends on `agenttrace` (the core Python SDK).
+The package depends on `agenttrace-io` (the core Python SDK).
 
 ## Usage
 
@@ -82,7 +82,7 @@ mw = AgentTraceCrewAI(db_path="./prod-traces.db")
 ## Viewing traces
 
 ```bash
-npx agenttrace dashboard --db ./traces.db
+npx agenttrace-io dashboard --db ./traces.db
 ```
 
 ## License

@@ -1,11 +1,11 @@
-# agenttrace (Python SDK)
+# agenttrace-io (Python SDK)
 
 Drop-in tracing for any AI agent. Local SQLite storage, zero dependencies, zero cloud.
 
 ## Installation
 
 ```bash
-pip install agenttrace
+pip install agenttrace-io
 ```
 
 Requires Python 3.10+.

@@ -362,7 +362,6 @@ export class AgentTraceMiddleware implements NodeMiddleware {
       }
     } catch (e) {
       if (!cfg.silent) {
-        // eslint-disable-next-line no-console
         console.error('[AgentTraceMiddleware] failed to record trace:', e);
       }
     }

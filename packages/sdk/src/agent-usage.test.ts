@@ -1,6 +1,6 @@
 import { describe, expect, it, beforeEach, afterEach } from 'vitest';
 import { TraceStorage } from './storage.js';
-import type { AgentUsageRecord, AgentUsageFilter, UsageStats } from './types.js';
+import type { AgentUsageRecord, UsageStats } from './types.js';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';

@@ -569,7 +569,6 @@ export class TraceStorage {
     // Walk up parent chain to find ultimate root (cycle safe)
     let rootId = traceId;
     const upSeen = new Set<string>();
-    // eslint-disable-next-line no-constant-condition
     while (true) {
       if (upSeen.has(rootId)) break;
       upSeen.add(rootId);

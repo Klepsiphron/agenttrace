@@ -23,9 +23,6 @@ import {
   TraceContext,
   TraceTreeNode,
   HealthReport,
-  AgentUsageRecord,
-  AgentUsageFilter,
-  UsageStats,
 } from './types.js';
 
 export const VERSION = '0.1.0';
@@ -505,7 +502,7 @@ export class AgentTrace {
       avgTokensPerTrace: stats.avgTokensPerTrace || 0,
     };
 
-    let delivered = false;
+    let delivered: boolean;
     let errMsg: string | undefined;
 
     const payload = { alertName: alert.name, stats, timestamp: now };

@@ -20,7 +20,7 @@ telemetry.
 
 Features:
 - TypeScript SDK (npm install @agenttrace-io/sdk)
-- Python SDK (pip install agenttrace-io)
+- Python SDK (pip install agenttrace-io-io)
 - CLI: agenttrace runs, agenttrace stats, agenttrace export
 - Local web dashboard on localhost
 - Automatic cost calculation for GPT-4o, Claude 4, Gemini, Llama
@@ -77,7 +77,7 @@ Traces tokens, tool calls, latency, and cost. Works with any
 framework (LangGraph, CrewAI, custom). Has a CLI and a local
 web dashboard.
 
-pip install agenttrace
+pip install agenttrace-io
 github.com/Klepsiphron/agenttrace
 ```
 
@@ -124,7 +124,7 @@ github.com/Klepsiphron/agenttrace
 **Body:**
 
 ```
-pip install agenttrace - drop-in tracing for Python AI agents.
+pip install agenttrace-io - drop-in tracing for Python AI agents.
 Context manager, decorator, or direct call. Local SQLite, no cloud.
 Same DB schema as the TypeScript SDK so you can share traces between
 languages.
@@ -142,8 +142,8 @@ Just open-sourced AgentTrace 🔍
 AI agent observability that runs entirely locally.
 No cloud. No accounts. No telemetry.
 
-npm install @agenttrace/sdk
-pip install agenttrace
+npm install @agenttrace-io/sdk
+pip install agenttrace-io
 → trace any async function
 → see tokens, cost, latency, tool calls
 → dashboard at localhost

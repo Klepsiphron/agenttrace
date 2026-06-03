@@ -1,21 +1,21 @@
-# @agenttrace/middleware-langgraph
+# @agenttrace-io/middleware-langgraph
 
 LangGraph middleware for AgentTrace. Automatically traces every node execution (start, complete, errors) and extracts token usage from LangGraph/LangChain built-in tracking.
 
 ## Installation
 
 ```bash
-npm install @agenttrace/middleware-langgraph
-# peer: you already have LangGraph + @agenttrace/sdk (workspace or npm)
+npm install @agenttrace-io/middleware-langgraph
+# peer: you already have LangGraph + @agenttrace-io/sdk (workspace or npm)
 ```
 
-The middleware re-exports/depends on `@agenttrace/sdk` as a workspace dependency.
+The middleware re-exports/depends on `@agenttrace-io/sdk` as a workspace dependency.
 
 ## Usage
 
 ```ts
 import { StateGraph, START, END, Annotation } from '@langchain/langgraph';
-import { AgentTraceMiddleware } from '@agenttrace/middleware-langgraph';
+import { AgentTraceMiddleware } from '@agenttrace-io/middleware-langgraph';
 
 const AgentState = Annotation.Root({
   messages: Annotation<string[]>({ reducer: (x, y) => x.concat(y) }),
@@ -76,7 +76,7 @@ try {
 
 ## Config
 
-Constructor accepts the same `TraceConfig` as `AgentTrace` (from `@agenttrace/sdk`):
+Constructor accepts the same `TraceConfig` as `AgentTrace` (from `@agenttrace-io/sdk`):
 
 ```ts
 new AgentTraceMiddleware({
@@ -91,7 +91,7 @@ new AgentTraceMiddleware({
 Use the AgentTrace CLI/dashboard as usual:
 
 ```bash
-npx agenttrace dashboard --db ./traces.db
+npx agenttrace-io dashboard --db ./traces.db
 ```
 
 ## License

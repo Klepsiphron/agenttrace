@@ -56,8 +56,8 @@ Several strong products address LLM/agent observability. They excel for teams bu
 AgentTrace bets on a common 80% case: "I want to understand what just happened in _this_ agent run on _my_ machine, right now — without accounts, Docker, or data leaving."
 
 - **Storage is one SQLite file** (`agenttrace.db`). WAL + normalized schema (runs, traces, tool_calls, scores, alerts, links). Own it, query it with `sqlite3`, rsync it, or `.gitignore` it. No servers or volumes.
-- **CLI is primary.** `npx agenttrace runs`, `stats`, `costs --daily`, `tree`, `export --format otel`, `alerts` etc. stay in your terminal flow.
-- **Dashboard is tiny and local.** `npx agenttrace dashboard` starts an embedded Express UI against the same DB. No separate frontend install.
+- **CLI is primary.** `npx agenttrace-io runs`, `stats`, `costs --daily`, `tree`, `export --format otel`, `alerts` etc. stay in your terminal flow.
+- **Dashboard is tiny and local.** `npx agenttrace-io dashboard` starts an embedded Express UI against the same DB. No separate frontend install.
 - **Zero cloud by default.** Data leaves only via explicit export or a webhook _you_ configure.
 - **Framework-agnostic + middlewares.** Works for raw calls or custom loops. Ships LangGraph (TS) and CrewAI (Py) auto-instrumentation for nodes/tasks/tools.
 - **Cost built-in.** ~15 models with 2026 rates + `registerModelRate()`. Per-trace + breakdowns.
@@ -72,7 +72,7 @@ We deliberately skip full prompt registries, heavy experiment platforms, and mul
 **TypeScript drop-in:**
 
 ```typescript
-import { init } from '@agenttrace/sdk';
+import { init } from '@agenttrace-io/sdk';
 const agent = init();
 const result = await agent.trace('research-agent', async () => {
   const search = await agent.trace('web-search', async () => callTool(q), { model: 'gpt-4o-mini', tokens: {promptTokens:120, completionTokens:80, totalTokens:200} });
@@ -104,13 +104,13 @@ CrewAI (Py): `AgentTraceCrewAI` subscribes to task/tool events on the bus and re
 **CLI (primary interface):**
 
 ```bash
-npx agenttrace init
-npx agenttrace runs --limit 20
-npx agenttrace stats
-npx agenttrace costs --daily
-npx agenttrace tree --trace-id <id>
-npx agenttrace export --format otel --output spans.json
-npx agenttrace dashboard   # localhost UI
+npx agenttrace-io init
+npx agenttrace-io runs --limit 20
+npx agenttrace-io stats
+npx agenttrace-io costs --daily
+npx agenttrace-io tree --trace-id <id>
+npx agenttrace-io export --format otel --output spans.json
+npx agenttrace-io dashboard   # localhost UI
 ```
 
 `stats`/`costs` give aggregates + top tools/errors. `tree` renders parent/child/linked traces.
@@ -182,12 +182,12 @@ We compete on _simplicity and guarantees_, not on breadth of lifecycle features.
 **TypeScript:**
 
 ```bash
-npm install @agenttrace/sdk
-npx agenttrace init
+npm install @agenttrace-io/sdk
+npx agenttrace-io init
 ```
 
 ```ts
-import { init } from '@agenttrace/sdk';
+import { init } from '@agenttrace-io/sdk';
 const agent = init();
 await agent.trace('my-agent', async () => { ... });
 ```
@@ -195,7 +195,7 @@ await agent.trace('my-agent', async () => { ... });
 **Python:**
 
 ```bash
-pip install agenttrace
+pip install agenttrace-io
 ```
 
 ```py
@@ -204,11 +204,11 @@ agent = init()
 with agent.trace("op") as t: ...
 ```
 
-CLI/dashboard (cross-language): `npx agenttrace runs`, `stats`, `dashboard`, `export --format otel`.
+CLI/dashboard (cross-language): `npx agenttrace-io runs`, `stats`, `dashboard`, `export --format otel`.
 
 See `examples/langgraph/`, `examples/crewai/`, `examples/custom/` in the repo.
 
-**Workflow:** `npx agenttrace init` → run agent → `npx agenttrace stats` → `npx agenttrace dashboard` (localhost:3000) → `export` when needed.
+**Workflow:** `npx agenttrace-io init` → run agent → `npx agenttrace-io stats` → `npx agenttrace-io dashboard` (localhost:3000) → `export` when needed.
 
 Register custom rates or pass `tokens` explicitly; OTEL export needs no extra SDKs.
 
@@ -223,9 +223,9 @@ We won't chase every feature of larger platforms. We double down on zero-frictio
 ## Try It
 
 ```bash
-npm install @agenttrace/sdk && npx agenttrace init
+npm install @agenttrace-io/sdk && npx agenttrace-io init
 # or
-pip install agenttrace
+pip install agenttrace-io
 ```
 
 Repo + examples: https://github.com/Klepsiphron/agenttrace

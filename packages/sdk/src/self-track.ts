@@ -17,11 +17,6 @@ export interface SelfTrackerConfig {
   dbPath?: string;
 }
 
-interface SessionInfo {
-  id: string;
-  startedAt: number;
-}
-
 export class SelfTracker {
   private agentName: string;
   private agentType: string;
