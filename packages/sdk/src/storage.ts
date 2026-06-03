@@ -4,7 +4,7 @@
  */
 
 import Database from 'better-sqlite3';
-import { randomUUID, createHmac } from 'node:crypto';
+import { randomUUID, createHash } from 'node:crypto';
 import { statSync } from 'node:fs';
 import {
   Trace,
@@ -21,6 +21,7 @@ import {
   AgentWho,
   AgentSession,
   WebhookConfig,
+  ApiKey,
 } from './types.js';
 
 export class TraceStorage {
@@ -176,6 +177,21 @@ export class TraceStorage {
       );
       CREATE INDEX IF NOT EXISTS idx_webhooks_enabled ON webhooks(enabled);
       CREATE INDEX IF NOT EXISTS idx_webhooks_created_at ON webhooks(created_at);
+
+      CREATE TABLE IF NOT EXISTS api_keys (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        key_hash TEXT NOT NULL UNIQUE,
+        key_preview TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        last_used_at INTEGER
+      );
+      CREATE INDEX IF NOT EXISTS idx_api_keys_created_at ON api_keys(created_at);
+
+      CREATE TABLE IF NOT EXISTS settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+      );
 
       CREATE TABLE IF NOT EXISTS version (
         key TEXT PRIMARY KEY,
@@ -969,6 +985,82 @@ export class TraceStorage {
     return { totalCostUsd, costByAgent, costByModel };
   }
 
+  // ---- API Key management (stored hashed with SHA-256) ----
+
+  /**
+   * Create a new API key. Returns the full key (caller must show once) + metadata.
+   * keyHash is SHA-256 hex of the provided key.
+   */
+  createApiKey(name: string, key: string, keyPreview: string): ApiKey {
+    const id = randomUUID();
+    const now = Date.now();
+    const keyHash = createHash('sha256').update(key).digest('hex');
+    this.db
+      .prepare(
+        `
+      INSERT INTO api_keys (id, name, key_hash, key_preview, created_at, last_used_at)
+      VALUES (?, ?, ?, ?, ?, NULL)
+    `,
+      )
+      .run(id, name, keyHash, keyPreview, now);
+    return {
+      id,
+      name,
+      preview: keyPreview,
+      createdAt: now,
+    };
+  }
+
+  /**
+   * List all API keys (never returns hashes or secrets, only previews).
+   */
+  listApiKeys(): ApiKey[] {
+    const rows = this.db
+      .prepare('SELECT * FROM api_keys ORDER BY created_at DESC')
+      .all() as unknown[];
+    return rows.map((r) => {
+      const rec = r as Record<string, unknown>;
+      return {
+        id: rec.id as string,
+        name: rec.name as string,
+        preview: rec.key_preview as string,
+        createdAt: Number(rec.created_at),
+        lastUsedAt: rec.last_used_at != null ? Number(rec.last_used_at) : undefined,
+      };
+    });
+  }
+
+  /**
+   * Revoke/delete an API key by id.
+   */
+  revokeApiKey(id: string): boolean {
+    const res = this.db.prepare('DELETE FROM api_keys WHERE id = ?').run(id);
+    return (res.changes ?? 0) > 0;
+  }
+
+  /**
+   * Validate a presented API key (from X-API-Key header). Returns the matching ApiKey if valid (updates last_used_at), else null.
+   */
+  validateApiKey(presentedKey: string): ApiKey | null {
+    if (!presentedKey || typeof presentedKey !== 'string') return null;
+    const presentedHash = createHash('sha256').update(presentedKey).digest('hex');
+    const row = this.db
+      .prepare('SELECT * FROM api_keys WHERE key_hash = ?')
+      .get(presentedHash) as unknown;
+    if (!row) return null;
+    const rec = row as Record<string, unknown>;
+    const now = Date.now();
+    // touch last_used_at
+    this.db.prepare('UPDATE api_keys SET last_used_at = ? WHERE id = ?').run(now, rec.id);
+    return {
+      id: rec.id as string,
+      name: rec.name as string,
+      preview: rec.key_preview as string,
+      createdAt: Number(rec.created_at),
+      lastUsedAt: now,
+    };
+  }
+
   // ---- Stats ----
 
   getStats(): TraceStats {
@@ -1111,6 +1203,89 @@ export class TraceStorage {
     return toDelete;
   }
 
+  cleanupOldTraces(before: number): number {
+    if (!before || before <= 0) return 0;
+    // Clean dependents that do not have ON DELETE CASCADE (scores, trace_links)
+    this.db
+      .prepare(
+        `DELETE FROM scores WHERE trace_id IN (SELECT id FROM traces WHERE created_at < ?)`,
+      )
+      .run(before);
+    this.db
+      .prepare(
+        `
+        DELETE FROM trace_links
+        WHERE source_trace_id IN (SELECT id FROM traces WHERE created_at < ?)
+           OR target_trace_id IN (SELECT id FROM traces WHERE created_at < ?)
+      `,
+      )
+      .run(before, before);
+    const res = this.db.prepare('DELETE FROM traces WHERE created_at < ?').run(before);
+    return res.changes ?? 0;
+  }
+
+  cleanupOldRuns(before: number): number {
+    if (!before || before <= 0) return 0;
+    // CASCADE will delete associated traces + their tool_calls
+    const res = this.db.prepare('DELETE FROM runs WHERE started_at < ?').run(before);
+    return res.changes ?? 0;
+  }
+
+  cleanupOldAgentUsage(before: number): number {
+    if (!before || before <= 0) return 0;
+    const res = this.db.prepare('DELETE FROM agent_usage WHERE created_at < ?').run(before);
+    return res.changes ?? 0;
+  }
+
+  getStorageStats(): { totalSize: number; traceCount: number; oldestTrace: number; newestTrace: number } {
+    const traceCountRow = this.db
+      .prepare('SELECT COUNT(*) as c FROM traces')
+      .get() as unknown as { c: number } | undefined;
+    const oldestRow = this.db
+      .prepare('SELECT MIN(created_at) as ts FROM traces')
+      .get() as unknown as { ts: number | null } | undefined;
+    const newestRow = this.db
+      .prepare('SELECT MAX(created_at) as ts FROM traces')
+      .get() as unknown as { ts: number | null } | undefined;
+    return {
+      totalSize: this.getDbSize(),
+      traceCount: traceCountRow ? traceCountRow.c : 0,
+      oldestTrace: oldestRow && oldestRow.ts != null ? Number(oldestRow.ts) : 0,
+      newestTrace: newestRow && newestRow.ts != null ? Number(newestRow.ts) : 0,
+    };
+  }
+
+  // ---- Retention policy (persisted) ----
+
+  getSetting(key: string): string | null {
+    const row = this.db
+      .prepare('SELECT value FROM settings WHERE key = ?')
+      .get(key) as unknown as { value?: string } | undefined;
+    return row && typeof row.value === 'string' ? row.value : null;
+  }
+
+  setSetting(key: string, value: string): void {
+    this.db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run(key, value);
+  }
+
+  getRetentionPolicy(): { retentionDays: number; cleanupIntervalHours: number } {
+    const rdStr = this.getSetting('retentionDays');
+    const ciStr = this.getSetting('cleanupIntervalHours');
+    return {
+      retentionDays: rdStr !== null ? Math.max(0, parseInt(rdStr, 10) || 0) : 30,
+      cleanupIntervalHours: ciStr !== null ? Math.max(1, parseInt(ciStr, 10) || 24) : 24,
+    };
+  }
+
+  setRetentionPolicy(retentionDays: number, cleanupIntervalHours?: number): void {
+    const days = Math.max(0, Math.floor(Number(retentionDays) || 0));
+    this.setSetting('retentionDays', String(days));
+    if (cleanupIntervalHours !== undefined) {
+      const hrs = Math.max(1, Math.floor(Number(cleanupIntervalHours) || 24));
+      this.setSetting('cleanupIntervalHours', String(hrs));
+    }
+  }
+
   // ---- Health / Integrity ----
 
   getHealthInfo(): {
@@ -1157,6 +1332,7 @@ export class TraceStorage {
       'trace_links',
       'agent_usage',
       'webhooks',
+      'api_keys',
       'version',
     ];
 

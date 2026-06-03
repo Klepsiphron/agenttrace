@@ -1,4 +1,6 @@
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
+import * as os from 'node:os';
+import * as fs from 'node:fs';
 import { createDashboardApp } from './index.ts';
 import * as http from 'node:http';
 import type { AddressInfo } from 'node:net';
@@ -33,6 +35,7 @@ describe('dashboard cost API endpoints (new tests)', () => {
     });
     servers = [];
     closes = [];
+    vi.restoreAllMocks();
   });
 
   async function startTemp(app: Express): Promise<{ port: number; base: string }> {
@@ -210,5 +213,92 @@ describe('dashboard cost API endpoints (new tests)', () => {
     expect(data.checks.database.status).toBe('ok');
     expect(data.checks.totalTraces).toBe(0);
     // simple SELECT exercised; tables created by AgentTrace init
+  });
+
+  it('returns 503 + unhealthy when database connectivity fails', async () => {
+    const { app, trace, close } = createDashboardApp(':memory:');
+    // close the underlying DB to force error path in health check
+    trace.close();
+    closes.push(close);
+
+    const { base } = await startTemp(app);
+    const res = await fetch(`${base}/api/health`);
+    expect(res.status).toBe(503);
+    const data = await res.json();
+    expect(data.status).toBe('unhealthy');
+    expect(data.checks.database.status).toBe('error');
+    expect(typeof data.checks.database.responseTime).toBe('number');
+  });
+
+  it('returns degraded (still 200) on resource warning (80-90%)', async () => {
+    const { app, close } = createDashboardApp(':memory:');
+    closes.push(close);
+
+    const total = 10000;
+    const used = 8600; // 86%
+    const origTotal = (os as any).totalmem;
+    const origFree = (os as any).freemem;
+    (os as any).totalmem = () => total;
+    (os as any).freemem = () => total - used;
+
+    const { base } = await startTemp(app);
+    const res = await fetch(`${base}/api/health`);
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.status).toBe('degraded');
+    expect(data.checks.memory.status).toBe('warning');
+    expect(data.checks.memory.usedBytes).toBe(used);
+
+    (os as any).totalmem = origTotal;
+    (os as any).freemem = origFree;
+  });
+
+  it('returns unhealthy + 503 on critical memory (>=90%)', async () => {
+    const { app, close } = createDashboardApp(':memory:');
+    closes.push(close);
+
+    const total = 10000;
+    const used = 9500; // 95% critical
+    const origTotal = (os as any).totalmem;
+    const origFree = (os as any).freemem;
+    (os as any).totalmem = () => total;
+    (os as any).freemem = () => total - used;
+
+    const { base } = await startTemp(app);
+    const res = await fetch(`${base}/api/health`);
+    expect(res.status).toBe(503);
+    const data = await res.json();
+    expect(data.status).toBe('unhealthy');
+    expect(data.checks.memory.status).toBe('critical');
+
+    (os as any).totalmem = origTotal;
+    (os as any).freemem = origFree;
+  });
+
+  it('detects disk critical and reports unhealthy (via fs.statfsSync)', async () => {
+    const { app, close } = createDashboardApp(':memory:');
+    closes.push(close);
+
+    // simulate low disk (95% used)
+    const origStatfs = (fs as any).statfsSync;
+    (fs as any).statfsSync = () => ({
+      type: 0,
+      bsize: 4096,
+      blocks: 10000,
+      bfree: 500,
+      bavail: 500,
+      files: 1000,
+      ffree: 1000,
+    });
+
+    const { base } = await startTemp(app);
+    const res = await fetch(`${base}/api/health`);
+    expect(res.status).toBe(503);
+    const data = await res.json();
+    expect(data.status).toBe('unhealthy');
+    expect(data.checks.diskSpace.status).toBe('critical');
+    expect(data.checks.diskSpace.totalBytes).toBeGreaterThan(0);
+
+    (fs as any).statfsSync = origStatfs;
   });
 });

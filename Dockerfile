@@ -75,6 +75,12 @@ ENV AGENTTRACE_DB_PATH=/app/data/agenttrace.db
 # The dashboard listens on 4317 by default (OTLP-adjacent port for convenience)
 EXPOSE 4317
 
+# Health check for container orchestration (Docker, K8s, etc).
+# Points at the dashboard's /api/health. Returns 200/healthy or 503/unhealthy.
+# Uses wget (provided by busybox in alpine base). Compose may override.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:4317/api/health || exit 1
+
 # Run the CLI dashboard command directly.
 # Use --host 0.0.0.0 so it is reachable from outside the container (default is 127.0.0.1)
 CMD ["node", "packages/cli/dist/index.js", "dashboard", "--host", "0.0.0.0"]

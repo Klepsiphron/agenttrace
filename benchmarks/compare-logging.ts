@@ -19,7 +19,6 @@ import { performance } from 'node:perf_hooks';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { Writable } from 'node:stream';
 import { randomUUID } from 'node:crypto';
 
 import { AgentTrace, TraceStorage } from '../packages/sdk/dist/index.js';
@@ -92,10 +91,10 @@ function makeRecord(i: number, base: number): LogRecord {
   };
 }
 
-function recordToTrace(r: LogRecord): Omit<Trace, 'createdAt' | 'updatedAt'> {
+function recordToTrace(r: LogRecord, runId: string): Omit<Trace, 'createdAt' | 'updatedAt'> {
   return {
     id: r.id,
-    runId: 'compare-run',
+    runId,
     name: r.name,
     status: r.status === 'error' ? 'error' : 'success',
     input: r.input ?? null,
@@ -110,24 +109,17 @@ function recordToTrace(r: LogRecord): Omit<Trace, 'createdAt' | 'updatedAt'> {
   };
 }
 
-// Blackhole stream for console simulation (prevents terminal spam while measuring write cost)
-const blackhole = new Writable({
-  write(_chunk: any, _enc: string, cb: () => void) { cb(); },
-});
-
+// Realistic "console" write simulation using /dev/null (linux). Measures formatting + kernel write cost
+// without flooding the terminal or relying on mutable stdout.
 function benchConsoleWrite(records: LogRecord[]): { timeMs: number; perSecond: number } {
-  const orig = process.stdout;
-  // @ts-expect-error - swap for bench
-  process.stdout = blackhole;
+  const nullFd = fs.openSync('/dev/null', 'w');
   const t0 = performance.now();
   for (const r of records) {
-    // realistic console structured log
-    blackhole.write(JSON.stringify({ level: 'info', ...r }) + '\n');
+    const line = JSON.stringify({ level: 'info', ...r }) + '\n';
+    fs.writeSync(nullFd, line);
   }
   const dur = performance.now() - t0;
-  // restore
-  // @ts-expect-error
-  process.stdout = orig;
+  fs.closeSync(nullFd);
   return {
     timeMs: Math.round(dur * 100) / 100,
     perSecond: Math.round(records.length / (dur / 1000)),
@@ -152,11 +144,11 @@ function benchJsonlWrite(records: LogRecord[], logPath: string): { timeMs: numbe
 
 async function benchAgentTraceWrite(records: LogRecord[], dbPath: string): Promise<{ timeMs: number; perSecond: number }> {
   const agent = new AgentTrace({ dbPath, silent: true, autoCleanup: false });
-  agent.startRun('compare-bench');
+  const runId = agent.startRun('compare-bench');
   const storage = (agent as unknown as { storage: TraceStorage }).storage;
   const t0 = performance.now();
   for (const r of records) {
-    storage.createTrace(recordToTrace(r));
+    storage.createTrace(recordToTrace(r, runId));
   }
   const dur = performance.now() - t0;
   agent.close();
@@ -342,7 +334,7 @@ export async function runCompareBenchmarks(n = 10000): Promise<CompareResult> {
     },
     query: queryResults,
     notes: [
-      'console: measured via blackhole stream (real console would be slower + pollute output)',
+      'console: measured via writeSync to /dev/null (formatting + write cost, no terminal spam)',
       'jsonl: uses fs.appendFileSync per record (realistic for simple logging)',
       'AgentTrace: uses direct storage.createTrace (bypasses trace() wrapper for raw rate)',
       'JSONL queries are full in-memory scans after loading entire file',

@@ -224,17 +224,48 @@ export class AgentTrace {
   private currentRunId: string | null = null;
   private registeredAlerts: AlertCondition[] = [];
   private usageEmitter = new EventEmitter();
+  private _cleanupInterval?: NodeJS.Timeout | ReturnType<typeof setInterval>;
 
   constructor(config: TraceConfig = {}) {
+    const dbPath = config.dbPath || './agenttrace.db';
+    this.storage = new TraceStorage(dbPath);
+    const persisted = this.storage.getRetentionPolicy();
     this.config = {
-      dbPath: config.dbPath || './agenttrace.db',
-      maxTraces: config.maxTraces || 10000,
+      dbPath,
+      maxTraces: config.maxTraces ?? 10000,
       autoCleanup: config.autoCleanup !== false,
       costCalculator: config.costCalculator || defaultCostCalculator,
       hallucinationDetector: config.hallucinationDetector || (() => false),
-      silent: config.silent || false,
+      silent: !!config.silent,
+      retentionDays: config.retentionDays !== undefined ? config.retentionDays : persisted.retentionDays,
+      cleanupIntervalHours:
+        config.cleanupIntervalHours !== undefined ? config.cleanupIntervalHours : persisted.cleanupIntervalHours,
     };
-    this.storage = new TraceStorage(this.config.dbPath);
+    this.setupRetentionCleanup();
+  }
+
+  private setupRetentionCleanup(): void {
+    if (this._cleanupInterval) {
+      clearInterval(this._cleanupInterval);
+      this._cleanupInterval = undefined;
+    }
+    if (this.config.retentionDays > 0) {
+      const hours = this.config.cleanupIntervalHours > 0 ? this.config.cleanupIntervalHours : 24;
+      const intervalMs = hours * 60 * 60 * 1000;
+      this._cleanupInterval = setInterval(() => {
+        const before = Date.now() - this.config.retentionDays * 24 * 60 * 60 * 1000;
+        try {
+          this.storage.cleanupOldTraces(before);
+          this.storage.cleanupOldRuns(before);
+          this.storage.cleanupOldAgentUsage(before);
+        } catch (_) {
+          /* scheduled cleanup must never crash host process */
+        }
+      }, intervalMs);
+      if (this._cleanupInterval && typeof (this._cleanupInterval as any).unref === 'function') {
+        (this._cleanupInterval as any).unref();
+      }
+    }
   }
 
   /**
@@ -459,6 +490,46 @@ export class AgentTrace {
     return this.storage.getAgentSessions(filter);
   }
 
+  // ---- API key management ----
+
+  /**
+   * Create a new API key for dashboard API authentication.
+   * Returns the full secret key (display once) + metadata record.
+   * The secret is never stored; only its SHA-256 hash is persisted.
+   */
+  createApiKey(name: string): CreatedApiKey {
+    if (!name || typeof name !== 'string' || name.trim().length === 0) {
+      throw new Error('API key name is required');
+    }
+    const fullKey = `at_${randomUUID().replace(/-/g, '')}`;
+    const preview = fullKey.slice(0, 12) + '****';
+    const meta = this.storage.createApiKey(name.trim(), fullKey, preview);
+    return { ...meta, key: fullKey };
+  }
+
+  /**
+   * List API keys (masked/previewed, no secrets).
+   */
+  listApiKeys(): ApiKey[] {
+    return this.storage.listApiKeys();
+  }
+
+  /**
+   * Revoke an API key by its id. Returns true if deleted.
+   */
+  revokeApiKey(id: string): boolean {
+    if (!id) return false;
+    return this.storage.revokeApiKey(id);
+  }
+
+  /**
+   * Validate a raw API key string (e.g. from header). Returns matching metadata or null.
+   * Side effect: updates lastUsedAt on success.
+   */
+  validateApiKey(key: string): ApiKey | null {
+    return this.storage.validateApiKey(key);
+  }
+
   /**
    * Subscribe to new agent usage records (for live dashboards / SSE).
    */
@@ -680,6 +751,61 @@ export class AgentTrace {
     };
   }
 
+  // ---- Retention / data lifecycle ----
+
+  /**
+   * Delete traces with created_at < before (timestamp ms). Also cleans dependent scores/links.
+   * Returns number of traces deleted.
+   */
+  cleanupOldTraces(before: number): number {
+    return this.storage.cleanupOldTraces(before);
+  }
+
+  /**
+   * Delete runs with started_at < before (timestamp ms). Cascades to their traces.
+   * Returns number of runs deleted.
+   */
+  cleanupOldRuns(before: number): number {
+    return this.storage.cleanupOldRuns(before);
+  }
+
+  /**
+   * Delete agent_usage records with created_at < before (timestamp ms).
+   * Returns number deleted.
+   */
+  cleanupOldAgentUsage(before: number): number {
+    return this.storage.cleanupOldAgentUsage(before);
+  }
+
+  /**
+   * Return basic storage stats for the backing DB.
+   */
+  getStorageStats(): { totalSize: number; traceCount: number; oldestTrace: number; newestTrace: number } {
+    return this.storage.getStorageStats();
+  }
+
+  /**
+   * Get the active retention policy (from this instance config, which may come from persisted defaults).
+   */
+  getRetentionPolicy(): { retentionDays: number; cleanupIntervalHours: number } {
+    return {
+      retentionDays: this.config.retentionDays,
+      cleanupIntervalHours: this.config.cleanupIntervalHours,
+    };
+  }
+
+  /**
+   * Set retention policy for this DB (persists it) and update live config + reschedule timer if needed.
+   */
+  setRetentionPolicy(retentionDays: number, cleanupIntervalHours?: number): void {
+    this.storage.setRetentionPolicy(retentionDays, cleanupIntervalHours);
+    this.config.retentionDays = Math.max(0, Math.floor(Number(retentionDays) || 0));
+    if (cleanupIntervalHours !== undefined) {
+      this.config.cleanupIntervalHours = Math.max(1, Math.floor(Number(cleanupIntervalHours) || 24));
+    }
+    this.setupRetentionCleanup();
+  }
+
   /**
    * Export traces to JSON, CSV, or OpenTelemetry (OTLP JSON)
    */
@@ -737,6 +863,10 @@ export class AgentTrace {
    * Close the database connection
    */
   close(): void {
+    if (this._cleanupInterval) {
+      clearInterval(this._cleanupInterval);
+      this._cleanupInterval = undefined;
+    }
     this.storage.close();
   }
 

@@ -42,11 +42,15 @@ export interface Trace {
   updatedAt: number;
   /** Parent trace ID for multi-agent / hierarchical tracing */
   parentId?: string;
+  /** Tenant/project ID for multi-tenant scoping */
+  tenantId?: string;
 }
 
 /** Summary of an agent run (collection of traces) */
 export interface Run {
   id: string;
+  /** Tenant/project ID for multi-tenant scoping */
+  tenantId?: string;
   name: string;
   status: 'running' | 'success' | 'failure' | 'error';
   traceCount: number;
@@ -74,6 +78,12 @@ export interface TraceConfig {
   hallucinationDetector?: (output: unknown, expected?: unknown) => boolean;
   /** Silence console output */
   silent?: boolean;
+  /** Data retention in days (default: 30, 0 = keep forever) */
+  retentionDays?: number;
+  /** How often (in hours) to run scheduled retention cleanup when retentionDays > 0 (default: 24) */
+  cleanupIntervalHours?: number;
+  /** Optional tenant/project ID to scope this AgentTrace instance (multi-tenant) */
+  tenantId?: string;
 }
 
 /** Filter options for querying traces */
@@ -228,6 +238,8 @@ export interface HealthReport {
 /** Record of agent usage / action for the agent_usage tracking system */
 export interface AgentUsageRecord {
   id: string;
+  /** Tenant/project ID for multi-tenant scoping */
+  tenantId?: string;
   agentName: string;
   agentType?: string;
   sessionId?: string;
@@ -295,6 +307,14 @@ export interface ApiKey {
   preview: string;
   createdAt: number;
   lastUsedAt?: number;
+}
+
+/** Project for basic multi-tenant support */
+export interface Project {
+  id: string;
+  name: string;
+  apiKey: string;
+  createdAt: number;
 }
 
 /** Result of creating an API key: includes the full secret (shown only once) */
