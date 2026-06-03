@@ -2,15 +2,14 @@ import { describe, expect, it, beforeEach, afterEach } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import { AgentTraceMiddleware, VERSION, PACKAGE_NAME } from '../src/index.js';
 import { AgentTrace } from '@agenttrace/sdk';
-import type { Trace } from '@agenttrace/sdk';
 
 function makeTempDb(): { path: string; cleanup: () => void } {
   const path = `/tmp/agenttrace-mw-langgraph-${randomUUID()}.db`;
   const cleanup = () => {
     try {
       // best effort remove; storage will handle
-      // node fs not imported to keep light; tests tolerate leftover temp
-    } catch {}
+      void 0;
+    } catch (_) { /* ignore */ }
   };
   return { path, cleanup };
 }
@@ -37,12 +36,8 @@ describe('AgentTraceMiddleware', () => {
   });
 
   afterEach(() => {
-    try {
-      mw.close();
-    } catch {}
-    try {
-      inspector.close();
-    } catch {}
+    try { mw.close(); } catch (_) { /* ignore */ }
+    try { inspector.close(); } catch (_) { /* ignore */ }
     cleanup();
   });
 
