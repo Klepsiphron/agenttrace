@@ -351,7 +351,9 @@ describe('trace()', () => {
 
     // No trace created for orphan
     expect(mockStorage.createTrace).not.toHaveBeenCalledWith(
-      expect.objectContaining({ toolCalls: expect.arrayContaining([expect.objectContaining({ name: 'orphan' })]) }),
+      expect.objectContaining({
+        toolCalls: expect.arrayContaining([expect.objectContaining({ name: 'orphan' })]),
+      }),
     );
 
     warnSpy.mockRestore();

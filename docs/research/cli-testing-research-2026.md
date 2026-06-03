@@ -7,7 +7,9 @@
 ## Key Findings from Research
 
 ### 1. Layered Evaluation Strategy Applies to CLI Testing
+
 From 2026 sources on AI agent evals (e.g. LangChain Deep Agents patterns via ZenML):
+
 - Multi-level / layered eval strategy: **single-step**, **full-turn**, **multi-turn**.
 - Borrowed from SE: unit / integration / e2e.
 - **Single-step**: Isolate to one decision point / one command invocation. Validate specific output/args/behavior without full sequence.
@@ -18,6 +20,7 @@ From 2026 sources on AI agent evals (e.g. LangChain Deep Agents patterns via Zen
 This directly informs the structure: each of the 10 areas in dedicated it() or small describe, independent where possible. Use tmp dirs per test for isolation (clean slate DB).
 
 ### 2. CLI Testing Patterns (Node/TS, Vitest/Jest)
+
 - Expose testable entrypoint: `main()` or `run(args)` instead of top-level execution. (Our index.ts already does: exports `main`, guards with isMain check using import.meta.url vs argv[1]. Perfect.)
 - In tests: set `process.argv = ['node', 'bin', ...cmd, ...flags]`, call `main()`, catch mocked `process.exit` (throw special error).
 - Capture output: override `console.log` / `console.error` to array of strings (or use mock). Strip ANSI for asserts if needed. Existing cli.test.ts does this well.
@@ -33,17 +36,20 @@ This directly informs the structure: each of the 10 areas in dedicated it() or s
 - Avoid child_process.exec for speed; direct main() call is the pattern used in our existing tests and recommended for debuggability.
 
 From CircleCI commander testing guide (even though we use custom parseArgs not commander):
+
 - Use local Command() instance in tests for isolation.
 - exitOverride() to turn exits into throws for catch/assert.
 - Test unknown options/commands by catching.
 - Our custom parse + runMain doesn't use commander, but equivalent: mock exit + check logs for 'ERR:' or specific messages.
 
 From other sources (StackOverflow, articles):
+
 - For file-writing cmds (export, init): write to tmp out paths, read back + assert content/shape.
 - Seed data using the library under test (SDK here) to create realistic DB state.
 - For "costs by period": our 'costs' cmd uses getCostBreakdown (model/day), there's also 'cost' cmd for agent periods; task specifies "costs -- returns cost breakdown by period" — note CLI has both; we'll cover getCostBreakdown + --daily/ --json, and note periods in agent cost if fits.
 
 ### 3. Triangulation / Best Practices Summary
+
 - **Isolation first**: per-test tmp DB, reset env/argv/console/mocks in afterEach.
 - **Independent tests**: one command per it() mostly; use before/seed helpers.
 - **Verify shape not just presence**: for stats JSON: {totalRuns, totalTraces, successRate, avgLatencyMs, totalCostUsd, ... , topTools?, topErrors?}
@@ -59,17 +65,20 @@ From other sources (StackOverflow, articles):
 - No new deps for tests.
 
 ### 4. Gaps / How Our Task Maps
+
 - Task focuses on: init, stats, export (file+formats), tree, who, sessions, activity, costs (breakdown), errors (missing DB, invalid), --json on applicable.
 - Note: 'costs' in CLI is SDK getCostBreakdown (by model/day, --daily, --run-id, --json). There's separate 'cost' for agent periods. Task says "costs -- returns cost breakdown by period" — we'll test the costs cmd (and can include period-like via daily) + note.
 - Dashboard, benchmark, alerts, webhook, etc. covered in existing cli.test.ts but not required here.
 - Existing code (cli.test.ts + costs.test.ts) already implements MUCH of this + more (post plan item#7). For this task we create dedicated commands.test.ts per spec, focused, independent tests. Dupe coverage OK (tests are assertions), or could be seen as layered (one file per "layer").
 
 ## Raw Sources (saved for audit)
+
 - Web results on layered: [web:0] ministryoftesting layered for AI coding; [web:4] zenml.io "multi-level evaluation strategy (single-step, full-turn, multi-turn)"; LangChain patterns detailed.
 - CLI vitest: vitest.dev mocking/file-system; SO/medium on mocking CLI, using tmp, direct invoke not spawn.
 - X: vitest mock habits (vi.mock import path), testing pyramid examples (Cory House), etc.
 
 ## Recommendations Implemented in commands.test.ts
+
 - Per-command describe/it for single-step independence.
 - Helper: makeTempDbPath + rmrf, seed helpers.
 - Harness: beforeEach/afterEach for argv/env/console/exit mock.

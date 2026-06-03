@@ -48,11 +48,9 @@ function insertTrace(
       };
     }
   ).db;
-  db
-    .prepare(
-      'INSERT INTO traces (id, run_id, name, status, latency_ms, cost_usd, tokens, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-    )
-    .run(id, runId, name, status, 100, 0.001, 50, createdAt);
+  db.prepare(
+    'INSERT INTO traces (id, run_id, name, status, latency_ms, cost_usd, tokens, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+  ).run(id, runId, name, status, 100, 0.001, 50, createdAt);
 }
 
 function insertRun(
@@ -69,11 +67,9 @@ function insertRun(
       };
     }
   ).db;
-  db
-    .prepare(
-      'INSERT INTO runs (id, name, status, metadata, created_at, started_at, ended_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-    )
-    .run(id, name, status, '{}', startedAt, startedAt, startedAt + 1000);
+  db.prepare(
+    'INSERT INTO runs (id, name, status, metadata, created_at, started_at, ended_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+  ).run(id, name, status, '{}', startedAt, startedAt, startedAt + 1000);
 }
 
 function insertAgentUsage(
@@ -89,18 +85,12 @@ function insertAgentUsage(
       };
     }
   ).db;
-  db
-    .prepare(
-      'INSERT INTO agent_usage (id, agent_name, agent_type, session_id, action, target, tokens_used, cost_usd, duration_ms, status, metadata, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-    )
-    .run(id, agentName, 'worker', 's1', 'act', 'tgt', 100, 0.001, 500, 'success', '{}', createdAt);
+  db.prepare(
+    'INSERT INTO agent_usage (id, agent_name, agent_type, session_id, action, target, tokens_used, cost_usd, duration_ms, status, metadata, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+  ).run(id, agentName, 'worker', 's1', 'act', 'tgt', 100, 0.001, 500, 'success', '{}', createdAt);
 }
 
-function insertScore(
-  storage: TraceStorage,
-  traceId: string,
-  value: number = 0.9,
-): void {
+function insertScore(storage: TraceStorage, traceId: string, value: number = 0.9): void {
   const db = (
     storage as unknown as {
       db: {
@@ -108,18 +98,12 @@ function insertScore(
       };
     }
   ).db;
-  db
-    .prepare(
-      'INSERT INTO scores (id, trace_id, value, scorer, reason, created_at) VALUES (?, ?, ?, ?, ?, ?)',
-    )
-    .run(randomUUID(), traceId, value, 'test-scorer', 'reason', Date.now());
+  db.prepare(
+    'INSERT INTO scores (id, trace_id, value, scorer, reason, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+  ).run(randomUUID(), traceId, value, 'test-scorer', 'reason', Date.now());
 }
 
-function insertTraceLink(
-  storage: TraceStorage,
-  sourceId: string,
-  targetId: string,
-): void {
+function insertTraceLink(storage: TraceStorage, sourceId: string, targetId: string): void {
   const db = (
     storage as unknown as {
       db: {
@@ -127,11 +111,9 @@ function insertTraceLink(
       };
     }
   ).db;
-  db
-    .prepare(
-      'INSERT INTO trace_links (source_trace_id, target_trace_id, link_type) VALUES (?, ?, ?)',
-    )
-    .run(sourceId, targetId, 'child');
+  db.prepare(
+    'INSERT INTO trace_links (source_trace_id, target_trace_id, link_type) VALUES (?, ?, ?)',
+  ).run(sourceId, targetId, 'child');
 }
 
 // ============================================================================

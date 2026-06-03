@@ -37,15 +37,21 @@ async function seedData(dbPath: string) {
     model: 'gpt-4o',
   });
   try {
-    await t.trace('trace-2', async () => { throw new Error('boom'); }, {
-      tokens: {
-        promptTokens: 200,
-        completionTokens: 100,
-        totalTokens: 300,
+    await t.trace(
+      'trace-2',
+      async () => {
+        throw new Error('boom');
+      },
+      {
+        tokens: {
+          promptTokens: 200,
+          completionTokens: 100,
+          totalTokens: 300,
+          model: 'claude-sonnet-4',
+        },
         model: 'claude-sonnet-4',
       },
-      model: 'claude-sonnet-4',
-    });
+    );
   } catch (_) {
     // expected for error status trace
   }

@@ -50,7 +50,7 @@ Semantic + keyword search results (queries around "tool call" trace/observabilit
 - "My minimum production checklist for AI agents: trace every tool call, bind scoped ephemeral permissions..." (Gursharan).
 - Multi-agent pipelines require observability to see "which agent slow, which produced bad output, exact I/O for every step" (Pranjal, Langfuse user).
 - Tracing RAG/agent flows includes tool/ANN/LLM steps with metadata (Aurimas Gr, multiple posts).
-- "Without observability, debugging a 3-agent pipeline is just guessing." 
+- "Without observability, debugging a 3-agent pipeline is just guessing."
 - Cost variance from # of tool calls/loops (dylan, Lorenzo).
 - AI Client internal MCP tool call collection with Trace ID.
 - LangSmith/Langfuse integrations for full tool visibility in n8n, etc.

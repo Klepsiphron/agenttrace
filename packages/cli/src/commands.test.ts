@@ -39,10 +39,16 @@ async function seedStatsData(dbPath: string) {
   t.completeRun();
   t.startRun('stats-run-2');
   try {
-    await t.trace('err-trace', async () => { throw new Error('boom'); }, {
-      tokens: { promptTokens: 20, completionTokens: 0, totalTokens: 20, model: 'claude' },
-      model: 'claude',
-    });
+    await t.trace(
+      'err-trace',
+      async () => {
+        throw new Error('boom');
+      },
+      {
+        tokens: { promptTokens: 20, completionTokens: 0, totalTokens: 20, model: 'claude' },
+        model: 'claude',
+      },
+    );
   } catch {
     /* error trace */
   }

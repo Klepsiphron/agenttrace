@@ -20,6 +20,7 @@ Local: /home/ryano/projects/agenttrace
 ## Research-First Rule
 
 **ALWAYS combine X research + web_search before implementing anything.**
+
 - Use x_search for real-time practitioner knowledge, current discussions, what's actually working
 - Use web_search for broad reference, documentation, established patterns
 - Compare and triangulate — never rely on a single source
@@ -56,6 +57,7 @@ Local: /home/ryano/projects/agenttrace
 See `docs/research/improvement-plan.md` for full details.
 
 ### Completed
+
 - [x] SQLite concurrency fix (createTrace wrapped in db.transaction)
 - [x] Express body size limit (1mb) + CORS on dashboard
 - [x] Webhook HMAC signing + SSRF protection + fetch timeout
@@ -64,12 +66,13 @@ See `docs/research/improvement-plan.md` for full details.
 - [x] Added Python SDK CI job to root ci.yml
 
 ### In Progress
+
 - [ ] recordToolCall() stub fix
 - [ ] Python SDK schema migrations
 - [ ] Test expansion (CLI, Dashboard, middleware)
 - [ ] better-sqlite3 dependency fix
 - [ ] Python SDK close() method
-- [ ] __init__.py export fixes
+- [ ] **init**.py export fixes
 
 ## Testing Commands
 
