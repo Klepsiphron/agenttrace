@@ -766,6 +766,17 @@ describe('checkAlerts()', () => {
         cooldown: 0,
       });
       agent.registerAlert(al);
+      mockStorage.getWebhooks = vi.fn(() => [
+        {
+          id: 'w1',
+          url: 'https://hooks.example/test',
+          secret: 'test-secret-123',
+          events: [],
+          enabled: true,
+          createdAt: Date.now(),
+          failureCount: 0,
+        } as any,
+      ]);
       mockStorage.getStats.mockReturnValue({ totalTraces: 3 } as unknown as TraceStats);
       const res = await agent.checkAlerts();
       expect(res.length).toBe(1);
@@ -774,10 +785,42 @@ describe('checkAlerts()', () => {
         'https://hooks.example/test',
         expect.objectContaining({ method: 'POST', headers: expect.any(Object) }),
       );
+      // verify User-Agent uses VERSION and signature was added using HMAC
+      const call = fetchMock.mock.calls[0] as [string, { headers: Record<string, string>; signal?: AbortSignal }];
+      const hdrs = call[1].headers;
+      expect(hdrs['User-Agent']).toBe(`AgentTrace/${VERSION}`);
+      expect(hdrs['X-AgentTrace-Signature']).toMatch(/^sha256=[0-9a-f]{64}$/);
+      // also signal for timeout present
+      expect(call[1].signal).toBeDefined();
       expect(mockStorage.insertAlertHistory).toHaveBeenCalledWith(
         expect.objectContaining({ alertName: 'wh', delivered: true }),
       );
       agent.close();
+
+      // Security: non-https remote rejected before fetch
+      const agentHttp = new AgentTrace({ silent: true });
+      const alHttp = alert({ name: 'http-bad', condition: () => true, webhook: 'http://example.com/h', cooldown: 0 });
+      agentHttp.registerAlert(alHttp);
+      mockStorage.getStats.mockReturnValue({ totalTraces: 1 } as unknown as TraceStats);
+      const resHttp = await agentHttp.checkAlerts();
+      expect(resHttp.length).toBe(1);
+      expect(resHttp[0].delivered).toBe(false);
+      expect(resHttp[0].error).toBe('webhook must use HTTPS');
+      agentHttp.close();
+
+      // Security: private/internal IP blocked (SSRF)
+      const agentPriv = new AgentTrace({ silent: true });
+      const alPriv = alert({
+        name: 'priv',
+        condition: () => true,
+        webhook: 'https://169.254.169.254/latest/meta-data/',
+        cooldown: 0,
+      });
+      agentPriv.registerAlert(alPriv);
+      const resPriv = await agentPriv.checkAlerts();
+      expect(resPriv[0].delivered).toBe(false);
+      expect(resPriv[0].error).toBe('webhook URL resolves to private IP');
+      agentPriv.close();
     } finally {
       g.fetch = orig;
     }
