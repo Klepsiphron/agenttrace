@@ -228,7 +228,7 @@ export interface AlertHistory {
   error?: string;
 }
 
-
+/**
  * TraceContext can be passed between collaborating agents to link their traces
  * into a parent/child hierarchy.
  */
