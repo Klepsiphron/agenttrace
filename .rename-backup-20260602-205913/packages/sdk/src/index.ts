@@ -503,7 +503,7 @@ export class AgentTrace {
       avgTokensPerTrace: stats.avgTokensPerTrace || 0,
     };
 
-    let delivered: boolean;
+    let delivered = false;
     let errMsg: string | undefined;
 
     const payload = { alertName: alert.name, stats, timestamp: now };

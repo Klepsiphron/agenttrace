@@ -70,11 +70,11 @@ describe('dashboard e2e API (all endpoints)', () => {
     const { app, trace, close } = createDashboardApp(':memory:');
     closes.push(close);
 
-    trace.startRun('run-success');
+    const r1 = trace.startRun('run-success');
     await trace.trace('ok1', async () => 1);
     trace.completeRun();
 
-    trace.startRun('run-fail');
+    const r2 = trace.startRun('run-fail');
     await trace.trace('bad', async () => {
       throw new Error('boom');
     }).catch(() => {});
@@ -301,12 +301,13 @@ describe('dashboard e2e API (all endpoints)', () => {
     const { app, trace, close } = createDashboardApp(':memory:');
     closes.push(close);
 
-    trace.registerAlert({
+    const al = {
       name: 'high-traces',
       condition: (s: { totalTraces?: number }) => (s.totalTraces || 0) > 5,
       cooldown: 60,
       webhook: 'https://example/hook',
-    });
+    } as any;
+    trace.registerAlert(al);
 
     // populate to make stats interesting but not required for list
     trace.startRun('al-run');
@@ -397,7 +398,7 @@ describe('dashboard e2e API (all endpoints)', () => {
   });
 
   it('POST /api/evaluate with no traces returns empty array', async () => {
-    const { app, close } = createDashboardApp(':memory:');
+    const { app, trace, close } = createDashboardApp(':memory:');
     closes.push(close);
 
     const { base } = await startTemp(app);
@@ -413,7 +414,7 @@ describe('dashboard e2e API (all endpoints)', () => {
   });
 
   it('unknown trace id for tree returns 404 (error shape)', async () => {
-    const { app, close } = createDashboardApp(':memory:');
+    const { app, trace, close } = createDashboardApp(':memory:');
     closes.push(close);
 
     const { base } = await startTemp(app);

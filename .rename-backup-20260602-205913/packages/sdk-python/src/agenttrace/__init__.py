@@ -14,9 +14,6 @@ from .core import (
     evaluate,
     evaluate_trace,
     alert,
-    create_child,
-    link_traces,
-    get_trace_tree,
 )
 from .types import (
     Trace,
@@ -32,8 +29,6 @@ from .types import (
     EvaluateOptions,
     AlertCondition,
     AlertHistory,
-    TraceContext,
-    TraceTreeNode,
 )
 
 __all__ = [
@@ -45,9 +40,6 @@ __all__ = [
     "evaluate",
     "evaluate_trace",
     "alert",
-    "create_child",
-    "link_traces",
-    "get_trace_tree",
     "VERSION",
     "PACKAGE_NAME",
     # types
@@ -64,6 +56,4 @@ __all__ = [
     "EvaluateOptions",
     "AlertCondition",
     "AlertHistory",
-    "TraceContext",
-    "TraceTreeNode",
 ]

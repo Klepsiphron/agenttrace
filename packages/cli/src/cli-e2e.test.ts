@@ -1,0 +1,664 @@
+import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
+import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
+import { main, PACKAGE_NAME, VERSION } from './index.js';
+import { AgentTrace } from '@agenttrace/sdk';
+import * as dashboardMod from '@agenttrace/dashboard';
+
+function makeTempDbPath(prefix = 'cli-e2e'): string {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), `${prefix}-`));
+  return path.join(dir, 'agenttrace.db');
+}
+
+function cleanupDbFiles(dbPath: string): void {
+  for (const suffix of ['', '-wal', '-shm']) {
+    try {
+      const p = dbPath + suffix;
+      if (fs.existsSync(p)) fs.unlinkSync(p);
+    } catch (_) {
+      /* ignore */
+    }
+  }
+}
+
+function _rmrf(p: string): void {
+  try {
+    if (fs.existsSync(p)) {
+      if (fs.statSync(p).isDirectory()) {
+        fs.rmSync(p, { recursive: true, force: true });
+      } else {
+        fs.unlinkSync(p);
+        const d = path.dirname(p);
+        if (fs.existsSync(d)) fs.rmSync(d, { recursive: true, force: true });
+      }
+    }
+  } catch (_) {
+    /* ignore cleanup errors */
+  }
+}
+
+describe('CLI e2e (real SQLite, all commands + flags)', () => {
+  let tmpDb: string;
+  let origArgv: string[];
+  let origEnv: string | undefined;
+  let logs: string[] = [];
+  let errs: string[] = [];
+  let origLog: typeof console.log;
+  let origErr: typeof console.error;
+  let dashStartSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    tmpDb = makeTempDbPath();
+    origArgv = process.argv.slice();
+    origEnv = process.env.AGENTTRACE_DB_PATH;
+    process.env.AGENTTRACE_DB_PATH = tmpDb;
+
+    logs = [];
+    errs = [];
+    origLog = console.log;
+    origErr = console.error;
+    console.log = (...args: unknown[]) => {
+      logs.push(args.map((a) => (typeof a === 'string' ? a : JSON.stringify(a))).join(' '));
+    };
+    console.error = (...args: unknown[]) => {
+      errs.push(args.map((a) => String(a)).join(' '));
+    };
+
+    vi.spyOn(process, 'exit').mockImplementation((() => {
+      throw new Error('process.exit called');
+    }) as (code?: number | string | undefined) => never);
+
+    dashStartSpy = vi
+      .spyOn(dashboardMod, 'startDashboard')
+      .mockImplementation((cfg?: any) => ({ close: vi.fn(), port: cfg?.port, host: cfg?.host }) as any);
+  });
+
+  afterEach(() => {
+    console.log = origLog;
+    console.error = origErr;
+    process.argv = origArgv;
+    if (origEnv === undefined) {
+      delete process.env.AGENTTRACE_DB_PATH;
+    } else {
+      process.env.AGENTTRACE_DB_PATH = origEnv;
+    }
+    vi.restoreAllMocks();
+    if (tmpDb) {
+      cleanupDbFiles(tmpDb);
+      const d = path.dirname(tmpDb);
+      try {
+        if (fs.existsSync(d)) fs.rmSync(d, { recursive: true, force: true });
+      } catch (_) {
+        /* ignore */
+      }
+    }
+  });
+
+  async function invokeMain(): Promise<void> {
+    try {
+      const res = main();
+      if (res && typeof (res as Promise<unknown>).then === 'function') {
+        await res;
+      }
+    } catch (e: unknown) {
+      const msg = (e as { message?: string })?.message || String(e);
+      if (!msg.includes('process.exit')) throw e;
+    }
+  }
+
+  async function seedBasicTraces() {
+    const t = new AgentTrace({ dbPath: tmpDb, silent: true });
+    const runId = t.startRun('e2e-basic-run');
+    await t.trace('t-success', async () => ({ ok: true }), {
+      input: { step: 1 },
+      tokens: { promptTokens: 8, completionTokens: 4, totalTokens: 12, model: 'gpt-4o-mini' },
+      model: 'gpt-4o-mini',
+    });
+    try {
+      await t.trace('t-error', async () => {
+        throw new Error('boom');
+      });
+    } catch (_) {
+      /* expected */
+    }
+    t.completeRun('success');
+    t.close();
+    return { runId };
+  }
+
+  async function seedCostTraces() {
+    const t = new AgentTrace({ dbPath: tmpDb, silent: true });
+    const runId = t.startRun('e2e-cost-run');
+    await t.trace('c-gpt', async () => 'ok', {
+      tokens: { promptTokens: 1000, completionTokens: 0, totalTokens: 1000, model: 'gpt-4.1' },
+      model: 'gpt-4.1',
+    });
+    await t.trace('c-gem', async () => 'ok', {
+      tokens: {
+        promptTokens: 1000,
+        completionTokens: 0,
+        totalTokens: 1000,
+        model: 'gemini-2.5-flash',
+      },
+      model: 'gemini-2.5-flash',
+    });
+    t.completeRun();
+    const run2 = t.startRun('e2e-cost-run2');
+    await t.trace('c-ll', async () => 'ok', {
+      tokens: {
+        promptTokens: 2000,
+        completionTokens: 0,
+        totalTokens: 2000,
+        model: 'llama-4-scout',
+      },
+      model: 'llama-4-scout',
+    });
+    t.completeRun();
+    t.close();
+    return { runId, run2 };
+  }
+
+  async function seedTreeTraces() {
+    const t = new AgentTrace({ dbPath: tmpDb, silent: true });
+    const runId = t.startRun('e2e-tree-run');
+    await t.trace('root-trace', async () => 'root', {
+      tokens: { promptTokens: 5, completionTokens: 3, totalTokens: 8, model: 'gpt-4o-mini' },
+      model: 'gpt-4o-mini',
+    });
+    // get root id
+    const all = t.getTraces({ limit: 5 });
+    const root = all.find((tr) => tr.name === 'root-trace')!;
+    const rootId = root.id;
+    await t.trace('child-trace', async () => 'child', {
+      parentId: rootId,
+      tokens: { promptTokens: 2, completionTokens: 1, totalTokens: 3, model: 'gpt-4o-mini' },
+      model: 'gpt-4o-mini',
+    });
+    t.completeRun();
+    t.close();
+    return { runId, rootId };
+  }
+
+  async function seedForAlerts() {
+    const t = new AgentTrace({ dbPath: tmpDb, silent: true });
+    t.startRun('e2e-alert-run');
+    await t.trace('ok1', async () => 'a');
+    t.completeRun('success');
+    // register alert (condition false initially)
+    t.registerAlert({
+      name: 'high-error-rate',
+      condition: (s) => (s.successRate ?? 1) < 0.1,
+      webhook: 'http://example.test/hook',
+      cooldown: 10,
+    });
+    t.close();
+  }
+
+  it('exports package name and version', () => {
+    expect(PACKAGE_NAME).toBe('@agenttrace/cli');
+    expect(VERSION).toBe('0.1.0');
+  });
+
+  it('help prints usage', async () => {
+    process.argv = ['node', 'agenttrace', '--help'];
+    await invokeMain();
+    const out = logs.join('\n');
+    expect(out).toContain('Usage: agenttrace <command>');
+    expect(out).toContain('evaluate');
+    expect(out).toContain('migrate');
+  });
+
+  it('version command', async () => {
+    process.argv = ['node', 'agenttrace', 'version'];
+    await invokeMain();
+    const out = logs.join('\n');
+    expect(out).toContain(`${PACKAGE_NAME} ${VERSION}`);
+  });
+
+  it('unknown command prints error + usage', async () => {
+    process.argv = ['node', 'agenttrace', 'foo-bar'];
+    await invokeMain();
+    const errOut = errs.join(' ');
+    expect(errOut).toContain('Unknown command: foo-bar');
+    expect(logs.join('\n')).toContain('Usage:');
+  });
+
+  it('init creates db and prints Created', async () => {
+    expect(fs.existsSync(tmpDb)).toBe(false);
+    process.argv = ['node', 'agenttrace', 'init'];
+    await invokeMain();
+    expect(fs.existsSync(tmpDb)).toBe(true);
+    expect(logs.join('\n')).toContain(`Created ${tmpDb}`);
+  });
+
+  it('init when db exists prints already exists (no error)', async () => {
+    // precreate
+    const t = new AgentTrace({ dbPath: tmpDb, silent: true });
+    t.close();
+    logs.length = 0;
+    process.argv = ['node', 'agenttrace', 'init'];
+    await invokeMain();
+    const out = logs.join('\n');
+    expect(out).toContain('already exists');
+    expect(errs.length).toBe(0);
+  });
+
+  it('runs requires db (errors with message)', async () => {
+    process.argv = ['node', 'agenttrace', 'runs'];
+    await invokeMain();
+    const err = errs.join(' ');
+    expect(err).toContain('No ');
+    expect(err).toContain('agenttrace.db');
+    expect(err).toContain('Run "agenttrace init"');
+  });
+
+  it('runs lists seeded (default table)', async () => {
+    await seedBasicTraces();
+    process.argv = ['node', 'agenttrace', 'runs'];
+    await invokeMain();
+    const out = logs.join('\n');
+    expect(out).toContain('e2e-basic-run');
+    expect(out).toContain('Traces');
+  });
+
+  it('runs --limit 1 --json', async () => {
+    await seedBasicTraces();
+    process.argv = ['node', 'agenttrace', 'runs', '--limit', '1', '--json'];
+    await invokeMain();
+    const jsonLine = logs.find((l) => l.trim().startsWith('['));
+    expect(jsonLine).toBeTruthy();
+    const arr = JSON.parse(jsonLine!);
+    expect(arr.length).toBe(1);
+  });
+
+  it('runs --status success', async () => {
+    await seedBasicTraces();
+    process.argv = ['node', 'agenttrace', 'runs', '--status', 'success'];
+    await invokeMain();
+    const out = logs.join('\n');
+    expect(out).toContain('e2e-basic-run');
+  });
+
+  it('traces lists, supports --run-id --limit --status --json', async () => {
+    const { runId } = await seedBasicTraces();
+    // default
+    process.argv = ['node', 'agenttrace', 'traces'];
+    await invokeMain();
+    let out = logs.join('\n');
+    expect(out).toContain('t-success');
+
+    // run-id
+    logs.length = 0;
+    process.argv = ['node', 'agenttrace', 'traces', '--run-id', runId, '--limit', '10'];
+    await invokeMain();
+    out = logs.join('\n');
+    expect(out).toContain('t-success');
+
+    // status error json
+    logs.length = 0;
+    process.argv = ['node', 'agenttrace', 'traces', '--status', 'error', '--json'];
+    await invokeMain();
+    const j = logs.find((l) => l.trim().startsWith('['));
+    const arr = JSON.parse(j!);
+    expect(arr.some((x: any) => x.name === 't-error')).toBe(true);
+  });
+
+  it('stats prints and --json', async () => {
+    await seedBasicTraces();
+    process.argv = ['node', 'agenttrace', 'stats'];
+    await invokeMain();
+    const out = logs.join('\n');
+    expect(out).toContain('AgentTrace Statistics');
+    expect(out).toContain('Total Runs');
+
+    logs.length = 0;
+    process.argv = ['node', 'agenttrace', 'stats', '--json'];
+    await invokeMain();
+    const j = logs.find((l) => l.trim().startsWith('{'));
+    const s = JSON.parse(j!);
+    expect(s.totalRuns).toBeGreaterThan(0);
+    expect(s).toHaveProperty('successRate');
+  });
+
+  it('costs default (model), --daily, --run-id, --json', async () => {
+    const { runId, run2 } = await seedCostTraces();
+
+    process.argv = ['node', 'agenttrace', 'costs'];
+    await invokeMain();
+    let out = logs.join('\n');
+    expect(out).toContain('Cost Breakdown by Model');
+    expect(out).toContain('gpt-4.1');
+    expect(out).toContain('gemini-2.5-flash');
+
+    logs.length = 0;
+    process.argv = ['node', 'agenttrace', 'costs', '--daily'];
+    await invokeMain();
+    out = logs.join('\n');
+    expect(out).toContain('Daily Cost Breakdown');
+
+    logs.length = 0;
+    process.argv = ['node', 'agenttrace', 'costs', '--run-id', runId, '--json'];
+    await invokeMain();
+    const j = logs.find((l) => l.trim().startsWith('{'));
+    const c = JSON.parse(j!);
+    expect(c.costByModel['gpt-4.1']).toBeGreaterThan(0);
+    expect(c.costByModel['llama-4-scout']).toBeUndefined();
+
+    logs.length = 0;
+    process.argv = ['node', 'agenttrace', 'costs', '--run-id', run2];
+    await invokeMain();
+    out = logs.join('\n');
+    expect(out).toContain('llama-4-scout');
+    expect(out).not.toContain('gpt-4.1');
+  });
+
+  it('export json (default), csv, otel, --output file, --run-id', async () => {
+    const { runId } = await seedBasicTraces();
+
+    // default json to stdout
+    process.argv = ['node', 'agenttrace', 'export'];
+    await invokeMain();
+    let out = logs.join('\n');
+    expect(out).toContain('"name": "t-success"');
+
+    // csv
+    logs.length = 0;
+    process.argv = ['node', 'agenttrace', 'export', '--format', 'csv'];
+    await invokeMain();
+    out = logs.join('\n');
+    expect(out).toContain('id,runId,name,status');
+
+    // otel
+    logs.length = 0;
+    process.argv = ['node', 'agenttrace', 'export', '--format', 'otel', '--json']; // json flag ignored for data but ok
+    await invokeMain();
+    out = logs.join('\n');
+    expect(out).toContain('resourceSpans');
+
+    // to file
+    const outFile = path.join(path.dirname(tmpDb), 'exp.json');
+    logs.length = 0;
+    process.argv = ['node', 'agenttrace', 'export', '--format', 'json', '--output', outFile, '--run-id', runId];
+    await invokeMain();
+    expect(fs.existsSync(outFile)).toBe(true);
+    const content = fs.readFileSync(outFile, 'utf8');
+    expect(content).toContain('t-success');
+    expect(logs.join('\n')).toContain('Exported JSON to');
+  });
+
+  it('dashboard command (start with flags, spied; stop via createDashboardApp)', async () => {
+    // ensure db exists for realism
+    const t = new AgentTrace({ dbPath: tmpDb, silent: true });
+    t.close();
+
+    // CLI dashboard --port --host
+    process.argv = ['node', 'agenttrace', 'dashboard', '--port', '9876', '--host', '127.0.0.0'];
+    await invokeMain();
+    expect(dashStartSpy).toHaveBeenCalled();
+    const callArg = dashStartSpy.mock.calls[0]?.[0];
+    expect(callArg?.port).toBe(9876);
+    expect(callArg?.host).toBe('127.0.0.0');
+
+    // test stop path via create (used internally by startDashboard)
+    const { app, trace: tr, close } = dashboardMod.createDashboardApp(tmpDb);
+    expect(app).toBeTruthy();
+    expect(typeof close).toBe('function');
+    // sanity: can query
+    const s = tr.getStats();
+    expect(typeof s.totalRuns).toBe('number');
+    close();
+    tr.close();
+  });
+
+  it('alerts list (no db, with db no alerts, with alert), --json', async () => {
+    // no db
+    process.argv = ['node', 'agenttrace', 'alerts', 'list'];
+    await invokeMain();
+    let out = logs.join('\n');
+    expect(out).toContain('No alerts configured');
+
+    // json no db
+    logs.length = 0;
+    process.argv = ['node', 'agenttrace', 'alerts', 'list', '--json'];
+    await invokeMain();
+    expect(logs.some((l) => l.trim() === '[]')).toBe(true);
+
+    // create db but no alerts
+    const t0 = new AgentTrace({ dbPath: tmpDb, silent: true });
+    t0.close();
+    logs.length = 0;
+    process.argv = ['node', 'agenttrace', 'alerts'];
+    await invokeMain();
+    out = logs.join('\n');
+    expect(out).toContain('No alerts configured');
+
+    // seed alert
+    await seedForAlerts();
+    logs.length = 0;
+    process.argv = ['node', 'agenttrace', 'alerts', 'list'];
+    await invokeMain();
+    out = logs.join('\n');
+    expect(out).toContain('high-error-rate');
+    expect(out).toContain('webhook');
+    expect(out).toContain('cooldown=10');
+
+    // json
+    logs.length = 0;
+    process.argv = ['node', 'agenttrace', 'alerts', 'list', '--json'];
+    await invokeMain();
+    const jlist = logs.find((l) => l.trim().startsWith('['));
+    const arr = JSON.parse(jlist!);
+    expect(arr[0].name).toBe('high-error-rate');
+  });
+
+  it('alerts test --name and history', async () => {
+    await seedForAlerts();
+    // test fires (even if condition false, test forces)
+    logs.length = 0;
+    process.argv = ['node', 'agenttrace', 'alerts', 'test', '--name', 'high-error-rate'];
+    await invokeMain();
+    const out = logs.join('\n');
+    expect(out).toContain('Test-fired alert');
+    expect(out).toContain('high-error-rate');
+
+    // history
+    logs.length = 0;
+    process.argv = ['node', 'agenttrace', 'alerts', 'history'];
+    await invokeMain();
+    const hout = logs.join('\n');
+    expect(hout).toContain('Alert history');
+    expect(hout).toContain('high-error-rate');
+
+    // history --json
+    logs.length = 0;
+    process.argv = ['node', 'agenttrace', 'alerts', 'history', '--json'];
+    await invokeMain();
+    const hj = logs.find((l) => l.trim().startsWith('['));
+    const harr = JSON.parse(hj!);
+    expect(harr.length).toBeGreaterThan(0);
+    expect(harr[0].alertName).toBe('high-error-rate');
+  });
+
+  it('tree --trace-id (with parent/child), json, missing id errors', async () => {
+    const { rootId } = await seedTreeTraces();
+
+    // missing id -> error
+    process.argv = ['node', 'agenttrace', 'tree'];
+    await invokeMain();
+    expect(errs.join(' ')).toContain('Usage: agenttrace tree --trace-id');
+
+    // table tree for root
+    logs.length = 0;
+    errs.length = 0;
+    process.argv = ['node', 'agenttrace', 'tree', '--trace-id', rootId];
+    await invokeMain();
+    const tout = logs.join('\n');
+    expect(tout).toContain('Trace Tree:');
+    expect(tout).toContain('root-trace');
+    expect(tout).toMatch(/└── |├── /); // tree chars
+
+    // json for child (find child)
+    const t2 = new AgentTrace({ dbPath: tmpDb, silent: true });
+    const ts = t2.getTraces({ limit: 10 });
+    const child = ts.find((x) => x.name === 'child-trace')!;
+    t2.close();
+
+    logs.length = 0;
+    process.argv = ['node', 'agenttrace', 'tree', '--trace-id', child.id, '--json'];
+    await invokeMain();
+    const tj = logs.find((l) => l.trim().startsWith('{'));
+    const tree = JSON.parse(tj!);
+    expect(tree.trace.name).toBe('child-trace');
+    expect(Array.isArray(tree.children)).toBe(true);
+  });
+
+  it('evaluate default, --json, --run-id, --trace-id (stores scores, various flags)', async () => {
+    const { runId } = await seedBasicTraces();
+
+    // default evaluate (all traces)
+    process.argv = ['node', 'agenttrace', 'evaluate'];
+    await invokeMain();
+    let out = logs.join('\n');
+    expect(out).toContain('Evaluated');
+    expect(out).toContain('output-length');
+    expect(out).toContain('latency');
+    expect(out).toContain('error-rate');
+
+    // --json
+    logs.length = 0;
+    process.argv = ['node', 'agenttrace', 'evaluate', '--json'];
+    await invokeMain();
+    let j = logs.find((l) => l.trim().startsWith('['));
+    let res = JSON.parse(j!);
+    expect(res.length).toBeGreaterThan(0);
+    expect(res[0]).toHaveProperty('scores');
+    expect(res[0].scores).toHaveProperty('output-length');
+
+    // --run-id
+    logs.length = 0;
+    process.argv = ['node', 'agenttrace', 'evaluate', '--run-id', runId, '--json'];
+    await invokeMain();
+    j = logs.find((l) => l.trim().startsWith('['));
+    res = JSON.parse(j!);
+    expect(res.every((r: any) => typeof r.traceId === 'string')).toBe(true);
+
+    // --trace-id specific (pick one)
+    const t3 = new AgentTrace({ dbPath: tmpDb, silent: true });
+    const ts = t3.getTraces({ limit: 1 });
+    const tid = ts[0].id;
+    t3.close();
+
+    logs.length = 0;
+    process.argv = ['node', 'agenttrace', 'evaluate', '--trace-id', tid];
+    await invokeMain();
+    out = logs.join('\n');
+    expect(out).toContain(tid.substring(0, 8));
+    expect(out).toContain('output-length');
+  });
+
+  it('migrate status (no db=0, --json), migrate applies, idempotent, --json', async () => {
+    // status no db
+    process.argv = ['node', 'agenttrace', 'migrate', 'status'];
+    await invokeMain();
+    let out = logs.join('\n');
+    expect(out).toContain('Schema version: 0');
+
+    logs.length = 0;
+    process.argv = ['node', 'agenttrace', 'migrate', 'status', '--json'];
+    await invokeMain();
+    let j = logs.find((l) => l.trim().startsWith('{'));
+    const s = JSON.parse(j!);
+    expect(s.version).toBe(0);
+    // ensure no db created by status
+    expect(fs.existsSync(tmpDb)).toBe(false);
+
+    // run migrate (applies)
+    logs.length = 0;
+    process.argv = ['node', 'agenttrace', 'migrate'];
+    await invokeMain();
+    out = logs.join('\n');
+    expect(out).toMatch(/Applied \d+ migration\(s\)\. Now at schema version \d+\./);
+    expect(fs.existsSync(tmpDb)).toBe(true);
+    const v1 = getSchemaVersion(tmpDb);
+    expect(v1).toBeGreaterThan(0);
+
+    // status now
+    logs.length = 0;
+    process.argv = ['node', 'agenttrace', 'migrate', 'status'];
+    await invokeMain();
+    out = logs.join('\n');
+    expect(out).toContain(`Schema version: ${v1}`);
+
+    // migrate again no-op
+    logs.length = 0;
+    process.argv = ['node', 'agenttrace', 'migrate'];
+    await invokeMain();
+    out = logs.join('\n');
+    expect(out).toContain('No pending migrations');
+
+    // json apply result (idempotent)
+    logs.length = 0;
+    process.argv = ['node', 'agenttrace', 'migrate', '--json'];
+    await invokeMain();
+    j = logs.find((l) => l.trim().startsWith('{'));
+    const r = JSON.parse(j!);
+    expect(r).toHaveProperty('applied');
+    expect(r).toHaveProperty('version');
+  });
+
+  it('runs/traces/stats/costs/alerts/tree/evaluate/migrate all support --json empty cases', async () => {
+    // init first so no "no db" for some
+    process.argv = ['node', 'agenttrace', 'init'];
+    await invokeMain();
+
+    // runs --json empty
+    logs.length = 0;
+    process.argv = ['node', 'agenttrace', 'runs', '--json'];
+    await invokeMain();
+    expect(logs.some((l) => l.includes('[]'))).toBe(true);
+
+    // traces --json
+    logs.length = 0;
+    process.argv = ['node', 'agenttrace', 'traces', '--json'];
+    await invokeMain();
+    expect(logs.some((l) => l.includes('[]'))).toBe(true);
+
+    // costs json (no traces => total 0)
+    logs.length = 0;
+    process.argv = ['node', 'agenttrace', 'costs', '--json'];
+    await invokeMain();
+    const cj = logs.find((l) => l.trim().startsWith('{'));
+    const c = JSON.parse(cj!);
+    expect(c.totalCostUsd).toBe(0);
+
+    // alerts list json empty
+    logs.length = 0;
+    process.argv = ['node', 'agenttrace', 'alerts', 'list', '--json'];
+    await invokeMain();
+    expect(logs.some((l) => l.trim() === '[]')).toBe(true);
+
+    // tree missing id errors before json
+    logs.length = 0;
+    errs.length = 0;
+    process.argv = ['node', 'agenttrace', 'tree', '--trace-id', 'nonexistent', '--json'];
+    await invokeMain();
+    // should have errored in get, printed error
+    const eout = errs.join(' ');
+    expect(eout.length + logs.join('').length).toBeGreaterThan(0);
+
+    // evaluate json empty
+    logs.length = 0;
+    process.argv = ['node', 'agenttrace', 'evaluate', '--json'];
+    await invokeMain();
+    const ej = logs.find((l) => l.trim().startsWith('['));
+    expect(JSON.parse(ej!)).toEqual([]);
+
+    // migrate status json (db now exists from init)
+    logs.length = 0;
+    process.argv = ['node', 'agenttrace', 'migrate', 'status', '--json'];
+    await invokeMain();
+    const mj = logs.find((l) => l.trim().startsWith('{'));
+    expect(JSON.parse(mj!)).toHaveProperty('version');
+  });
+});

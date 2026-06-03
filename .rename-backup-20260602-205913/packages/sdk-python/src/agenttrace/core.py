@@ -31,7 +31,6 @@ from .types import (
     ToolCall,
     Trace,
     TraceConfig,
-    TraceContext,
     TraceFilter,
     TraceStats,
 )
@@ -448,39 +447,6 @@ class AgentTrace:
     def get_stats(self) -> TraceStats:
         return self.storage.get_stats()
 
-    # ---- Multi-agent tracing ----
-    def create_child(self, trace_context: TraceContext) -> TraceContext:
-        """Create a TraceContext for a child operation linked to the provided parent context.
-
-        The child context has a freshly generated traceId (use as the child's trace id)
-        and parentSpanId pointing to the parent's traceId (span).
-        Pass the returned context via options.context when calling trace().
-        """
-        if not trace_context or not isinstance(trace_context.trace_id, str) or len(trace_context.trace_id) == 0:
-            raise ValueError("create_child requires a valid TraceContext with trace_id")
-        child_trace_id = str(uuid.uuid4())
-        meta = dict(trace_context.metadata) if trace_context.metadata else {}
-        child_ctx = TraceContext(trace_id=child_trace_id, parent_span_id=trace_context.trace_id, metadata=meta)
-        # store for persistence / cross agent
-        self.storage.create_trace_context(child_trace_id, trace_context.trace_id, meta)
-        return child_ctx
-
-    def link_traces(self, trace_ids: list[str]) -> None:
-        """Manually link a set of trace IDs as related (for cross-agent collaboration without strict parent/child).
-
-        Uses an internal links table; get_trace_tree will surface linked traces as children in the tree.
-        """
-        if not isinstance(trace_ids, list) or len(trace_ids) < 2:
-            return
-        self.storage.link_traces(trace_ids)
-
-    def get_trace_tree(self, trace_id: str) -> TraceTreeNode:
-        """Get the full tree (parent -> children, including manually linked) for the given traceId.
-
-        The tree is rooted at the ultimate ancestor (following parentId links).
-        """
-        return self.storage.get_trace_tree(trace_id)
-
     # ---- Export ----
 
     def export(self, format: ExportFormat = "json", filter: TraceFilter | dict[str, Any] = {}) -> str:
@@ -520,7 +486,6 @@ class AgentTrace:
                         "costUsd": t.cost_usd,
                         "error": t.error,
                         "metadata": t.metadata,
-                        "parentId": t.parent_id,
                         "createdAt": t.created_at,
                         "updatedAt": t.updated_at,
                     }
@@ -976,21 +941,3 @@ def alert(config: Optional[dict[str, Any] | AlertCondition] = None, **kwargs: An
         cooldown=data.get("cooldown", 0) or 0,
         last_triggered=None,
     )
-
-
-def create_child(trace_context: TraceContext) -> TraceContext:
-    """Top-level create_child using the global agent instance."""
-    agent = get_agent_trace()
-    return agent.create_child(trace_context)
-
-
-def link_traces(trace_ids: list[str]) -> None:
-    """Top-level link_traces using the global agent instance."""
-    agent = get_agent_trace()
-    return agent.link_traces(trace_ids)
-
-
-def get_trace_tree(trace_id: str) -> TraceTreeNode:
-    """Top-level get_trace_tree using the global agent instance."""
-    agent = get_agent_trace()
-    return agent.get_trace_tree(trace_id)

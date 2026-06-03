@@ -296,13 +296,7 @@ async function benchExports(): Promise<ExportsResult> {
 
 async function benchMemory(): Promise<MemoryResult> {
   const size = 10000;
-  // Force GC if available (run node --expose-gc for best results)
-  if (global.gc) {
-    global.gc();
-  }
   const agent = new AgentTrace({ dbPath: ':memory:', silent: true, autoCleanup: false });
-  // Allow some settling
-  await new Promise((r) => setTimeout(r, 5));
   const before = process.memoryUsage();
 
   const runId = agent.startRun('bench-memory');
@@ -311,16 +305,10 @@ async function benchMemory(): Promise<MemoryResult> {
   for (let i = 0; i < size; i++) {
     storage.createTrace(makeTraceData(i, runId, baseTime));
   }
-  if (global.gc) {
-    global.gc();
-  }
   const afterInsert = process.memoryUsage();
 
   // full load into JS objects (exercises rowToTrace + tool subqueries)
   const _loaded = agent.getTraces({ limit: size + 10 });
-  if (global.gc) {
-    global.gc();
-  }
   const afterLoad = process.memoryUsage();
 
   const deltaRss = (afterInsert.rss - before.rss) / 1024 / 1024;

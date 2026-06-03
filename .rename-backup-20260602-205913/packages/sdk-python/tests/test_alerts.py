@@ -164,9 +164,8 @@ def test_webhook_delivery_success_and_history():
             req = call_args[0][0]
             assert req.full_url == "https://hooks.example/test"
             assert req.method == "POST"
-            # urllib normalizes header names (Content-type, User-agent)
-            assert req.get_header("Content-type") == "application/json"
-            assert req.get_header("User-agent") == "AgentTrace/0.2"
+            assert req.headers["Content-Type"] == "application/json"
+            assert req.headers["User-Agent"] == "AgentTrace/0.2"
 
         # history records delivered true
         hists = agent.get_alert_history()
