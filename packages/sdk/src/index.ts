@@ -34,6 +34,7 @@ import {
   CreatedApiKey,
   WebhookConfig,
   WebhookEvent,
+  WebhookDelivery,
 } from './types.js';
 
 export const VERSION = '0.1.0';
@@ -66,6 +67,8 @@ export type {
   AgentSession,
   ApiKey,
   CreatedApiKey,
+  WebhookConfig,
+  WebhookEvent,
 } from './types.js';
 
 export { TraceContext } from './types.js';
@@ -580,6 +583,68 @@ export class AgentTrace {
    */
   offUsage(listener: (record: AgentUsageRecord) => void): void {
     this.usageEmitter.off('usage', listener);
+  }
+
+  // ---- Webhook Management ----
+
+  /**
+   * Register a new webhook. Returns the webhook ID.
+   */
+  addWebhook(url: string, events: WebhookEvent[], secret?: string): string {
+    return this.storage.registerWebhook(url, events, secret);
+  }
+
+  /**
+   * List all configured webhooks.
+   */
+  getWebhooks(): WebhookConfig[] {
+    return this.storage.getWebhooks();
+  }
+
+  /**
+   * Remove a webhook by ID.
+   */
+  removeWebhook(id: string): void {
+    this.storage.deleteWebhook(id);
+  }
+
+  /**
+   * Test a webhook by ID: fires a test event payload to the webhook URL.
+   * Returns delivery result.
+   */
+  async testWebhook(id: string): Promise<{ ok: boolean; status?: number; error?: string }> {
+    const webhooks = this.getWebhooks();
+    const wh = webhooks.find((w) => w.id === id);
+    if (!wh) {
+      throw new Error(`Webhook '${id}' not found. List webhooks with: agenttrace-io webhook list`);
+    }
+    if (!wh.enabled) {
+      throw new Error(`Webhook '${id}' is disabled.`);
+    }
+    const payload = {
+      event: 'webhook.test',
+      timestamp: Date.now(),
+      message: 'AgentTrace webhook test',
+    };
+    try {
+      const resp = await fetch(wh.url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'User-Agent': `AgentTrace/${VERSION}`,
+        },
+        body: JSON.stringify(payload),
+      });
+      if (resp.ok) {
+        this.storage.resetWebhookFailures(id);
+      } else {
+        this.storage.incrementWebhookFailures(id);
+      }
+      return { ok: resp.ok, status: resp.status };
+    } catch (e: unknown) {
+      this.storage.incrementWebhookFailures(id);
+      return { ok: false, error: e instanceof Error ? e.message : String(e) };
+    }
   }
 
   // ---- Multi-agent tracing (v0.2) ----

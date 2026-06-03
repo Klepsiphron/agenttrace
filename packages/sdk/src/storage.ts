@@ -150,6 +150,7 @@ export class TraceStorage {
 
       CREATE TABLE IF NOT EXISTS agent_usage (
         id TEXT PRIMARY KEY,
+        tenant_id TEXT,
         agent_name TEXT NOT NULL,
         agent_type TEXT,
         session_id TEXT,
@@ -208,7 +209,7 @@ export class TraceStorage {
       .prepare('SELECT value FROM version WHERE key = ?')
       .get('schema_version');
     if (!version) {
-      this.db.prepare('INSERT INTO version (key, value) VALUES (?, ?)').run('schema_version', '2');
+      this.db.prepare('INSERT INTO version (key, value) VALUES (?, ?)').run('schema_version', '3');
     }
 
     // v2+ migration for multi-agent tracing (parent_id + trace_links)
@@ -239,6 +240,37 @@ export class TraceStorage {
         .prepare('INSERT OR REPLACE INTO version (key, value) VALUES (?, ?)')
         .run('schema_version', '2');
     }
+
+    // v3+ migration for multi-tenant (projects table + tenant_id on agent_usage)
+    if (schemaVer < 3) {
+      this.db.exec(`
+        CREATE TABLE IF NOT EXISTS projects (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          api_key TEXT NOT NULL UNIQUE,
+          created_at INTEGER NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_projects_api_key ON projects(api_key);
+      `);
+      try {
+        this.db.exec('ALTER TABLE agent_usage ADD COLUMN tenant_id TEXT');
+      } catch (_) {
+        /* column may already exist */
+      }
+      try {
+        this.db.exec('ALTER TABLE runs ADD COLUMN tenant_id TEXT');
+      } catch (_) {
+        /* column may already exist */
+      }
+      try {
+        this.db.exec('ALTER TABLE traces ADD COLUMN tenant_id TEXT');
+      } catch (_) {
+        /* column may already exist */
+      }
+      this.db
+        .prepare('INSERT OR REPLACE INTO version (key, value) VALUES (?, ?)')
+        .run('schema_version', '3');
+    }
   }
 
   // ---- Run operations ----
@@ -246,11 +278,12 @@ export class TraceStorage {
   createRun(run: Partial<Run> & { id: string; name: string; startedAt: number }): Run {
     const now = Date.now();
     const stmt = this.db.prepare(`
-      INSERT INTO runs (id, name, status, started_at, metadata, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO runs (id, tenant_id, name, status, started_at, metadata, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `);
     stmt.run(
       run.id,
+      run.tenantId || null,
       run.name,
       'running',
       run.startedAt,
@@ -1332,6 +1365,7 @@ export class TraceStorage {
     const r = row as Record<string, unknown>;
     return {
       id: r.id as string,
+      tenantId: (r.tenant_id as string) || undefined,
       name: r.name as string,
       status: r.status as Run['status'],
       traceCount: Number(r.trace_count),
@@ -1387,6 +1421,7 @@ export class TraceStorage {
       error: r.error as string | undefined,
       metadata: JSON.parse((r.metadata as string) || '{}'),
       parentId: (r.parent_id as string) || undefined,
+      tenantId: (r.tenant_id as string) || undefined,
       createdAt: Number(r.created_at),
       updatedAt: Number(r.updated_at),
     };
@@ -1458,6 +1493,25 @@ export class TraceStorage {
     this.db.prepare(`
       UPDATE webhooks SET failure_count = 0 WHERE id = ?
     `).run(id);
+  }
+
+  getEnabledWebhooksForEvent(event: string): WebhookConfig[] {
+    const rows = this.db.prepare(`
+      SELECT id, url, secret, events, enabled, created_at, last_triggered_at, failure_count
+      FROM webhooks WHERE enabled = 1
+    `).all() as Record<string, unknown>[];
+    return rows
+      .map(r => ({
+        id: r.id as string,
+        url: r.url as string,
+        secret: (r.secret as string) || undefined,
+        events: JSON.parse((r.events as string) || '[]'),
+        enabled: !!(r.enabled as number),
+        createdAt: Number(r.created_at),
+        lastTriggeredAt: (r.last_triggered_at as number) || undefined,
+        failureCount: Number(r.failure_count) || 0,
+      }))
+      .filter((w) => w.events.includes(event));
   }
 
   // ── API Key Management ──────────────────────────────────────────

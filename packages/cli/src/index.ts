@@ -259,6 +259,11 @@ Examples:
   agenttrace-io cost --agent researcher-1 --from 2026-01-01
   agenttrace-io sessions --active
   agenttrace-io activity --since 2h --limit 20
+  agenttrace-io cleanup
+  agenttrace-io cleanup --days 7 --dry-run
+  agenttrace-io retention show
+  agenttrace-io retention set 60
+  agenttrace-io retention set 90 --interval 12
   npx agenttrace-io version
   # alias also works: npx agenttrace ...
 `);
@@ -623,6 +628,46 @@ async function runMain(): Promise<void> {
       if (typeof c === 'string' && !c.startsWith('-')) {
         return c;
       }
+    }
+    return undefined;
+  })();
+
+  // detect subcommand for retention (e.g. retention show, retention set <days>)
+  const retentionSub: string | undefined = (() => {
+    if (command !== 'retention') return undefined;
+    const argvArgs = process.argv.slice(2);
+    const idx = argvArgs.indexOf('retention');
+    if (idx === -1) return undefined;
+    for (let k = idx + 1; k < argvArgs.length; k++) {
+      const c = argvArgs[k];
+      if (typeof c === 'string' && !c.startsWith('-')) {
+        return c;
+      }
+    }
+    return undefined;
+  })();
+
+  // For 'retention set <days>', capture the days positional arg
+  const retentionSetDays: string | undefined = (() => {
+    if (command !== 'retention') return undefined;
+    if (retentionSub !== 'set') return undefined;
+    const argvArgs = process.argv.slice(2);
+    const idx = argvArgs.indexOf('retention');
+    if (idx === -1) return undefined;
+    // Find the subcommand index first
+    let subIdx = -1;
+    for (let k = idx + 1; k < argvArgs.length; k++) {
+      const c = argvArgs[k];
+      if (typeof c === 'string' && !c.startsWith('-')) {
+        subIdx = k;
+        break;
+      }
+    }
+    if (subIdx === -1 || subIdx + 1 >= argvArgs.length) return undefined;
+    // Next non-flag arg after subcommand is the days value
+    const next = argvArgs[subIdx + 1];
+    if (typeof next === 'string' && !next.startsWith('-')) {
+      return next;
     }
     return undefined;
   })();
