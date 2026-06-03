@@ -188,8 +188,10 @@ export class TraceStorage {
         name TEXT NOT NULL,
         key_hash TEXT NOT NULL UNIQUE,
         key_preview TEXT NOT NULL,
+        permissions TEXT NOT NULL DEFAULT '["read","write"]',
         created_at INTEGER NOT NULL,
-        last_used_at INTEGER
+        last_used_at INTEGER,
+        enabled INTEGER DEFAULT 1
       );
       CREATE INDEX IF NOT EXISTS idx_api_keys_created_at ON api_keys(created_at);
 
