@@ -304,7 +304,7 @@ function getWeekStart(ts: number): number {
 
 function printSelfStats(storage: TraceStorage, useJson: boolean): void {
   // Fetch recent data (no hard limit to include historical self usage)
-  const runs = storage.getRuns(undefined, 5000);
+  const runs = storage.getRuns(5000);
   const traces = storage.getTraces({ limit: 20000 });
 
   const selfRuns = runs.filter((r) => isSelfTracked(r));
