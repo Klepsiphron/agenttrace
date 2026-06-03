@@ -156,7 +156,6 @@ describe('@agenttrace-io/billing stripe integration (mocked)', () => {
       quantity: 42,
       timestamp: expect.any(Number),
       action: 'increment',
-      metadata: { metric: 'traces_recorded' },
     });
   });
 

@@ -19,7 +19,7 @@ vi.mock('node:fs', async (importOriginal) => {
   const actual = await importOriginal<any>();
   return {
     ...actual,
-    statfsSync: vi.fn(() => ({ bsize: 4096, blocks: 1000000, bfree: 500000, bavail: 500000 })),
+    statfsSync: vi.fn(() => ({ bsize: 4096, blocks: 10000, bfree: 500, bavail: 500 })),
   };
 });
 
@@ -248,13 +248,13 @@ describe('dashboard cost API endpoints (new tests)', () => {
   });
 
   it('returns degraded (still 200) on resource warning (80-90%)', async () => {
-    const { app, close } = createDashboardApp(':memory:');
-    closes.push(close);
-
     const total = 10000;
     const used = 8600; // 86%
     vi.mocked(os.totalmem).mockReturnValue(total);
     vi.mocked(os.freemem).mockReturnValue(total - used);
+
+    const { app, close } = createDashboardApp(':memory:');
+    closes.push(close);
 
     const { base } = await startTemp(app);
     const res = await fetch(`${base}/api/health`);
@@ -266,13 +266,13 @@ describe('dashboard cost API endpoints (new tests)', () => {
   });
 
   it('returns unhealthy + 503 on critical memory (>=90%)', async () => {
-    const { app, close } = createDashboardApp(':memory:');
-    closes.push(close);
-
     const total = 10000;
     const used = 9500; // 95% critical
     vi.mocked(os.totalmem).mockReturnValue(total);
     vi.mocked(os.freemem).mockReturnValue(total - used);
+
+    const { app, close } = createDashboardApp(':memory:');
+    closes.push(close);
 
     const { base } = await startTemp(app);
     const res = await fetch(`${base}/api/health`);
@@ -283,10 +283,7 @@ describe('dashboard cost API endpoints (new tests)', () => {
   });
 
   it('detects disk critical and reports unhealthy (via fs.statfsSync)', async () => {
-    const { app, close } = createDashboardApp(':memory:');
-    closes.push(close);
-
-    // simulate low disk (95% used)
+    // simulate low disk (95% used) BEFORE creating app (so getDiskSpace sees it)
     vi.mocked(fs.statfsSync).mockReturnValue({
       type: 0,
       bsize: 4096,
@@ -296,6 +293,9 @@ describe('dashboard cost API endpoints (new tests)', () => {
       files: 1000,
       ffree: 1000,
     } as any);
+
+    const { app, close } = createDashboardApp(':memory:');
+    closes.push(close);
 
     const { base } = await startTemp(app);
     const res = await fetch(`${base}/api/health`);
