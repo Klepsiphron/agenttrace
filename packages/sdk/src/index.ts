@@ -511,7 +511,7 @@ export class AgentTrace {
     }
     const fullKey = `at_${randomUUID().replace(/-/g, '')}`;
     const preview = fullKey.slice(0, 12) + '****';
-    const meta = this.storage.createApiKey(name.trim(), fullKey, preview);
+    const meta = this.storage.createApiKey(name.trim());
     return { ...meta, key: fullKey };
   }
 
