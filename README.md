@@ -78,14 +78,14 @@ docker compose up -d
 
 ## Why AgentTrace?
 
-| | AgentTrace | Langfuse | LangSmith |
-|--|:-:|:-:|:-:|
-| **Local-first (no cloud)** | ✅ | ❌ (Docker/K8s) | ❌ (cloud only) |
-| **Open source** | MIT | MIT | Closed |
-| **CLI** | ✅ | ❌ | ❌ |
-| **Framework lock-in** | None | None | LangGraph only |
-| **Setup** | git clone + pnpm | Docker compose | Sign up |
-| **Data leaves machine** | Never | Cloud option | Always |
+|                            |    AgentTrace    |    Langfuse     |    LangSmith    |
+| -------------------------- | :--------------: | :-------------: | :-------------: |
+| **Local-first (no cloud)** |        ✅        | ❌ (Docker/K8s) | ❌ (cloud only) |
+| **Open source**            |       MIT        |       MIT       |     Closed      |
+| **CLI**                    |        ✅        |       ❌        |       ❌        |
+| **Framework lock-in**      |       None       |      None       | LangGraph only  |
+| **Setup**                  | git clone + pnpm | Docker compose  |     Sign up     |
+| **Data leaves machine**    |      Never       |  Cloud option   |     Always      |
 
 **Choose AgentTrace** when you need privacy, simplicity, and zero-config observability.
 
