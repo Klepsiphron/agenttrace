@@ -1502,6 +1502,114 @@ export class TraceStorage {
     };
   }
 
+  // ── Webhook Management ──────────────────────────────────────────
+
+  registerWebhook(url: string, events: string[], secret?: string): string {
+    const id = randomUUID();
+    this.db.prepare(`
+      INSERT INTO webhooks (id, url, secret, events, enabled, created_at)
+      VALUES (?, ?, ?, ?, 1, ?)
+    `).run(id, url, secret || null, JSON.stringify(events), Date.now());
+    return id;
+  }
+
+  getWebhooks(): WebhookConfig[] {
+    const rows = this.db.prepare(`
+      SELECT id, url, secret, events, enabled, created_at, last_triggered_at, failure_count
+      FROM webhooks ORDER BY created_at DESC
+    `).all() as Record<string, unknown>[];
+    return rows.map(r => ({
+      id: r.id as string,
+      url: r.url as string,
+      secret: (r.secret as string) || undefined,
+      events: JSON.parse((r.events as string) || '[]'),
+      enabled: !!(r.enabled as number),
+      createdAt: Number(r.created_at),
+      lastTriggeredAt: (r.last_triggered_at as number) || undefined,
+      failureCount: Number(r.failure_count) || 0,
+    }));
+  }
+
+  deleteWebhook(id: string): void {
+    this.db.prepare(`DELETE FROM webhooks WHERE id = ?`).run(id);
+  }
+
+  updateWebhookLastTriggered(id: string): void {
+    this.db.prepare(`
+      UPDATE webhooks SET last_triggered_at = ? WHERE id = ?
+    `).run(Date.now(), id);
+  }
+
+  incrementWebhookFailures(id: string): void {
+    this.db.prepare(`
+      UPDATE webhooks SET failure_count = failure_count + 1 WHERE id = ?
+    `).run(id);
+  }
+
+  resetWebhookFailures(id: string): void {
+    this.db.prepare(`
+      UPDATE webhooks SET failure_count = 0 WHERE id = ?
+    `).run(id);
+  }
+
+  // ── API Key Management ──────────────────────────────────────────
+
+  createApiKey(name: string, permissions: string[] = ['read', 'write']): { id: string; key: string } {
+    const id = randomUUID();
+    const key = randomBytes(32).toString('hex');
+    const keyHash = createHash('sha256').update(key).digest('hex');
+    this.db.prepare(`
+      INSERT INTO api_keys (id, name, key_hash, permissions, created_at, enabled)
+      VALUES (?, ?, ?, ?, ?, 1)
+    `).run(id, name, keyHash, JSON.stringify(permissions), Date.now());
+    return { id, key };
+  }
+
+  getApiKeys(): { id: string; name: string; createdAt: number; lastUsedAt: number | null; enabled: boolean }[] {
+    const rows = this.db.prepare(`
+      SELECT id, name, created_at, last_used_at, enabled
+      FROM api_keys ORDER BY created_at DESC
+    `).all() as Record<string, unknown>[];
+    return rows.map(r => ({
+      id: r.id as string,
+      name: r.name as string,
+      createdAt: Number(r.created_at),
+      lastUsedAt: (r.last_used_at as number) || null,
+      enabled: !!(r.enabled as number),
+    }));
+  }
+
+  validateApiKey(key: string): { valid: boolean; permissions: string[] } {
+    const keyHash = createHash('sha256').update(key).digest('hex');
+    const row = this.db.prepare(`
+      SELECT id, permissions, enabled FROM api_keys WHERE key_hash = ?
+    `).get(keyHash) as Record<string, unknown> | undefined;
+    if (!row || !row.enabled) return { valid: false, permissions: [] };
+    this.db.prepare(`UPDATE api_keys SET last_used_at = ? WHERE key_hash = ?`).run(Date.now(), keyHash);
+    return { valid: true, permissions: JSON.parse((row.permissions as string) || '[]') };
+  }
+
+  revokeApiKey(id: string): void {
+    this.db.prepare(`DELETE FROM api_keys WHERE id = ?`).run(id);
+  }
+
+  // ── Storage Stats ───────────────────────────────────────────────
+
+  getStorageStats(): { totalSizeBytes: number; traceCount: number; runCount: number; oldestTrace: number | null; newestTrace: number | null } {
+    const stat = statSync(this.dbPath);
+    const traceCount = this.db.prepare(`SELECT COUNT(*) as c FROM traces`).get() as { c: number };
+    const runCount = this.db.prepare(`SELECT COUNT(*) as c FROM runs`).get() as { c: number };
+    const oldest = this.db.prepare(`SELECT MIN(created_at) as v FROM traces`).get() as { v: number | null };
+    const newest = this.db.prepare(`SELECT MAX(created_at) as v FROM traces`).get() as { v: number | null };
+    return {
+      totalSizeBytes: stat.size,
+      traceCount: traceCount.c,
+      runCount: runCount.c,
+      oldestTrace: oldest.v,
+      newestTrace: newest.v,
+    };
+  }
+
   close(): void {
     this.db.close();
   }
