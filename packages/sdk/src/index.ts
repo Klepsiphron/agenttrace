@@ -22,6 +22,7 @@ import {
   AlertHistory,
   TraceContext,
   TraceTreeNode,
+  HealthReport,
 } from './types.js';
 
 export const VERSION = '0.1.0';
@@ -46,6 +47,7 @@ export type {
   AlertCondition,
   AlertHistory,
   TraceTreeNode,
+  HealthReport,
 } from './types.js';
 
 export { TraceContext } from './types.js';
@@ -571,11 +573,20 @@ export class AgentTrace {
     return this.storage.getAlertHistory();
   }
 
-  getHealth(): { status: string; integrity: { tablesExist: boolean; noOrphans: boolean; details?: unknown } } {
-    // minimal impl to satisfy dashboard tests (full version would query storage)
+  /**
+   * Return health report: status, version (sdk), uptime, dbPath, traceCount, dbSize + integrity check.
+   * Integrity verifies required tables exist and detects orphaned child records.
+   */
+  getHealth(): HealthReport {
+    const h = this.storage.getHealthInfo();
     return {
       status: 'ok',
-      integrity: { tablesExist: true, noOrphans: true },
+      version: VERSION,
+      uptime: process.uptime(),
+      dbPath: h.dbPath,
+      traceCount: h.traceCount,
+      dbSize: h.dbSize,
+      integrity: h.integrity,
     };
   }
 
