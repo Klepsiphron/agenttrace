@@ -26,7 +26,7 @@ function getStripeClient(): Stripe {
   }
   _stripe = new Stripe(secretKey, {
     // Use a recent stable API version (update as needed)
-    apiVersion: '2024-11-20.acacia',
+    apiVersion: '2025-02-24.acacia',
     typescript: true,
   });
   return _stripe;
@@ -76,7 +76,7 @@ async function findSubscriptionItemId(
     throw new Error(`No active subscription found for customer ${customerId}`);
   }
   // Prefer the first active sub
-  const sub = subs.data[0];
+  const sub = subs.data[0]!;
   if (!sub.items?.data?.length) {
     throw new Error(`Subscription ${sub.id} has no items`);
   }
@@ -88,7 +88,7 @@ async function findSubscriptionItemId(
     if (match) return match.id;
   }
   // fallback to first item (common for single metered price subs)
-  return sub.items.data[0].id;
+  return sub.items.data[0]!.id;
 }
 
 export async function createCustomer(
@@ -132,10 +132,6 @@ export async function recordUsage(
     quantity: Math.floor(quantity),
     timestamp: Math.floor(Date.now() / 1000),
     action: 'increment',
-    metadata: {
-      metric,
-      // allows filtering/auditing usage records by metric in Stripe dashboard
-    },
   });
 }
 
@@ -168,7 +164,7 @@ export async function getUsage(
     return report;
   }
 
-  const sub = subs.data[0];
+  const sub = subs.data[0]!;
   if (!sub.items?.data?.length) {
     return report;
   }
@@ -261,7 +257,7 @@ export class StripeBillingClient {
       throw new Error('Stripe secret key is required (option or STRIPE_SECRET_KEY)');
     }
     this.stripe = new Stripe(key, {
-      apiVersion: options?.apiVersion || '2024-11-20.acacia',
+      apiVersion: options?.apiVersion || '2025-02-24.acacia',
       typescript: true,
     });
     this.defaultPriceId = options?.priceId || process.env.STRIPE_PRICE_ID;
@@ -288,7 +284,7 @@ export class StripeBillingClient {
     if (quantity <= 0) return;
     const subs = await this.stripe.subscriptions.list({ customer: customerId, status: 'active', limit: 1 });
     if (!subs.data.length) throw new Error(`No active subscription for ${customerId}`);
-    const sub = subs.data[0];
+    const sub = subs.data[0]!;
     let itemId = sub.items.data[0]?.id;
     const targetPid = this.defaultPriceId;
     if (targetPid) {
@@ -303,7 +299,6 @@ export class StripeBillingClient {
       quantity: Math.floor(quantity),
       timestamp: Math.floor(Date.now() / 1000),
       action: 'increment',
-      metadata: { metric },
     });
   }
 
@@ -324,8 +319,8 @@ export class StripeBillingClient {
       webhooksDelivered: 0,
       storageGb: 0,
     };
-    if (!subs.data.length || !subs.data[0].items?.data?.length) return report;
-    for (const item of subs.data[0].items.data) {
+    if (!subs.data.length || !subs.data[0]!.items?.data?.length) return report;
+    for (const item of subs.data[0]!.items.data) {
       try {
         const sums = await this.stripe.subscriptionItems.listUsageRecordSummaries(item.id, { limit: 5 });
         const tot = sums.data.reduce((a, s) => a + (s.total_usage || 0), 0);

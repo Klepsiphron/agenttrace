@@ -4,7 +4,7 @@
  */
 
 import Database from 'better-sqlite3';
-import { randomUUID, createHash } from 'node:crypto';
+import { randomUUID, randomBytes, createHash } from 'node:crypto';
 import { statSync } from 'node:fs';
 import {
   Trace,
@@ -22,6 +22,7 @@ import {
   AgentSession,
   WebhookConfig,
   ApiKey,
+  Project,
 } from './types.js';
 
 export class TraceStorage {
@@ -40,6 +41,7 @@ export class TraceStorage {
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS runs (
         id TEXT PRIMARY KEY,
+        tenant_id TEXT,
         name TEXT NOT NULL,
         status TEXT NOT NULL DEFAULT 'running',
         trace_count INTEGER DEFAULT 0,
@@ -59,6 +61,7 @@ export class TraceStorage {
 
       CREATE TABLE IF NOT EXISTS traces (
         id TEXT PRIMARY KEY,
+        tenant_id TEXT,
         run_id TEXT NOT NULL,
         name TEXT NOT NULL,
         status TEXT NOT NULL,

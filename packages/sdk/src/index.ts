@@ -29,6 +29,8 @@ import {
   UsageStats,
   AgentWho,
   AgentSession,
+  ApiKey,
+  CreatedApiKey,
 } from './types.js';
 
 export const VERSION = '0.1.0';
@@ -59,6 +61,8 @@ export type {
   UsageStats,
   AgentWho,
   AgentSession,
+  ApiKey,
+  CreatedApiKey,
 } from './types.js';
 
 export { TraceContext } from './types.js';
@@ -240,6 +244,7 @@ export class AgentTrace {
       retentionDays: config.retentionDays !== undefined ? config.retentionDays : persisted.retentionDays,
       cleanupIntervalHours:
         config.cleanupIntervalHours !== undefined ? config.cleanupIntervalHours : persisted.cleanupIntervalHours,
+      tenantId: config.tenantId,
     };
     this.setupRetentionCleanup();
   }
