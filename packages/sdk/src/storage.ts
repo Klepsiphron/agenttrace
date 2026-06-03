@@ -991,80 +991,6 @@ export class TraceStorage {
 
   // ---- API Key management (stored hashed with SHA-256) ----
 
-  /**
-   * Create a new API key. Returns the full key (caller must show once) + metadata.
-   * keyHash is SHA-256 hex of the provided key.
-   */
-  createApiKey(name: string, key: string, keyPreview: string): ApiKey {
-    const id = randomUUID();
-    const now = Date.now();
-    const keyHash = createHash('sha256').update(key).digest('hex');
-    this.db
-      .prepare(
-        `
-      INSERT INTO api_keys (id, name, key_hash, key_preview, created_at, last_used_at)
-      VALUES (?, ?, ?, ?, ?, NULL)
-    `,
-      )
-      .run(id, name, keyHash, keyPreview, now);
-    return {
-      id,
-      name,
-      preview: keyPreview,
-      createdAt: now,
-    };
-  }
-
-  /**
-   * List all API keys (never returns hashes or secrets, only previews).
-   */
-  listApiKeys(): ApiKey[] {
-    const rows = this.db
-      .prepare('SELECT * FROM api_keys ORDER BY created_at DESC')
-      .all() as unknown[];
-    return rows.map((r) => {
-      const rec = r as Record<string, unknown>;
-      return {
-        id: rec.id as string,
-        name: rec.name as string,
-        preview: rec.key_preview as string,
-        createdAt: Number(rec.created_at),
-        lastUsedAt: rec.last_used_at != null ? Number(rec.last_used_at) : undefined,
-      };
-    });
-  }
-
-  /**
-   * Revoke/delete an API key by id.
-   */
-  revokeApiKey(id: string): boolean {
-    const res = this.db.prepare('DELETE FROM api_keys WHERE id = ?').run(id);
-    return (res.changes ?? 0) > 0;
-  }
-
-  /**
-   * Validate a presented API key (from X-API-Key header). Returns the matching ApiKey if valid (updates last_used_at), else null.
-   */
-  validateApiKey(presentedKey: string): ApiKey | null {
-    if (!presentedKey || typeof presentedKey !== 'string') return null;
-    const presentedHash = createHash('sha256').update(presentedKey).digest('hex');
-    const row = this.db
-      .prepare('SELECT * FROM api_keys WHERE key_hash = ?')
-      .get(presentedHash) as unknown;
-    if (!row) return null;
-    const rec = row as Record<string, unknown>;
-    const now = Date.now();
-    // touch last_used_at
-    this.db.prepare('UPDATE api_keys SET last_used_at = ? WHERE id = ?').run(now, rec.id);
-    return {
-      id: rec.id as string,
-      name: rec.name as string,
-      preview: rec.key_preview as string,
-      createdAt: Number(rec.created_at),
-      lastUsedAt: now,
-    };
-  }
-
   // ---- Stats ----
 
   getStats(): TraceStats {
@@ -1240,24 +1166,6 @@ export class TraceStorage {
     if (!before || before <= 0) return 0;
     const res = this.db.prepare('DELETE FROM agent_usage WHERE created_at < ?').run(before);
     return res.changes ?? 0;
-  }
-
-  getStorageStats(): { totalSize: number; traceCount: number; oldestTrace: number; newestTrace: number } {
-    const traceCountRow = this.db
-      .prepare('SELECT COUNT(*) as c FROM traces')
-      .get() as unknown as { c: number } | undefined;
-    const oldestRow = this.db
-      .prepare('SELECT MIN(created_at) as ts FROM traces')
-      .get() as unknown as { ts: number | null } | undefined;
-    const newestRow = this.db
-      .prepare('SELECT MAX(created_at) as ts FROM traces')
-      .get() as unknown as { ts: number | null } | undefined;
-    return {
-      totalSize: this.getDbSize(),
-      traceCount: traceCountRow ? traceCountRow.c : 0,
-      oldestTrace: oldestRow && oldestRow.ts != null ? Number(oldestRow.ts) : 0,
-      newestTrace: newestRow && newestRow.ts != null ? Number(newestRow.ts) : 0,
-    };
   }
 
   // ---- Retention policy (persisted) ----
