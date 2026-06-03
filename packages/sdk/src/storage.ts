@@ -363,60 +363,62 @@ export class TraceStorage {
   // ---- Trace operations ----
 
   createTrace(trace: Omit<Trace, 'createdAt' | 'updatedAt'>): Trace {
-    const now = Date.now();
-    const stmt = this.db.prepare(`
+    this.db.transaction(() => {
+      const now = Date.now();
+      const stmt = this.db.prepare(`
       INSERT INTO traces (id, tenant_id, run_id, name, status, input, output, prompt_tokens, completion_tokens, total_tokens, model, provider, latency_ms, cost_usd, error, metadata, parent_id, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
-    stmt.run(
-      trace.id,
-      trace.tenantId || null,
-      trace.runId,
-      trace.name,
-      trace.status,
-      JSON.stringify(trace.input),
-      JSON.stringify(trace.output),
-      trace.tokens.promptTokens,
-      trace.tokens.completionTokens,
-      trace.tokens.totalTokens,
-      trace.tokens.model || null,
-      trace.tokens.provider || null,
-      trace.latencyMs,
-      trace.costUsd,
-      trace.error || null,
-      JSON.stringify(trace.metadata),
-      trace.parentId || null,
-      now,
-      now,
-    );
+      stmt.run(
+        trace.id,
+        trace.tenantId || null,
+        trace.runId,
+        trace.name,
+        trace.status,
+        JSON.stringify(trace.input),
+        JSON.stringify(trace.output),
+        trace.tokens.promptTokens,
+        trace.tokens.completionTokens,
+        trace.tokens.totalTokens,
+        trace.tokens.model || null,
+        trace.tokens.provider || null,
+        trace.latencyMs,
+        trace.costUsd,
+        trace.error || null,
+        JSON.stringify(trace.metadata),
+        trace.parentId || null,
+        now,
+        now,
+      );
 
-    // Insert tool calls
-    const toolStmt = this.db.prepare(`
+      // Insert tool calls
+      const toolStmt = this.db.prepare(`
       INSERT INTO tool_calls (id, trace_id, name, input, output, latency_ms, success, error, timestamp)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
-    for (const tc of trace.toolCalls) {
-      toolStmt.run(
-        tc.id,
-        trace.id,
-        tc.name,
-        JSON.stringify(tc.input),
-        JSON.stringify(tc.output),
-        tc.latencyMs,
-        tc.success ? 1 : 0,
-        tc.error || null,
-        tc.timestamp,
-      );
-    }
+      for (const tc of trace.toolCalls) {
+        toolStmt.run(
+          tc.id,
+          trace.id,
+          tc.name,
+          JSON.stringify(tc.input),
+          JSON.stringify(tc.output),
+          tc.latencyMs,
+          tc.success ? 1 : 0,
+          tc.error || null,
+          tc.timestamp,
+        );
+      }
 
-    // Update run stats
-    this.updateRunStats(
-      trace.runId,
-      trace.tokens,
-      trace.toolCalls.length,
-      trace.latencyMs,
-      trace.costUsd,
-    );
+      // Update run stats
+      this.updateRunStats(
+        trace.runId,
+        trace.tokens,
+        trace.toolCalls.length,
+        trace.latencyMs,
+        trace.costUsd,
+      );
+    })();
 
     return this.getTrace(trace.id)!;
   }
@@ -1210,23 +1212,26 @@ export class TraceStorage {
   // ---- Cleanup ----
 
   cleanup(maxTraces: number = 10000): number {
-    const count = this.db.prepare('SELECT COUNT(*) as c FROM traces').get() as unknown as {
-      c: number;
-    };
-    if (count.c <= maxTraces) return 0;
+    let deleted = 0;
+    const txn = this.db.transaction(() => {
+      const count = this.db.prepare('SELECT COUNT(*) as c FROM traces').get() as unknown as {
+        c: number;
+      };
+      if (count.c <= maxTraces) return;
 
-    const toDelete = count.c - maxTraces;
-    this.db
-      .prepare(
-        `
+      deleted = count.c - maxTraces;
+      this.db
+        .prepare(
+          `
       DELETE FROM traces WHERE id IN (
         SELECT id FROM traces ORDER BY created_at ASC LIMIT ?
       )
     `,
-      )
-      .run(toDelete);
-
-    return toDelete;
+        )
+        .run(deleted);
+    });
+    txn();
+    return deleted;
   }
 
   cleanupOldTraces(before: number): number {
