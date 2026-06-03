@@ -245,7 +245,9 @@ export class AgentTrace {
 
   constructor(config: TraceConfig = {}) {
     const dbPath = config.dbPath || './agenttrace.db';
-    this.storage = new TraceStorage(dbPath);
+    const tenantId = config.tenantId ?? '';
+    console.error(`[DEBUG AgentTrace ctor] config.tenantId='${config.tenantId}' computed='${tenantId}'`);
+    this.storage = new TraceStorage(dbPath, tenantId);
     const persisted = this.storage.getRetentionPolicy();
     this.config = {
       dbPath,
@@ -260,7 +262,7 @@ export class AgentTrace {
         config.cleanupIntervalHours !== undefined
           ? config.cleanupIntervalHours
           : persisted.cleanupIntervalHours,
-      tenantId: config.tenantId ?? '',
+      tenantId,
       maxTracesPerSecond: config.maxTracesPerSecond ?? 0,
       maxTracesPerMinute: config.maxTracesPerMinute ?? 0,
       burstAllowance: config.burstAllowance ?? 10,

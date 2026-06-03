@@ -34,6 +34,7 @@ export class TraceStorage {
   constructor(dbPath: string = './agenttrace.db', tenantId?: string) {
     this.dbPath = dbPath;
     this.tenantId = tenantId || '';
+    console.error(`[DEBUG TraceStorage ctor] dbPath='${dbPath}' tenantIdIn='${tenantId}' this.tenantId='${this.tenantId}'`);
     this.db = new Database(dbPath);
     this.db.pragma('journal_mode = WAL');
     this.db.pragma('foreign_keys = ON');
@@ -445,6 +446,8 @@ export class TraceStorage {
     }
 
     if (filter.runId) {
+    // DEBUG getTraces
+    console.error(`[DEBUG getTraces] tenantId='${tenantId}' db='${this.dbPath}' filter=${JSON.stringify(filter)}`);
       sql += ' AND run_id = ?';
       params.push(filter.runId);
     }
