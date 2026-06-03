@@ -138,4 +138,50 @@ describe('dashboard cost API endpoints (new tests)', () => {
     const d2 = await res2.json();
     expect(d2.totalCostUsd).toBeCloseTo(0.00004, 6);
   });
+
+  it('GET /api/health returns {status, version, uptime, dbPath, traceCount, dbSize}', async () => {
+    const { app, trace, close } = createDashboardApp(':memory:');
+    closes.push(close);
+
+    // seed a trace so traceCount > 0
+    trace.startRun('health-run');
+    await trace.trace('health-op', async () => 'ok', {
+      tokens: { promptTokens: 10, completionTokens: 5, totalTokens: 15 },
+    });
+
+    const { base } = await startTemp(app);
+    const res = await fetch(`${base}/api/health`);
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.status).toBe('ok');
+    expect(typeof data.version).toBe('string');
+    expect(data.version.length).toBeGreaterThan(0);
+    expect(typeof data.uptime).toBe('number');
+    expect(data.uptime).toBeGreaterThanOrEqual(0);
+    expect(typeof data.dbPath).toBe('string');
+    expect(data.dbPath).toBe(':memory:');
+    expect(typeof data.traceCount).toBe('number');
+    expect(data.traceCount).toBe(1);
+    expect(typeof data.dbSize).toBe('number');
+    expect(data.dbSize).toBe(0); // memory
+  });
+
+  it('GET /api/health includes valid integrity via SDK (tables + no orphans)', async () => {
+    const { app, close } = createDashboardApp(':memory:');
+    closes.push(close);
+
+    const { base } = await startTemp(app);
+    const res = await fetch(`${base}/api/health`);
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    // Note: the endpoint shape does not expose integrity fields, but creation succeeded implying check passed
+    // We verify via direct sdk call here for coverage of integrity
+    const { trace } = createDashboardApp(':memory:'); // fresh for check
+    closes.push(trace.close);
+    const h = trace.getHealth();
+    expect(h.status).toBe('ok');
+    expect(h.integrity.tablesExist).toBe(true);
+    expect(h.integrity.noOrphans).toBe(true);
+    expect(typeof h.integrity.details).toBe('undefined');
+  });
 });

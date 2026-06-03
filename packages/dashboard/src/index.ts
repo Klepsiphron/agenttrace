@@ -5,7 +5,7 @@
 import express, { Request, Response, Express } from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { AgentTrace, DashboardConfig, ExportFormat } from '@agenttrace-io/sdk';
+import { AgentTrace, DashboardConfig, ExportFormat } from '@agenttrace/sdk';
 
 export const VERSION = '0.0.0';
 export const PACKAGE_NAME = '@agenttrace/dashboard';
@@ -71,7 +71,9 @@ export function createDashboardApp(dbPath?: string): DashboardApp {
       const runs = status
         ? (() => {
             const allowed = status.split(',').filter(Boolean);
-            return allowed.length ? allRuns.filter((r) => allowed.includes(r.status)) : allRuns;
+            return allowed.length
+              ? allRuns.filter((r: { status: string }) => allowed.includes(r.status))
+              : allRuns;
           })()
         : allRuns;
 

@@ -52,6 +52,8 @@ export { TraceContext } from './types.js';
 
 export { TraceStorage } from './storage.js';
 
+export { runPendingMigrations, getSchemaVersion } from './migrations.js';
+
 // Default cost calculator (approximate 2026 pricing)
 // Rates are in USD per 1000 tokens. Extended with additional models for v0.2.0.
 const modelRates: Record<string, { prompt: number; completion: number }> = {
