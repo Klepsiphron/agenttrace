@@ -86,6 +86,40 @@ export interface TraceConfig {
   tenantId?: string;
 }
 
+/** Webhook configuration */
+export interface WebhookConfig {
+  id: string;
+  url: string;
+  secret?: string;
+  events: WebhookEvent[];
+  enabled: boolean;
+  createdAt: number;
+  lastTriggeredAt?: number;
+  failureCount: number;
+}
+
+/** Webhook event types */
+export type WebhookEvent =
+  | 'trace.complete'
+  | 'trace.error'
+  | 'run.complete'
+  | 'run.error'
+  | 'cost.threshold'
+  | 'agent.inactive';
+
+/** Webhook delivery record */
+export interface WebhookDelivery {
+  id: string;
+  webhookId: string;
+  event: string;
+  payload: string;
+  status: 'success' | 'failure';
+  httpStatus?: number;
+  error?: string;
+  createdAt: number;
+}
+
+
 /** Filter options for querying traces */
 export interface TraceFilter {
   runId?: string;
