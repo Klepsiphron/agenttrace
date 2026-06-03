@@ -54,13 +54,16 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./
 COPY --from=builder /app/packages/sdk/package.json ./packages/sdk/
 COPY --from=builder /app/packages/sdk/dist ./packages/sdk/dist
+COPY --from=builder /app/packages/cli/package.json ./packages/cli/
+COPY --from=builder /app/packages/cli/dist ./packages/cli/dist
+COPY --from=builder /app/packages/cli/node_modules ./packages/cli/node_modules
 COPY --from=builder /app/packages/dashboard/package.json ./packages/dashboard/
 COPY --from=builder /app/packages/dashboard/dist ./packages/dashboard/dist
 COPY --from=builder /app/packages/dashboard/public ./packages/dashboard/public
-COPY --from=builder /app/packages/cli/package.json ./packages/cli/
-COPY --from=builder /app/packages/cli/dist ./packages/cli/dist
+COPY --from=builder /app/packages/dashboard/node_modules ./packages/dashboard/node_modules
 COPY --from=builder /app/packages/middleware-langgraph/package.json ./packages/middleware-langgraph/
 COPY --from=builder /app/packages/middleware-langgraph/dist ./packages/middleware-langgraph/dist
+COPY --from=builder /app/packages/middleware-langgraph/node_modules ./packages/middleware-langgraph/node_modules
 
 # Ensure data directory exists for SQLite DB (volume mount target)
 RUN mkdir -p /app/data
