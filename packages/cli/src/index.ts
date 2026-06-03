@@ -573,7 +573,8 @@ async function runMain(): Promise<void> {
       let dbIntegrity: { tablesExist: boolean; noOrphans: boolean; details?: string } | undefined;
       try {
         const tr = new AgentTrace({ dbPath: dbp, silent: true });
-        const h = tr.getHealth() as any;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const h: any = tr.getHealth();
         tr.close();
         dbOk = h.status === 'ok';
         dbTraceCount = h.traceCount;
