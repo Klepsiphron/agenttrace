@@ -241,6 +241,7 @@ export class AgentTrace {
   private webhookEmitter = new EventEmitter();
   private _cleanupInterval?: NodeJS.Timeout | ReturnType<typeof setInterval>;
   private rateLimiter: TokenBucketRateLimiter | null = null;
+  private activeTraceContext: { traceId: string; toolCalls: ToolCall[] } | null = null;
 
   constructor(config: TraceConfig = {}) {
     const dbPath = config.dbPath || './agenttrace.db';
@@ -369,7 +370,6 @@ export class AgentTrace {
         ? options.context.parentSpanId
         : (options.parentId ?? undefined);
     const startTime = Date.now();
-    const toolCalls: ToolCall[] = [];
     let result: T;
     let error: string | undefined;
     let status: Trace['status'] = 'success';
@@ -379,6 +379,9 @@ export class AgentTrace {
       // Rate limited — execute the function but don't record the trace
       return fn();
     }
+
+    const prevContext = this.activeTraceContext;
+    this.activeTraceContext = { traceId, toolCalls: [] };
 
     try {
       result = await fn();
@@ -400,6 +403,11 @@ export class AgentTrace {
       const baseMeta = options.metadata || {};
       const ctxMeta = options.context ? options.context.metadata || {} : {};
       const mergedMeta = { ...ctxMeta, ...baseMeta };
+
+      // Drain collected tool calls from active context (populated by recordToolCall during fn)
+      const toolCalls = this.activeTraceContext ? this.activeTraceContext.toolCalls : [];
+      // Restore previous context (supports nesting; top-level restores to null)
+      this.activeTraceContext = prevContext;
 
       const trace: Omit<Trace, 'createdAt' | 'updatedAt'> = {
         id: traceId,
@@ -474,9 +482,22 @@ export class AgentTrace {
   /**
    * Record a tool call within the current trace
    */
-  recordToolCall(_call: Omit<ToolCall, 'id' | 'timestamp'>): string {
+  recordToolCall(call: Omit<ToolCall, 'id' | 'timestamp'>): string {
     const id = randomUUID();
-    // Tool calls are stored as part of the trace
+    const timestamp = Date.now();
+    const fullCall: ToolCall = { ...call, id, timestamp };
+
+    if (this.activeTraceContext) {
+      this.activeTraceContext.toolCalls.push(fullCall);
+      return id;
+    }
+
+    // Outside active trace: still return id (for potential manual correlation) but warn
+    if (!this.config.silent) {
+      console.warn(
+        `[AgentTrace] recordToolCall("${call.name}") called outside an active trace() — tool call will not be stored. Call recordToolCall from within a trace() callback.`,
+      );
+    }
     return id;
   }
 

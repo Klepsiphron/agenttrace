@@ -266,6 +266,98 @@ describe('trace()', () => {
     expect(trace.name).toBe('token-op');
   });
 
+  it('collects tool calls recorded via recordToolCall inside trace fn', async () => {
+    const toolInput = { q: 'weather' };
+    const toolOutput = { temp: 72 };
+    const result = await agent.trace(
+      'with-tools',
+      async () => {
+        const id1 = agent.recordToolCall({
+          name: 'getWeather',
+          input: toolInput,
+          output: toolOutput,
+          latencyMs: 42,
+          success: true,
+        });
+        const id2 = agent.recordToolCall({
+          name: 'format',
+          input: { raw: toolOutput },
+          output: '72F',
+          latencyMs: 5,
+          success: true,
+        });
+        expect(id1).toMatch(UUID_RE);
+        expect(id2).toMatch(UUID_RE);
+        return 'done';
+      },
+      { input: { city: 'sf' } },
+    );
+    expect(result).toBe('done');
+
+    const trace = lastCreatedTrace();
+    expect(trace.name).toBe('with-tools');
+    expect(trace.toolCalls).toHaveLength(2);
+    expect(trace.toolCalls[0]).toMatchObject({
+      name: 'getWeather',
+      input: toolInput,
+      output: toolOutput,
+      latencyMs: 42,
+      success: true,
+    });
+    expect(trace.toolCalls[0].id).toMatch(UUID_RE);
+    expect(typeof trace.toolCalls[0].timestamp).toBe('number');
+    expect(trace.toolCalls[1].name).toBe('format');
+  });
+
+  it('collects tool calls even on error traces (partial execution)', async () => {
+    await expect(
+      agent.trace('tool-fail', async () => {
+        agent.recordToolCall({
+          name: 'failingTool',
+          input: { x: 1 },
+          output: null,
+          latencyMs: 10,
+          success: false,
+          error: 'timeout',
+        });
+        throw new Error('agent boom');
+      }),
+    ).rejects.toThrow('agent boom');
+
+    const trace = lastCreatedTrace();
+    expect(trace.status).toBe('error');
+    expect(trace.toolCalls).toHaveLength(1);
+    expect(trace.toolCalls[0].name).toBe('failingTool');
+    expect(trace.toolCalls[0].success).toBe(false);
+  });
+
+  it('warns (but returns id) when recordToolCall called outside active trace', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const nonSilent = new AgentTrace({ silent: false });
+    nonSilent.startRun('outside-run');
+
+    const id = nonSilent.recordToolCall({
+      name: 'orphan',
+      input: {},
+      output: null,
+      latencyMs: 1,
+      success: true,
+    });
+
+    expect(id).toMatch(UUID_RE);
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('recordToolCall("orphan") called outside an active trace()'),
+    );
+
+    // No trace created for orphan
+    expect(mockStorage.createTrace).not.toHaveBeenCalledWith(
+      expect.objectContaining({ toolCalls: expect.arrayContaining([expect.objectContaining({ name: 'orphan' })]) }),
+    );
+
+    warnSpy.mockRestore();
+    nonSilent.close();
+  });
+
   it('runs cleanup when autoCleanup is enabled', async () => {
     mockStorage.cleanup.mockClear();
     const cleanupAgent = new AgentTrace({ maxTraces: 100, silent: true });
