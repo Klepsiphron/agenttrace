@@ -233,7 +233,7 @@ export interface WebhookConfig {
   id: string;
   url: string;
   secret?: string;
-  events: string[];
+  events: WebhookEvent[];
   enabled: boolean;
   createdAt: number;
   lastTriggeredAt?: number;
