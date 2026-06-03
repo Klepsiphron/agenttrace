@@ -51,13 +51,16 @@ function agentTraceMiddleware(req: Request, res: Response, next: NextFunction): 
 
   // When the response finishes, complete the run
   res.on('finish', () => {
+    const latency = Date.now() - (res as any).startTime;
     at.recordAgentUsage({
       agentName: 'express-server',
       agentType: 'http-handler',
       sessionId: runId,
       action: `${req.method} ${req.path}`,
       target: req.path,
-      durationMs: Date.now() - (res as any).startTime,
+      tokensUsed: 0,
+      costUsd: 0,
+      durationMs: latency,
       status: res.statusCode < 400 ? 'success' : 'failure',
       metadata: { statusCode: res.statusCode },
     });
@@ -78,6 +81,9 @@ function errorTracingMiddleware(err: Error, req: Request, res: Response, _next: 
     sessionId: (req as any).traceRunId || 'unknown',
     action: 'unhandled-error',
     target: req.path,
+    tokensUsed: 0,
+    costUsd: 0,
+    durationMs: 0,
     status: 'failure',
     metadata: {
       errorMessage: err.message,

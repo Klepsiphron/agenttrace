@@ -406,6 +406,7 @@ describe('multi-tenant: tenant-scoped queries', () => {
       costUsd: 0.01,
       durationMs: 50,
       status: 'success',
+      metadata: {},
     });
     agentA.recordAgentUsage({
       agentName: 'agent-a2',
@@ -414,6 +415,7 @@ describe('multi-tenant: tenant-scoped queries', () => {
       costUsd: 0.02,
       durationMs: 100,
       status: 'success',
+      metadata: {},
     });
 
     agentB.recordAgentUsage({
@@ -423,6 +425,7 @@ describe('multi-tenant: tenant-scoped queries', () => {
       costUsd: 0.1,
       durationMs: 200,
       status: 'success',
+      metadata: {},
     });
 
     const statsA = agentA.getUsageStats();

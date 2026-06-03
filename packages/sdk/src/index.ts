@@ -325,8 +325,10 @@ export class AgentTrace {
       // Fire-and-forget webhook delivery for run complete/error
       if (status === 'success') {
         this.triggerWebhook('run.complete', { runId }).catch(() => {});
+        try { this.webhookEmitter.emit('webhook', 'run.complete', { runId }); } catch (_) { /* handler errors must not break */ }
       } else {
         this.triggerWebhook('run.error', { runId }).catch(() => {});
+        try { this.webhookEmitter.emit('webhook', 'run.error', { runId }); } catch (_) { /* handler errors must not break */ }
       }
     }
   }
@@ -421,8 +423,10 @@ export class AgentTrace {
       // Fire-and-forget webhook delivery for trace complete/error
       if (status === 'success') {
         this.triggerWebhook('trace.complete', { traceId, runId: trace.runId, name, latencyMs, costUsd }).catch(() => {});
+        try { this.webhookEmitter.emit('webhook', 'trace.complete', { traceId, runId: trace.runId, name, latencyMs, costUsd }); } catch (_) { /* handler errors must not break */ }
       } else {
         this.triggerWebhook('trace.error', { traceId, runId: trace.runId, name, error }).catch(() => {});
+        try { this.webhookEmitter.emit('webhook', 'trace.error', { traceId, runId: trace.runId, name, error }); } catch (_) { /* handler errors must not break */ }
       }
     }
 
@@ -771,6 +775,62 @@ export class AgentTrace {
       this.storage.incrementWebhookFailures(id);
       return { ok: false, error: e instanceof Error ? e.message : String(e) };
     }
+  }
+
+  /**
+   * Register a webhook event handler callback.
+   * The handler is called for every emitted webhook event (both explicit emissions
+   * and automatic events from trace()/completeRun()).
+   * Returns a function that unsubscribes the handler when called.
+   */
+  onWebhook(handler: (event: WebhookEvent, payload: Record<string, unknown>) => void): () => void {
+    this.webhookEmitter.on('webhook', handler);
+    return () => {
+      this.webhookEmitter.off('webhook', handler);
+    };
+  }
+
+  /**
+   * Explicitly emit a webhook event.
+   * Fires all registered HTTP webhooks (via triggerWebhook) and invokes all
+   * onWebhook handler callbacks. Does not auto-emit from trace()/completeRun() --
+   * those methods already call triggerWebhook directly.
+   * Use this for custom events (e.g. 'cost.threshold', 'agent.inactive').
+   * Returns the HTTP delivery results (same as triggerWebhook).
+   */
+  async emitWebhookEvent(
+    event: WebhookEvent,
+    payload: Record<string, unknown>,
+  ): Promise<WebhookDelivery[]> {
+    // Fire HTTP webhooks
+    const results = await this.triggerWebhook(event, payload);
+    // Notify in-process handlers (fire-and-forget)
+    try {
+      this.webhookEmitter.emit('webhook', event, payload);
+    } catch (_) {
+      /* handler errors must not break emission */
+    }
+    return results;
+  }
+
+  /**
+   * Trigger all webhooks registered for the given event.
+   * Alias for triggerWebhook — provided for API clarity when the intent is
+   * to fan-out to all matching webhooks rather than targeting a specific one.
+   * Also invokes any onWebhook handler callbacks after HTTP delivery.
+   */
+  async triggerAllWebhooks(
+    event: WebhookEvent,
+    payload: Record<string, unknown>,
+  ): Promise<WebhookDelivery[]> {
+    const results = await this.triggerWebhook(event, payload);
+    // Notify in-process handlers (fire-and-forget)
+    try {
+      this.webhookEmitter.emit('webhook', event, payload);
+    } catch (_) {
+      /* handler errors must not break emission */
+    }
+    return results;
   }
 
   // ---- Multi-agent tracing (v0.2) ----

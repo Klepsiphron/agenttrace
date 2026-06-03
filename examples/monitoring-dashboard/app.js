@@ -20,6 +20,7 @@
 
   // ---- Configuration ----
   var API_BASE = '';
+  try { API_BASE = localStorage.getItem('agenttrace_api_base') || ''; } catch (_) {}
   var REFRESH_MS = 5000;
   var RUNS_LIMIT = 200;
   var DEFAULT_DB_PATH = '';

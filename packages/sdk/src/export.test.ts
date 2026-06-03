@@ -701,11 +701,16 @@ describe('AgentTrace export() -- default format and edge cases', () => {
         .sort();
       expect(jsonNames).toEqual(csvNames);
 
-      // totalTokens match between JSON and CSV
+      // Build a map from CSV: name -> totalTokens
+      const csvTokenMap: Record<string, number> = {};
+      for (let i = 1; i < csvLines.length; i++) {
+        const cols = csvLines[i].split(',');
+        csvTokenMap[cols[2]] = parseInt(cols[6], 10);
+      }
+
+      // Verify each JSON trace's totalTokens matches CSV
       for (const jt of jsonTraces) {
-        const csvLine = csvLines.find((ln) => ln.includes(jt.name))!;
-        const csvTokens = parseInt(csvLine.split(',')[6], 10);
-        expect(csvTokens).toBe(jt.tokens.totalTokens);
+        expect(csvTokenMap[jt.name]).toBe(jt.tokens.totalTokens);
       }
     } finally {
       cleanup();

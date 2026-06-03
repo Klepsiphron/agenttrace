@@ -587,7 +587,7 @@ function printWebhooksTable(webhooks: WebhookConfig[]): void {
     w.id.substring(0, 8),
     w.url,
     (w.events || []).join(','),
-    w.enabled ? 'yes' : 'no',
+    w.enabled ? 'enabled' : 'disabled',
     w.lastTriggeredAt
       ? new Date(w.lastTriggeredAt).toISOString().slice(0, 19).replace('T', ' ')
       : 'never',
