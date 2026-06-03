@@ -12,8 +12,8 @@ import {
   type TraceStats,
   type CostBreakdown,
   type TraceTreeNode,
-  AlertCondition,
-  ExportFormat,
+  type AlertCondition,
+  type ExportFormat,
 } from '@agenttrace/sdk';
 import { startDashboard } from '@agenttrace/dashboard';
 import { existsSync, writeFileSync } from 'node:fs';
