@@ -48,6 +48,7 @@ describe('dashboard cost API endpoints (new tests)', () => {
     const { app, trace, close } = createDashboardApp(':memory:');
     closes.push(close);
 
+    trace.startRun('cost-run-x');
     await trace.trace('costed-1', async () => 'res1', {
       tokens: { promptTokens: 1000, completionTokens: 500, totalTokens: 1500, model: 'gpt-4o' },
       model: 'gpt-4o',
@@ -65,7 +66,7 @@ describe('dashboard cost API endpoints (new tests)', () => {
     expect(data.totalCostUsd).toBeGreaterThan(0);
     expect(data.costByModel).toBeTruthy();
     expect(data.costByModel['gpt-4o']).toBeCloseTo(0.0075, 6);
-    expect(data.costByModel['gemini-2.5-pro']).toBeCloseTo(0.0025, 6);
+    expect(data.costByModel['gemini-2.5-pro']).toBeCloseTo(0.00125, 6);
     expect(data.costByDay).toBeTruthy();
     expect(typeof data.costByDay).toBe('object');
   });

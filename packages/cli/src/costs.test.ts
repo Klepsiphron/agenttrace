@@ -102,6 +102,15 @@ describe('CLI cost commands (new tests)', () => {
     return { runId, run2 };
   }
 
+  function debugSeed(label: string) {
+    const v = new AgentTrace({ dbPath: tmpDb, silent: true });
+    const vbd = v.getCostBreakdown();
+    const vstats = v.getStats();
+    v.close();
+    // use real orig to surface in test runner output
+    (origLog || console.log)(`DEBUG_${label} total=${vbd.totalCostUsd} models=${JSON.stringify(Object.keys(vbd.costByModel))} statsCost=${vstats.totalCostUsd} costByModel=${JSON.stringify(vstats.costByModel)}`);
+  }
+
   it('exports package name and version unchanged', () => {
     expect(PACKAGE_NAME).toBe('@agenttrace/cli');
     expect(VERSION).toBe('0.1.0');
@@ -109,6 +118,7 @@ describe('CLI cost commands (new tests)', () => {
 
   it('costs command prints breakdown by model (default)', async () => {
     await seedCosts();
+    debugSeed('DEFAULT');
     process.argv = ['node', 'agenttrace', 'costs'];
     try {
       main();

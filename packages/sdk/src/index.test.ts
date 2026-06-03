@@ -663,11 +663,11 @@ describe('evaluate() and evaluateTrace()', () => {
 // ---- Alerting tests (added for v0.2; does not modify any prior tests) ----
 describe('alert()', () => {
   it('creates an AlertCondition', () => {
-    const cond = (s: any) => s.totalTraces > 10;
+    const cond = (stats: TraceStats) => stats.totalTraces > 10;
     const a = alert({ name: 'high-volume', condition: cond, cooldown: 120, webhook: 'https://ex/hook' });
     expect(a.name).toBe('high-volume');
     expect(typeof a.condition).toBe('function');
-    expect(a.condition({ totalTraces: 5 } as any)).toBe(false);
+    expect(a.condition({ totalTraces: 5, totalRuns: 0, successRate: 0, avgLatencyMs: 0, totalCostUsd: 0, totalTokens: 0, avgTokensPerTrace: 0, topTools: [], topErrors: [] } as TraceStats)).toBe(false);
     expect(a.cooldown).toBe(120);
     expect(a.webhook).toBe('https://ex/hook');
     expect(a.lastTriggered).toBeUndefined();
@@ -679,7 +679,7 @@ describe('registerAlert() and getAlerts()', () => {
     mockStorage.saveAlert = vi.fn();
     mockStorage.getStoredAlerts = vi.fn(() => []);
     const agent = new AgentTrace({ silent: true });
-    const cond = (s: any) => (s.totalTraces || 0) > 0;
+    const cond = (stats: TraceStats) => (stats.totalTraces || 0) > 0;
     const al = alert({ name: 'vol', condition: cond, cooldown: 30 });
     agent.registerAlert(al);
     expect(mockStorage.saveAlert).toHaveBeenCalledWith(
@@ -701,11 +701,11 @@ describe('checkAlerts()', () => {
     const agent = new AgentTrace({ silent: true });
     const al = alert({
       name: 'always',
-      condition: (s: any) => true,
+      condition: (_stats: TraceStats) => true,
       cooldown: 0,
     });
     agent.registerAlert(al);
-    mockStorage.getStats.mockReturnValue({ totalTraces: 1 } as any);
+    mockStorage.getStats.mockReturnValue({ totalTraces: 1, totalRuns: 0, successRate: 0, avgLatencyMs: 0, totalCostUsd: 0, totalTokens: 0, avgTokensPerTrace: 0, topTools: [], topErrors: [] } as TraceStats);
     const fired = await agent.checkAlerts();
     expect(fired.length).toBe(1);
     expect(fired[0].alertName).toBe('always');
@@ -726,7 +726,7 @@ describe('checkAlerts()', () => {
       cooldown: 9999,
     });
     agent.registerAlert(al);
-    mockStorage.getStats.mockReturnValue({ totalTraces: 1 } as any);
+    mockStorage.getStats.mockReturnValue({ totalTraces: 1, totalRuns: 0, successRate: 0, avgLatencyMs: 0, totalCostUsd: 0, totalTokens: 0, avgTokensPerTrace: 0, topTools: [], topErrors: [] } as TraceStats);
     const first = await agent.checkAlerts();
     expect(first.length).toBe(1);
     const second = await agent.checkAlerts();
@@ -737,10 +737,12 @@ describe('checkAlerts()', () => {
   it('Webhook delivery is attempted and logged', async () => {
     mockStorage.saveAlert = vi.fn();
     mockStorage.getStoredAlerts = vi.fn(() => []);
-    mockStorage.insertAlertHistory = vi.fn((h: any) => h);
+    mockStorage.insertAlertHistory = vi.fn((h: unknown) => h);
     mockStorage.getAlertHistory = vi.fn(() => []);
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200 });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const orig = (global as any).fetch;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (global as any).fetch = fetchMock;
     try {
       const agent = new AgentTrace({ silent: true });
@@ -751,7 +753,7 @@ describe('checkAlerts()', () => {
         cooldown: 0,
       });
       agent.registerAlert(al);
-      mockStorage.getStats.mockReturnValue({ totalTraces: 3 } as any);
+      mockStorage.getStats.mockReturnValue({ totalTraces: 3, totalRuns: 0, successRate: 0, avgLatencyMs: 0, totalCostUsd: 0, totalTokens: 0, avgTokensPerTrace: 0, topTools: [], topErrors: [] } as TraceStats);
       const res = await agent.checkAlerts();
       expect(res.length).toBe(1);
       expect(res[0].delivered).toBe(true);
@@ -764,6 +766,7 @@ describe('checkAlerts()', () => {
       );
       agent.close();
     } finally {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (global as any).fetch = orig;
     }
   });
@@ -775,16 +778,16 @@ describe('auto alert check after trace', () => {
     mockStorage.getStoredAlerts = vi.fn(() => []);
     mockStorage.insertAlertHistory = vi.fn();
     mockStorage.getAlertHistory = vi.fn(() => []);
-    mockStorage.createTrace.mockImplementation((t: any) => ({
-      ...t,
+    mockStorage.createTrace.mockImplementation((t: unknown) => ({
+      ...(t as any),
       createdAt: Date.now(),
       updatedAt: Date.now(),
     }));
     const agent = new AgentTrace({ silent: true });
     agent.startRun('arun');
-    const al = alert({ name: 'auto1', condition: (s: any) => true, cooldown: 0 });
+    const al = alert({ name: 'auto1', condition: (_stats: TraceStats) => true, cooldown: 0 });
     agent.registerAlert(al);
-    mockStorage.getStats.mockReturnValue({ totalTraces: 1 } as any);
+    mockStorage.getStats.mockReturnValue({ totalTraces: 1, totalRuns: 0, successRate: 0, avgLatencyMs: 0, totalCostUsd: 0, totalTokens: 0, avgTokensPerTrace: 0, topTools: [], topErrors: [] } as TraceStats);
     await agent.trace('op', async () => 'x');
     expect(mockStorage.insertAlertHistory).toHaveBeenCalled();
     agent.close();

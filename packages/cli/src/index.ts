@@ -11,6 +11,7 @@ import {
   type Trace,
   type TraceStats,
   type CostBreakdown,
+  AlertCondition,
   ExportFormat,
 } from '@agenttrace/sdk';
 import { startDashboard } from '@agenttrace/dashboard';
@@ -481,7 +482,7 @@ async function main(): Promise<void> {
           const fired = await agent.checkAlerts();
           agent.close();
           if (fired.length > 0) {
-            const f = fired[0];
+            const f = fired[0]!;
             const outcome = f.delivered ? 'delivered' : `failed${f.error ? ': ' + f.error : ''}`;
             console.log(`Test-fired alert '${name}'. ${outcome}`);
           } else {
