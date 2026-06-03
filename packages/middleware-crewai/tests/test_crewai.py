@@ -67,7 +67,7 @@ def test_version_exports():
     from agenttrace_middleware import VERSION, PACKAGE_NAME
 
     assert VERSION == "0.2.0"
-    assert PACKAGE_NAME == "agenttrace-middleware-crewai"
+    assert PACKAGE_NAME == "agenttrace-io-middleware-crewai"
 
 
 def test_task_and_tool_tracing_and_token_extraction():

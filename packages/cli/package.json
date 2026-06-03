@@ -1,15 +1,16 @@
 {
-  "name": "@agenttrace/cli",
+  "name": "@agenttrace-io/cli",
   "version": "0.1.0",
   "description": "CLI for AgentTrace — init, dashboard, export, stats",
   "license": "MIT",
   "type": "module",
   "bin": {
+    "agenttrace-io": "./dist/index.js",
     "agenttrace": "./dist/index.js"
   },
   "dependencies": {
-    "@agenttrace/dashboard": "workspace:*",
-    "@agenttrace/sdk": "workspace:*"
+    "@agenttrace-io/dashboard": "workspace:*",
+    "@agenttrace-io/sdk": "workspace:*"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

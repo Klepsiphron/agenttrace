@@ -15,15 +15,15 @@ import {
   AlertCondition,
   ExportFormat,
   TraceStorage,
-} from '@agenttrace/sdk';
-import { startDashboard } from '@agenttrace/dashboard';
+} from '@agenttrace-io/sdk';
+import { startDashboard } from '@agenttrace-io/dashboard';
 import { existsSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 export const VERSION = '0.1.0';
 
 /** Published npm package name. */
-export const PACKAGE_NAME = '@agenttrace/cli';
+export const PACKAGE_NAME = '@agenttrace-io/cli';
 
 function getDbPath(): string {
   return process.env.AGENTTRACE_DB_PATH || './agenttrace.db';
@@ -180,6 +180,7 @@ Commands:
   tree                 Show parent/child/related trace tree (multi-agent)
   alerts               Manage alerts: list | test --name N | history
   health               Check health of gateway, dashboard, and database
+  self-stats           Show OWL/Hermes self-tracked usage (today, week, top actions, costs, sessions)
   version              Show CLI version
 
 Options (by command):
@@ -201,7 +202,7 @@ Options (by command):
     history              Show alert trigger history
 
 Global:
-  --json               Emit machine-readable JSON (for runs, traces, stats, costs, export)
+  --json               Emit machine-readable JSON (for runs, traces, stats, costs, export, self-stats)
   --help               Show this help
 
 Examples:
@@ -217,8 +218,150 @@ Examples:
   agenttrace alerts test --name high-error-rate
   agenttrace alerts history
   agenttrace tree --trace-id abc123def
+  agenttrace self-stats
+  agenttrace self-stats --json
   npx agenttrace version
 `);
+}
+
+function isSelfTracked(t: Trace | Run): boolean {
+  const meta = (t as Trace).metadata || (t as Run).metadata || {};
+  return meta.selfTracked === true || (t as Trace).name?.startsWith?.('self:') === true;
+}
+
+function getDayStart(ts: number): number {
+  const d = new Date(ts);
+  d.setHours(0, 0, 0, 0);
+  return d.getTime();
+}
+
+function getWeekStart(ts: number): number {
+  const d = new Date(ts);
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1); // monday
+  d.setDate(diff);
+  d.setHours(0, 0, 0, 0);
+  return d.getTime();
+}
+
+function printSelfStats(storage: TraceStorage, useJson: boolean): void {
+  // Fetch recent data (no hard limit to include historical self usage)
+  const runs = storage.getRuns(5000);
+  const traces = storage.getTraces({ limit: 20000 });
+
+  const selfRuns = runs.filter((r) => isSelfTracked(r));
+  const selfTraces = traces.filter((t) => isSelfTracked(t));
+
+  const now = Date.now();
+  const todayStart = getDayStart(now);
+  const weekStart = getWeekStart(now);
+
+  const todayTraces = selfTraces.filter((t) => (t.createdAt || 0) >= todayStart);
+  const weekTraces = selfTraces.filter((t) => (t.createdAt || 0) >= weekStart);
+
+  // Today's summary
+  const todayActions = todayTraces.length;
+  const todayTokens = todayTraces.reduce((s, t) => s + (t.tokens?.totalTokens || 0), 0);
+  const todayCost = todayTraces.reduce((s, t) => s + (t.costUsd || 0), 0);
+  const todaySessions = new Set(todayTraces.map((t) => t.runId)).size;
+
+  // Week summary
+  const weekActions = weekTraces.length;
+  const weekTokens = weekTraces.reduce((s, t) => s + (t.tokens?.totalTokens || 0), 0);
+  const weekCost = weekTraces.reduce((s, t) => s + (t.costUsd || 0), 0);
+  const weekSessions = new Set(weekTraces.map((t) => t.runId)).size;
+
+  // Top actions by type (use actionType from meta or derive from name)
+  const actionCounts: Record<string, number> = {};
+  for (const t of selfTraces) {
+    const meta = t.metadata || {};
+    const at = (meta.actionType as string) || (t.name || '').replace(/^self:/, '').split(':')[0] || 'unknown';
+    actionCounts[at] = (actionCounts[at] || 0) + 1;
+  }
+  const topActions = Object.entries(actionCounts)
+    .sort(([, a], [, b]) => b - a)
+    .slice(0, 10)
+    .map(([type, count]) => ({ type, count }));
+
+  // Cost breakdown (self only) - by day for recent
+  const costByDay: Record<string, number> = {};
+  for (const t of selfTraces) {
+    if (!t.createdAt) continue;
+    const day = new Date(t.createdAt).toISOString().slice(0, 10);
+    costByDay[day] = (costByDay[day] || 0) + (t.costUsd || 0);
+  }
+  const totalSelfCost = Object.values(costByDay).reduce((s, v) => s + v, 0);
+
+  // Active sessions
+  const activeSessions = selfRuns.filter((r) => r.status === 'running').length;
+  const activeSessionIds = selfRuns
+    .filter((r) => r.status === 'running')
+    .map((r) => (r.id || '').substring(0, 8));
+
+  const summary = {
+    today: {
+      actions: todayActions,
+      tokens: todayTokens,
+      costUsd: Number(todayCost.toFixed(6)),
+      sessions: todaySessions,
+    },
+    week: {
+      actions: weekActions,
+      tokens: weekTokens,
+      costUsd: Number(weekCost.toFixed(6)),
+      sessions: weekSessions,
+    },
+    topActions,
+    costBreakdown: {
+      totalCostUsd: Number(totalSelfCost.toFixed(6)),
+      costByDay,
+    },
+    activeSessions,
+    activeSessionIds,
+    totalSelfTraces: selfTraces.length,
+    totalSelfRuns: selfRuns.length,
+  };
+
+  if (useJson) {
+    console.log(JSON.stringify(summary, null, 2));
+    return;
+  }
+
+  console.log('AgentTrace Self-Tracking Stats (OWL / Hermes)');
+  console.log('==============================================');
+  console.log('');
+  console.log("Today's Activity:");
+  console.log(`  Actions:  ${summary.today.actions}`);
+  console.log(`  Tokens:   ${summary.today.tokens}`);
+  console.log(`  Cost:     $${summary.today.costUsd}`);
+  console.log(`  Sessions: ${summary.today.sessions}`);
+  console.log('');
+  console.log('This Week:');
+  console.log(`  Actions:  ${summary.week.actions}`);
+  console.log(`  Tokens:   ${summary.week.tokens}`);
+  console.log(`  Cost:     $${summary.week.costUsd}`);
+  console.log(`  Sessions: ${summary.week.sessions}`);
+  console.log('');
+  if (topActions.length > 0) {
+    console.log('Top Actions by Type:');
+    for (const a of topActions.slice(0, 5)) {
+      console.log(`  ${a.type}: ${a.count}`);
+    }
+    console.log('');
+  }
+  console.log('Cost Breakdown (self-tracked):');
+  console.log(`  Total: $${summary.costBreakdown.totalCostUsd}`);
+  const sortedDays = Object.keys(costByDay).sort();
+  if (sortedDays.length > 0) {
+    for (const d of sortedDays.slice(-7)) {
+      console.log(`  ${d}: $${costByDay[d].toFixed(6)}`);
+    }
+  }
+  console.log('');
+  console.log(`Active Sessions: ${activeSessions}${activeSessionIds.length ? ' (' + activeSessionIds.join(', ') + ')' : ''}`);
+  if (summary.totalSelfTraces === 0) {
+    console.log('\n(No self-tracked data yet. Use SelfTracker in your agent to record actions.)');
+  }
 }
 
 interface ParsedArgs {
@@ -652,6 +795,18 @@ async function runMain(): Promise<void> {
 
     case 'version': {
       console.log(`${PACKAGE_NAME} ${VERSION}`);
+      break;
+    }
+
+    case 'self-stats': {
+      const dbp = getDbPath();
+      // self-stats creates db on demand (no error if missing; will just show zeros)
+      const storage = new TraceStorage(dbp);
+      try {
+        printSelfStats(storage, useJson);
+      } finally {
+        storage.close();
+      }
       break;
     }
 

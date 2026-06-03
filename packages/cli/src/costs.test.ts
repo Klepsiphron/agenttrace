@@ -3,7 +3,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { main, PACKAGE_NAME, VERSION } from './index.js';
-import { AgentTrace } from '@agenttrace/sdk';
+import { AgentTrace } from '@agenttrace-io/sdk';
 
 function makeTempDbPath(): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'agenttrace-cli-costs-'));
@@ -111,7 +111,7 @@ describe('CLI cost commands (new tests)', () => {
   }
 
   it('exports package name and version unchanged', () => {
-    expect(PACKAGE_NAME).toBe('@agenttrace/cli');
+    expect(PACKAGE_NAME).toBe('@agenttrace-io/cli');
     expect(VERSION).toBe('0.1.0');
   });
 

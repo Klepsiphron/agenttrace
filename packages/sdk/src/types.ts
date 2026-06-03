@@ -212,3 +212,42 @@ export interface HealthReport {
     details?: string;
   };
 }
+
+/** Record of agent usage / action for the agent_usage tracking system */
+export interface AgentUsageRecord {
+  id: string;
+  agentName: string;
+  agentType?: string;
+  sessionId?: string;
+  action: string;
+  target?: string;
+  tokensUsed: number;
+  costUsd: number;
+  durationMs: number;
+  status: 'success' | 'failure' | 'timeout';
+  metadata: Record<string, unknown>;
+  createdAt: number;
+}
+
+/** Filter for querying agent usage records */
+export interface AgentUsageFilter {
+  agentName?: string;
+  agentType?: string;
+  action?: string;
+  status?: AgentUsageRecord['status'] | AgentUsageRecord['status'][];
+  fromDate?: number;
+  toDate?: number;
+  limit?: number;
+  offset?: number;
+}
+
+/** Aggregated usage statistics */
+export interface UsageStats {
+  totalAgents: number;
+  totalActions: number;
+  totalTokens: number;
+  totalCostUsd: number;
+  avgDurationMs: number;
+  actionsByType: Record<string, number>;
+  topAgents: Array<{ agentName: string; actions: number; tokens: number; costUsd: number }>;
+}

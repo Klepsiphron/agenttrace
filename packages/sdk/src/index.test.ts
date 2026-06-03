@@ -70,7 +70,7 @@ function lastCreatedTrace(): Omit<Trace, 'createdAt' | 'updatedAt'> {
   return call[0];
 }
 
-describe('@agenttrace/sdk', () => {
+describe('@agenttrace-io/sdk', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockStorage.getTraces.mockReturnValue([]);
@@ -97,7 +97,7 @@ describe('@agenttrace/sdk', () => {
   });
 
   it('exports the package name', () => {
-    expect(PACKAGE_NAME).toBe('@agenttrace/sdk');
+    expect(PACKAGE_NAME).toBe('@agenttrace-io/sdk');
   });
 });
 

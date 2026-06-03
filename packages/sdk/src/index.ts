@@ -26,7 +26,7 @@ import {
 } from './types.js';
 
 export const VERSION = '0.1.0';
-export const PACKAGE_NAME = '@agenttrace/sdk';
+export const PACKAGE_NAME = '@agenttrace-io/sdk';
 
 export type {
   Trace,

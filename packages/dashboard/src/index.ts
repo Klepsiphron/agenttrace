@@ -5,10 +5,10 @@
 import express, { Request, Response, Express } from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { AgentTrace, DashboardConfig, ExportFormat } from '@agenttrace/sdk';
+import { AgentTrace, DashboardConfig, ExportFormat } from '@agenttrace-io/sdk';
 
 export const VERSION = '0.0.0';
-export const PACKAGE_NAME = '@agenttrace/dashboard';
+export const PACKAGE_NAME = '@agenttrace-io/dashboard';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

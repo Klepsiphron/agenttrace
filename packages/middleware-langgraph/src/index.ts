@@ -3,12 +3,12 @@
  * Automatic tracing for LangGraph node executions (JS/TS)
  */
 import { randomUUID } from 'node:crypto';
-import { AgentTrace, type TraceConfig, type TokenUsage, type TraceStorage } from '@agenttrace/sdk';
+import { AgentTrace, type TraceConfig, type TokenUsage, type TraceStorage } from '@agenttrace-io/sdk';
 
 export const VERSION = '0.2.0';
-export const PACKAGE_NAME = '@agenttrace/middleware-langgraph';
+export const PACKAGE_NAME = '@agenttrace-io/middleware-langgraph';
 
-export type { TraceConfig } from '@agenttrace/sdk';
+export type { TraceConfig } from '@agenttrace-io/sdk';
 
 /**
  * LangGraph node configuration object passed around middleware hooks.

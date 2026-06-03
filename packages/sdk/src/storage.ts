@@ -15,6 +15,9 @@ import {
   CostBreakdown,
   AlertHistory,
   TraceTreeNode,
+  AgentUsageRecord,
+  AgentUsageFilter,
+  UsageStats,
 } from './types.js';
 
 export class TraceStorage {
@@ -136,6 +139,27 @@ export class TraceStorage {
       );
       CREATE INDEX IF NOT EXISTS idx_trace_links_source ON trace_links(source_trace_id);
       CREATE INDEX IF NOT EXISTS idx_trace_links_target ON trace_links(target_trace_id);
+
+      CREATE TABLE IF NOT EXISTS agent_usage (
+        id TEXT PRIMARY KEY,
+        agent_name TEXT NOT NULL,
+        agent_type TEXT,
+        session_id TEXT,
+        action TEXT NOT NULL,
+        target TEXT,
+        tokens_used INTEGER DEFAULT 0,
+        cost_usd REAL DEFAULT 0,
+        duration_ms INTEGER DEFAULT 0,
+        status TEXT DEFAULT 'success',
+        metadata TEXT DEFAULT '{}',
+        created_at INTEGER NOT NULL
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_agent_usage_agent_name ON agent_usage(agent_name);
+      CREATE INDEX IF NOT EXISTS idx_agent_usage_session_id ON agent_usage(session_id);
+      CREATE INDEX IF NOT EXISTS idx_agent_usage_action ON agent_usage(action);
+      CREATE INDEX IF NOT EXISTS idx_agent_usage_status ON agent_usage(status);
+      CREATE INDEX IF NOT EXISTS idx_agent_usage_created_at ON agent_usage(created_at);
 
       CREATE TABLE IF NOT EXISTS version (
         key TEXT PRIMARY KEY,
@@ -584,6 +608,187 @@ export class TraceStorage {
     return { trace: t, children: [] };
   }
 
+  // ---- Agent usage tracking ----
+
+  recordAgentUsage(params: AgentUsageRecord): void {
+    this.db
+      .prepare(
+        `
+      INSERT INTO agent_usage (id, agent_name, agent_type, session_id, action, target, tokens_used, cost_usd, duration_ms, status, metadata, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `,
+      )
+      .run(
+        params.id,
+        params.agentName,
+        params.agentType || null,
+        params.sessionId || null,
+        params.action,
+        params.target || null,
+        params.tokensUsed ?? 0,
+        params.costUsd ?? 0,
+        params.durationMs ?? 0,
+        params.status || 'success',
+        JSON.stringify(params.metadata || {}),
+        params.createdAt || Date.now(),
+      );
+  }
+
+  getAgentUsage(filter: AgentUsageFilter = {}): AgentUsageRecord[] {
+    let sql = 'SELECT * FROM agent_usage WHERE 1=1';
+    const params: unknown[] = [];
+
+    if (filter.agentName) {
+      sql += ' AND agent_name = ?';
+      params.push(filter.agentName);
+    }
+    if (filter.agentType) {
+      sql += ' AND agent_type = ?';
+      params.push(filter.agentType);
+    }
+    if (filter.action) {
+      sql += ' AND action = ?';
+      params.push(filter.action);
+    }
+    if (filter.status) {
+      if (Array.isArray(filter.status)) {
+        sql += ` AND status IN (${filter.status.map(() => '?').join(',')})`;
+        params.push(...filter.status);
+      } else {
+        sql += ' AND status = ?';
+        params.push(filter.status);
+      }
+    }
+    if (filter.fromDate) {
+      sql += ' AND created_at >= ?';
+      params.push(filter.fromDate);
+    }
+    if (filter.toDate) {
+      sql += ' AND created_at <= ?';
+      params.push(filter.toDate);
+    }
+
+    sql += ' ORDER BY created_at DESC';
+
+    if (filter.limit) {
+      sql += ' LIMIT ?';
+      params.push(filter.limit);
+    }
+    if (filter.offset) {
+      sql += ' OFFSET ?';
+      params.push(filter.offset);
+    }
+
+    const rows = this.db.prepare(sql).all(...params) as unknown[];
+    return rows.map((r) => this.rowToAgentUsage(r));
+  }
+
+  getUsageStats(agentName?: string, fromDate?: number, toDate?: number): UsageStats {
+    const whereParts: string[] = [];
+    const params: unknown[] = [];
+    if (agentName) {
+      whereParts.push('agent_name = ?');
+      params.push(agentName);
+    }
+    if (fromDate) {
+      whereParts.push('created_at >= ?');
+      params.push(fromDate);
+    }
+    if (toDate) {
+      whereParts.push('created_at <= ?');
+      params.push(toDate);
+    }
+    const where = whereParts.length ? ` WHERE ${whereParts.join(' AND ')}` : '';
+
+    const totalActionsRow = this.db
+      .prepare(`SELECT COUNT(*) as c FROM agent_usage${where}`)
+      .get(...params) as unknown as { c: number };
+    const totalActions = totalActionsRow ? totalActionsRow.c : 0;
+
+    const totalAgentsRow = this.db
+      .prepare(`SELECT COUNT(DISTINCT agent_name) as c FROM agent_usage${where}`)
+      .get(...params) as unknown as { c: number };
+    const totalAgents = totalAgentsRow ? totalAgentsRow.c : 0;
+
+    const totals = this.db
+      .prepare(
+        `SELECT 
+          COALESCE(SUM(tokens_used), 0) as tokens,
+          COALESCE(SUM(cost_usd), 0) as cost,
+          COALESCE(AVG(duration_ms), 0) as avgDur
+         FROM agent_usage${where}`,
+      )
+      .get(...params) as unknown as { tokens: number; cost: number; avgDur: number };
+
+    const totalTokens = totals ? Number(totals.tokens) : 0;
+    const totalCostUsd = totals ? Number(totals.cost) : 0;
+    const avgDurationMs = totals ? Number(totals.avgDur) : 0;
+
+    const byTypeRows = this.db
+      .prepare(`SELECT action, COUNT(*) as count FROM agent_usage${where} GROUP BY action ORDER BY count DESC`)
+      .all(...params) as unknown[];
+    const actionsByType: Record<string, number> = {};
+    for (const row of byTypeRows) {
+      const rec = row as Record<string, unknown>;
+      actionsByType[String(rec.action)] = Number(rec.count);
+    }
+
+    const topRows = this.db
+      .prepare(
+        `SELECT 
+          agent_name,
+          COUNT(*) as actions,
+          COALESCE(SUM(tokens_used), 0) as tokens,
+          COALESCE(SUM(cost_usd), 0) as cost
+         FROM agent_usage${where} 
+         GROUP BY agent_name 
+         ORDER BY actions DESC, cost DESC 
+         LIMIT 10`,
+      )
+      .all(...params) as unknown[];
+    const topAgents = topRows.map((r) => {
+      const rec = r as Record<string, unknown>;
+      return {
+        agentName: String(rec.agent_name),
+        actions: Number(rec.actions),
+        tokens: Number(rec.tokens),
+        costUsd: Number(rec.cost),
+      };
+    });
+
+    return {
+      totalAgents,
+      totalActions,
+      totalTokens,
+      totalCostUsd,
+      avgDurationMs,
+      actionsByType,
+      topAgents,
+    };
+  }
+
+  getActiveAgents(): { agentName: string; lastActive: string; totalActions: number }[] {
+    const rows = this.db
+      .prepare(
+        `
+      SELECT agent_name, MAX(created_at) as last_ts, COUNT(*) as total
+      FROM agent_usage
+      GROUP BY agent_name
+      ORDER BY last_ts DESC
+    `,
+      )
+      .all() as unknown[];
+    return rows.map((r) => {
+      const rec = r as Record<string, unknown>;
+      const lastTs = Number(rec.last_ts) || Date.now();
+      return {
+        agentName: String(rec.agent_name),
+        lastActive: new Date(lastTs).toISOString(),
+        totalActions: Number(rec.total),
+      };
+    });
+  }
+
   // ---- Stats ----
 
   getStats(): TraceStats {
@@ -770,6 +975,7 @@ export class TraceStorage {
       'alerts',
       'alert_history',
       'trace_links',
+      'agent_usage',
       'version',
     ];
 
@@ -911,6 +1117,24 @@ export class TraceStorage {
       parentId: (r.parent_id as string) || undefined,
       createdAt: Number(r.created_at),
       updatedAt: Number(r.updated_at),
+    };
+  }
+
+  private rowToAgentUsage(row: unknown): AgentUsageRecord {
+    const r = row as Record<string, unknown>;
+    return {
+      id: r.id as string,
+      agentName: r.agent_name as string,
+      agentType: (r.agent_type as string) || undefined,
+      sessionId: (r.session_id as string) || undefined,
+      action: r.action as string,
+      target: (r.target as string) || undefined,
+      tokensUsed: Number(r.tokens_used) || 0,
+      costUsd: Number(r.cost_usd) || 0,
+      durationMs: Number(r.duration_ms) || 0,
+      status: ((r.status as string) as AgentUsageRecord['status']) || 'success',
+      metadata: JSON.parse((r.metadata as string) || '{}'),
+      createdAt: Number(r.created_at),
     };
   }
 

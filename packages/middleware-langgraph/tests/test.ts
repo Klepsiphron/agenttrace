@@ -1,7 +1,7 @@
 import { describe, expect, it, beforeEach, afterEach } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import { AgentTraceMiddleware, VERSION, PACKAGE_NAME } from '../src/index.js';
-import { AgentTrace } from '@agenttrace/sdk';
+import { AgentTrace } from '@agenttrace-io/sdk';
 
 function makeTempDb(): { path: string; cleanup: () => void } {
   const path = `/tmp/agenttrace-mw-langgraph-${randomUUID()}.db`;
@@ -16,10 +16,10 @@ function makeTempDb(): { path: string; cleanup: () => void } {
   return { path, cleanup };
 }
 
-describe('@agenttrace/middleware-langgraph', () => {
+describe('@agenttrace-io/middleware-langgraph', () => {
   it('exports version and package name', () => {
     expect(VERSION).toBe('0.2.0');
-    expect(PACKAGE_NAME).toBe('@agenttrace/middleware-langgraph');
+    expect(PACKAGE_NAME).toBe('@agenttrace-io/middleware-langgraph');
   });
 });
 

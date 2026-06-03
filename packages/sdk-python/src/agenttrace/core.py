@@ -573,7 +573,7 @@ class AgentTrace:
 # ---- Singleton / module level API ----
 
 VERSION = "0.1.0"
-PACKAGE_NAME = "agenttrace"
+PACKAGE_NAME = "agenttrace-io"
 
 _instance: Optional[AgentTrace] = None
 
