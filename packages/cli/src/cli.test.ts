@@ -36,16 +36,19 @@ async function seedData(dbPath: string) {
     tokens: { promptTokens: 100, completionTokens: 50, totalTokens: 150, model: 'gpt-4o' },
     model: 'gpt-4o',
   });
-  await t.trace('trace-2', async () => 'err', {
-    status: 'error',
-    tokens: {
-      promptTokens: 200,
-      completionTokens: 100,
-      totalTokens: 300,
+  try {
+    await t.trace('trace-2', async () => { throw new Error('boom'); }, {
+      tokens: {
+        promptTokens: 200,
+        completionTokens: 100,
+        totalTokens: 300,
+        model: 'claude-sonnet-4',
+      },
       model: 'claude-sonnet-4',
-    },
-    model: 'claude-sonnet-4',
-  });
+    });
+  } catch (_) {
+    // expected for error status trace
+  }
   t.completeRun();
 
   const r2 = t.startRun('test-run-2');
@@ -447,11 +450,13 @@ describe('CLI commands (comprehensive)', () => {
     it('prints trace tree', async () => {
       const t = new AgentTrace({ dbPath: tmpDb, silent: true });
       const runId = t.startRun('tree-run');
-      const traceId = await t.trace('root-trace', async () => 'ok');
+      await t.trace('root-trace', async () => 'ok');
       t.completeRun();
+      const found = t.getTraces({ runId, limit: 1 })[0];
+      const traceId = found ? found.id : '';
       t.close();
 
-      runCmd(['tree', '--trace-id', traceId]);
+      await runCmd(['tree', '--trace-id', traceId]);
       const o = out();
       expect(o).toContain('Trace Tree:');
       expect(o).toContain('root-trace');
@@ -460,11 +465,13 @@ describe('CLI commands (comprehensive)', () => {
     it('--json emits JSON', async () => {
       const t = new AgentTrace({ dbPath: tmpDb, silent: true });
       const runId = t.startRun('tree-run');
-      const traceId = await t.trace('root-trace', async () => 'ok');
+      await t.trace('root-trace', async () => 'ok');
       t.completeRun();
+      const found = t.getTraces({ runId, limit: 1 })[0];
+      const traceId = found ? found.id : '';
       t.close();
 
-      runCmd(['tree', '--trace-id', traceId, '--json']);
+      await runCmd(['tree', '--trace-id', traceId, '--json']);
       const jsonLine = logs.find((l) => l.trim().startsWith('{'));
       expect(jsonLine).toBeTruthy();
       const parsed = JSON.parse(jsonLine!);
@@ -485,8 +492,10 @@ describe('CLI commands (comprehensive)', () => {
       expect(out()).toContain('[]');
     });
 
-    it('alerts history shows empty', () => {
-      runCmd(['alerts', 'history']);
+    it('alerts history shows empty', async () => {
+      runCmd(['init']);
+      clearLogs();
+      await runCmd(['alerts', 'history']);
       expect(out()).toContain('No alert history');
     });
 
@@ -499,20 +508,20 @@ describe('CLI commands (comprehensive)', () => {
   // ── health ──
 
   describe('health', () => {
-    it('prints health checks', () => {
-      runCmd(['init']);
+    it('prints health checks', async () => {
+      await runCmd(['init']);
       clearLogs();
-      runCmd(['health']);
+      await runCmd(['health']);
       const o = out();
       expect(o).toContain('gateway');
       expect(o).toContain('database');
       expect(o).toContain('dashboard');
     });
 
-    it('--json emits JSON', () => {
-      runCmd(['init']);
+    it('--json emits JSON', async () => {
+      await runCmd(['init']);
       clearLogs();
-      runCmd(['health', '--json']);
+      await runCmd(['health', '--json']);
       const jsonLine = logs.find((l) => l.trim().startsWith('{'));
       expect(jsonLine).toBeTruthy();
       const parsed = JSON.parse(jsonLine!);

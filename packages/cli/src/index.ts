@@ -1812,11 +1812,11 @@ async function runMain(): Promise<void> {
   }
 }
 
-function main(): void {
+function main(): void | Promise<void> {
   try {
     const result = runMain();
     if (result && typeof (result as Promise<unknown>).then === 'function') {
-      (result as Promise<void>).catch((err: unknown) => {
+      return (result as Promise<void>).catch((err: unknown) => {
         console.error('Error:', err instanceof Error ? err.message : String(err));
         process.exit(1);
       });
