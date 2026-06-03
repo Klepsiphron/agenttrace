@@ -190,6 +190,7 @@ Commands:
   cost                 Show agent cost breakdown (periods + by agent/model)
   sessions             List agent sessions with aggregates
   activity             Show recent agent activity timeline
+  webhook              Manage webhooks: add <url> <events...> | list | remove <id> | test <id>
   cleanup              Manually run data retention cleanup (deletes expired traces, runs, usage)
   retention            Manage data retention policy: show | set <days> [--interval H]
   version              Show CLI version
@@ -1252,6 +1253,97 @@ async function runMain(): Promise<void> {
         }
       } finally {
         storage.close();
+      }
+      break;
+    }
+
+    case 'webhook': {
+      const sub = webhookSub || 'list';
+      const dbp = getDbPath();
+      const agent = new AgentTrace({ dbPath: dbp, silent: true });
+      try {
+        if (sub === 'list' || sub === '') {
+          const webhooks = agent.getWebhooks();
+          if (useJson) {
+            console.log(JSON.stringify(webhooks, null, 2));
+          } else if (webhooks.length === 0) {
+            console.log('No webhooks configured.');
+          } else {
+            printWebhooksTable(webhooks);
+          }
+          break;
+        }
+        if (sub === 'add') {
+          const url = webhookPositionals[0];
+          const events = webhookPositionals.slice(1);
+          if (!url) {
+            console.error('Usage: agenttrace-io webhook add <url> <event1> [event2] ...');
+            console.error('Events: trace.complete, trace.error, run.complete, run.error, cost.threshold, agent.inactive');
+            process.exit(1);
+          }
+          if (events.length === 0) {
+            console.error('At least one event is required.');
+            console.error('Events: trace.complete, trace.error, run.complete, run.error, cost.threshold, agent.inactive');
+            process.exit(1);
+          }
+          const id = agent.addWebhook(url, events as import('@agenttrace-io/sdk').WebhookEvent[]);
+          if (useJson) {
+            console.log(JSON.stringify({ id, url, events }, null, 2));
+          } else {
+            console.log(`Webhook added: ${id.substring(0, 8)}`);
+            console.log(`  URL:    ${url}`);
+            console.log(`  Events: ${events.join(', ')}`);
+          }
+          break;
+        }
+        if (sub === 'remove') {
+          const id = webhookPositionals[0];
+          if (!id) {
+            console.error('Usage: agenttrace-io webhook remove <id>');
+            process.exit(1);
+          }
+          // Find by prefix match
+          const webhooks = agent.getWebhooks();
+          const match = webhooks.find((w) => w.id.startsWith(id));
+          if (!match) {
+            console.error(`Webhook '${id}' not found.`);
+            process.exit(1);
+          }
+          agent.removeWebhook(match.id);
+          if (useJson) {
+            console.log(JSON.stringify({ id: match.id, removed: true }, null, 2));
+          } else {
+            console.log(`Webhook ${match.id.substring(0, 8)} removed.`);
+          }
+          break;
+        }
+        if (sub === 'test') {
+          const id = webhookPositionals[0];
+          if (!id) {
+            console.error('Usage: agenttrace-io webhook test <id>');
+            process.exit(1);
+          }
+          const webhooks = agent.getWebhooks();
+          const match = webhooks.find((w) => w.id.startsWith(id));
+          if (!match) {
+            console.error(`Webhook '${id}' not found.`);
+            process.exit(1);
+          }
+          const result = await agent.testWebhook(match.id);
+          if (useJson) {
+            console.log(JSON.stringify(result, null, 2));
+          } else if (result.ok) {
+            console.log(`Webhook ${match.id.substring(0, 8)} delivered (HTTP ${result.status}).`);
+          } else {
+            console.log(`Webhook ${match.id.substring(0, 8)} failed: ${result.error || `HTTP ${result.status}`}`);
+          }
+          break;
+        }
+        console.error(`Unknown webhook subcommand: ${sub}`);
+        printUsage();
+        process.exit(1);
+      } finally {
+        agent.close();
       }
       break;
     }

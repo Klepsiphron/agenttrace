@@ -306,6 +306,7 @@ export class AgentTrace {
       name,
       startedAt: Date.now(),
       metadata,
+      tenantId: this.config.tenantId || undefined,
     });
     this.currentRunId = runId;
     return runId;
@@ -399,6 +400,7 @@ export class AgentTrace {
         error,
         metadata: mergedMeta,
         parentId,
+        tenantId: this.config.tenantId || undefined,
       };
 
       this.storage.createTrace(trace);
@@ -445,7 +447,7 @@ export class AgentTrace {
    * Get recent runs (most recent first)
    */
   getRuns(limit: number = 100): Run[] {
-    return this.storage.getRuns(limit);
+    return this.storage.getRuns(this.config.tenantId || undefined, limit);
   }
 
   /**
@@ -1043,7 +1045,7 @@ export class AgentTrace {
       t.tokens.totalTokens,
       t.createdAt,
     ]);
-    return [headers.join(','), ...rows.map((r) => r.join(','))].join('
+    return [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
 ');
   }
 
