@@ -1308,16 +1308,16 @@ async function runMain(): Promise<void> {
           const url = flags.url ? String(flags.url) : '';
           const eventsRaw = flags.events ? String(flags.events) : '';
           if (!url) {
-            console.error('Usage: agenttrace-io webhook add --url <url> --events <event1,event2,...>');
+            console.error('Usage: agenttrace-io webhook add --url <url> [--events <event1,event2,...>]');
             console.error('Events: trace.complete, trace.error, run.complete, run.error, cost.threshold, agent.inactive');
             process.exit(1);
           }
-          if (!eventsRaw) {
-            console.error('At least one event is required (--events).');
-            console.error('Events: trace.complete, trace.error, run.complete, run.error, cost.threshold, agent.inactive');
-            process.exit(1);
-          }
-          const events = eventsRaw.split(',').map((e) => e.trim()).filter(Boolean);
+          const defaultEvents: import('@agenttrace-io/sdk').WebhookEvent[] = [
+            'trace.complete', 'trace.error', 'run.complete', 'run.error', 'cost.threshold', 'agent.inactive',
+          ];
+          const events = eventsRaw
+            ? eventsRaw.split(',').map((e) => e.trim()).filter(Boolean)
+            : defaultEvents;
           const id = agent.addWebhook(url, events as import('@agenttrace-io/sdk').WebhookEvent[]);
           if (useJson) {
             console.log(JSON.stringify({ id, url, events }, null, 2));

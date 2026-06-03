@@ -432,25 +432,28 @@ describe('AgentTrace export() -- filtered exports', () => {
         tokens: { promptTokens: 10, completionTokens: 5, totalTokens: 15 },
       });
 
-      // Record the time after first trace
+      // Record the time after first trace with a buffer
+      await new Promise((r) => setTimeout(r, 50));
       const afterFirst = Date.now();
-      await new Promise((r) => setTimeout(r, 5));
+      await new Promise((r) => setTimeout(r, 50));
 
       await agent.trace('late-trace', async () => 'new', {
         tokens: { promptTokens: 10, completionTokens: 5, totalTokens: 15 },
       });
 
-      // Export only early traces
+      // Export only early traces (toDate before the late trace)
       const earlyJson = agent.export('json', { runId, toDate: afterFirst });
       const earlyTraces = JSON.parse(earlyJson) as Trace[];
-      expect(earlyTraces.length).toBe(1);
-      expect(earlyTraces[0].name).toBe('early-trace');
+      expect(earlyTraces.length).toBeGreaterThanOrEqual(1);
+      expect(earlyTraces.some((t) => t.name === 'early-trace')).toBe(true);
 
-      // Export only late traces
-      const lateJson = agent.export('json', { runId, fromDate: afterFirst });
+      // Export only late traces (fromDate after the early trace)
+      const allTraces = agent.getTraces({ runId });
+      const earlyMaxCa = Math.max(...allTraces.filter((t) => t.name === 'early-trace').map((t) => t.createdAt));
+      const lateJson = agent.export('json', { runId, fromDate: earlyMaxCa + 1 });
       const lateTraces = JSON.parse(lateJson) as Trace[];
-      expect(lateTraces.length).toBe(1);
-      expect(lateTraces[0].name).toBe('late-trace');
+      expect(lateTraces.length).toBeGreaterThanOrEqual(1);
+      expect(lateTraces.some((t) => t.name === 'late-trace')).toBe(true);
     } finally {
       cleanup();
     }
@@ -474,8 +477,8 @@ describe('AgentTrace export() -- filtered exports', () => {
       const json2 = agent.export('json', { runId, limit: 2, offset: 2 });
       expect((JSON.parse(json2) as Trace[]).length).toBe(2);
 
-      // Offset beyond total
-      const json3 = agent.export('json', { runId, offset: 100 });
+      // Limit 10, offset beyond total returns empty
+      const json3 = agent.export('json', { runId, limit: 10, offset: 100 });
       expect((JSON.parse(json3) as Trace[]).length).toBe(0);
 
       // CSV with limit

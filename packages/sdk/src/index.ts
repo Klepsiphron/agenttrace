@@ -70,6 +70,7 @@ export type {
   WebhookConfig,
   WebhookEvent,
   WebhookDelivery,
+  Project,
 } from './types.js';
 
 export { TraceContext } from './types.js';
@@ -601,6 +602,36 @@ export class AgentTrace {
    */
   offUsage(listener: (record: AgentUsageRecord) => void): void {
     this.usageEmitter.off('usage', listener);
+  }
+
+  // ---- Multi-tenant Project Management ----
+
+  /**
+   * Create a new project for multi-tenant isolation.
+   * Returns the project with its API key (shown only once).
+   */
+  createProject(name: string): { id: string; name: string; apiKey: string; createdAt: number } {
+    if (!name || typeof name !== 'string' || name.trim().length === 0) {
+      throw new Error('Project name is required');
+    }
+    return this.storage.createProject(name.trim());
+  }
+
+  /**
+   * Look up a project by its API key.
+   */
+  getProject(apiKey: string): { id: string; name: string; createdAt: number } | null {
+    const p = this.storage.getProject(apiKey);
+    if (!p) return null;
+    // Don't expose the apiKey in the return — caller already has it
+    return { id: p.id, name: p.name, createdAt: p.createdAt };
+  }
+
+  /**
+   * Delete a project by ID. Returns true if deleted.
+   */
+  deleteProject(id: string): boolean {
+    return this.storage.deleteProject(id);
   }
 
   // ---- Webhook Management ----
