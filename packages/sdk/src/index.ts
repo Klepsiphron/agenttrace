@@ -505,7 +505,7 @@ export class AgentTrace {
    * Get traces with filtering
    */
   getTraces(filter: TraceFilter = {}): Trace[] {
-    return this.storage.getTraces(filter, this.config.tenantId || undefined);
+    return this.storage.getTraces(filter);
   }
 
   /**
@@ -519,7 +519,7 @@ export class AgentTrace {
    * Get recent runs (most recent first)
    */
   getRuns(limit: number = 100): Run[] {
-    return this.storage.getRuns(this.config.tenantId || undefined, limit);
+    return this.storage.getRuns(limit);
   }
 
   /**
@@ -533,7 +533,7 @@ export class AgentTrace {
    * Get summary statistics
    */
   getStats(): TraceStats {
-    return this.storage.getStats(this.config.tenantId || undefined);
+    return this.storage.getStats();
   }
 
   /**
@@ -548,7 +548,7 @@ export class AgentTrace {
    * Get cost breakdown (by model, by day, total). Supports optional run filter.
    */
   getCostBreakdown(filter: { runId?: string } = {}): CostBreakdown {
-    return this.storage.getCostBreakdown(filter.runId, this.config.tenantId || undefined);
+    return this.storage.getCostBreakdown(filter.runId);
   }
 
   // ---- Agent usage tracking (for self-observability by agents) ----
@@ -583,19 +583,14 @@ export class AgentTrace {
    * Query recorded agent usage records.
    */
   getAgentUsage(filter: AgentUsageFilter = {}): AgentUsageRecord[] {
-    return this.storage.getAgentUsage(filter, this.config.tenantId || undefined);
+    return this.storage.getAgentUsage(filter);
   }
 
   /**
    * Get aggregated usage statistics across agent actions.
    */
   getUsageStats(agentName?: string, fromDate?: number, toDate?: number): UsageStats {
-    return this.storage.getUsageStats(
-      agentName,
-      fromDate,
-      toDate,
-      this.config.tenantId || undefined,
-    );
+    return this.storage.getUsageStats(agentName, fromDate, toDate);
   }
 
   /**
@@ -1229,7 +1224,7 @@ export class AgentTrace {
    * Export traces to JSON, CSV, or OpenTelemetry (OTLP JSON)
    */
   export(format: ExportFormat = 'json', filter: TraceFilter = {}): string {
-    const traces = this.storage.getTraces(filter, this.config.tenantId || undefined);
+    const traces = this.storage.getTraces(filter);
 
     if (format === 'json') {
       return JSON.stringify(traces, null, 2);
