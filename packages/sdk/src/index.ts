@@ -76,7 +76,11 @@ function defaultCostCalculator(tokens: TokenUsage, model?: string): number {
  * Rates are USD per 1,000 tokens (matching the calculator convention).
  * Example: registerModelRate('my-model', 0.001, 0.002)  => $1/M prompt, $2/M completion
  */
-export function registerModelRate(model: string, promptRatePerK: number, completionRatePerK: number): void {
+export function registerModelRate(
+  model: string,
+  promptRatePerK: number,
+  completionRatePerK: number,
+): void {
   modelRates[model] = { prompt: promptRatePerK, completion: completionRatePerK };
 }
 

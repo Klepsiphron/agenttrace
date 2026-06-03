@@ -408,10 +408,14 @@ export class TraceStorage {
       params.push(runId);
     }
 
-    const totalCost = this.db.prepare(`SELECT SUM(cost_usd) as v FROM traces${where}`).get(...params) as any;
+    const totalCost = this.db
+      .prepare(`SELECT SUM(cost_usd) as v FROM traces${where}`)
+      .get(...params) as any;
 
     const costByModelRows = this.db
-      .prepare(`SELECT COALESCE(model, 'unknown') as model, SUM(cost_usd) as cost FROM traces${where} GROUP BY model`)
+      .prepare(
+        `SELECT COALESCE(model, 'unknown') as model, SUM(cost_usd) as cost FROM traces${where} GROUP BY model`,
+      )
       .all(...params) as any[];
     const costByModel: Record<string, number> = {};
     for (const r of costByModelRows) {

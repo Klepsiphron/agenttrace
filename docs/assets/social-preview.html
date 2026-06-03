@@ -1,10 +1,10 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>AgentTrace — Social Preview</title>
-  <!--
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AgentTrace — Social Preview</title>
+    <!--
     GitHub Social Preview (1280x640)
     1. Open in browser (Chrome/Firefox recommended)
     2. DevTools → Toggle device toolbar (Ctrl+Shift+M or Cmd+Shift+M)
@@ -12,200 +12,238 @@
     4. Click the camera icon or right-click → "Capture node screenshot"
     The root .frame is sized exactly to spec. No external assets.
   -->
-  <style>
-    :root {
-      --bg: #0d1117;
-      --elev: #161b22;
-      --elev2: #21262d;
-      --text: #c9d1d9;
-      --muted: #8b949e;
-      --border: #30363d;
-      --accent: #38bdf8;
-      --success: #3fb950;
-      --failure: #f85149;
-    }
-    * { box-sizing: border-box; }
-    html, body {
-      margin: 0;
-      padding: 0;
-      width: 1280px;
-      height: 640px;
-      background: var(--bg);
-      color: var(--text);
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      overflow: hidden;
-    }
-    .frame {
-      width: 1280px;
-      height: 640px;
-      position: relative;
-      padding: 64px 72px 56px;
-      display: flex;
-      flex-direction: column;
-    }
-    .main {
-      display: flex;
-      align-items: flex-start;
-      gap: 44px;
-      flex: 1;
-    }
-    .logo-wrap {
-      flex-shrink: 0;
-      width: 118px;
-      height: 118px;
-    }
-    .logo-wrap svg {
-      width: 100%;
-      height: 100%;
-      display: block;
-    }
-    .content {
-      flex: 1;
-      min-width: 0;
-      padding-top: 6px;
-    }
-    .name {
-      font-size: 62px;
-      font-weight: 700;
-      line-height: 1.05;
-      letter-spacing: -1.6px;
-      margin: 0 0 6px 0;
-      color: var(--text);
-    }
-    .tagline {
-      font-size: 24px;
-      line-height: 1.25;
-      color: var(--muted);
-      margin: 0 0 28px 0;
-      font-weight: 400;
-    }
-    .terminal {
-      background: var(--elev2);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      overflow: hidden;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
-      max-width: 620px;
-    }
-    .term-bar {
-      background: var(--elev2);
-      padding: 7px 12px;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      border-bottom: 1px solid var(--border);
-    }
-    .dot {
-      width: 11px;
-      height: 11px;
-      border-radius: 50%;
-      display: inline-block;
-    }
-    .dot-r { background: var(--failure); }
-    .dot-y { background: #d29922; }
-    .dot-g { background: var(--success); }
-    .term-title {
-      margin-left: 8px;
-      font-size: 11px;
-      color: var(--muted);
-      font-family: ui-monospace, monospace;
-    }
-    .term-body {
-      background: var(--elev);
-      padding: 14px 18px;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-      font-size: 16px;
-      line-height: 1.65;
-    }
-    .cmd {
-      display: block;
-      color: var(--text);
-    }
-    .cmd .prompt {
-      color: var(--accent);
-      margin-right: 8px;
-      user-select: none;
-    }
-    .footer {
-      position: absolute;
-      left: 72px;
-      right: 72px;
-      bottom: 28px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-size: 13px;
-      color: var(--muted);
-      font-family: ui-monospace, monospace;
-    }
-    .repo {
-      color: var(--accent);
-    }
-    .badge {
-      display: inline-block;
-      padding: 1px 8px;
-      border: 1px solid var(--border);
-      border-radius: 999px;
-      font-size: 11px;
-      color: var(--muted);
-      margin-left: 12px;
-      vertical-align: middle;
-    }
-  </style>
-</head>
-<body>
-  <div class="frame">
-    <div class="main">
-      <!-- Logo -->
-      <div class="logo-wrap">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" aria-label="AgentTrace">
-          <title>AgentTrace</title>
-          <!-- Magnifying glass lens -->
-          <circle cx="26" cy="26" r="16" fill="none" stroke="#38bdf8" stroke-width="5" stroke-linecap="round"/>
-          <!-- Handle -->
-          <line x1="38" y1="38" x2="52" y2="52" stroke="#38bdf8" stroke-width="6" stroke-linecap="round"/>
-          <!-- Trace line (agent execution path) -->
-          <polyline points="13,28 19,17 25,30 31,14 36,27 41,19" fill="none" stroke="#c9d1d9" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-          <!-- Trace markers -->
-          <circle cx="13" cy="28" r="2" fill="#38bdf8"/>
-          <circle cx="19" cy="17" r="2" fill="#38bdf8"/>
-          <circle cx="25" cy="30" r="2" fill="#38bdf8"/>
-          <circle cx="31" cy="14" r="2" fill="#f85149"/>
-          <circle cx="36" cy="27" r="2" fill="#38bdf8"/>
-          <circle cx="41" cy="19" r="2" fill="#3fb950"/>
-        </svg>
-      </div>
+    <style>
+      :root {
+        --bg: #0d1117;
+        --elev: #161b22;
+        --elev2: #21262d;
+        --text: #c9d1d9;
+        --muted: #8b949e;
+        --border: #30363d;
+        --accent: #38bdf8;
+        --success: #3fb950;
+        --failure: #f85149;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 1280px;
+        height: 640px;
+        background: var(--bg);
+        color: var(--text);
+        font-family:
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          'Segoe UI',
+          Roboto,
+          sans-serif;
+        overflow: hidden;
+      }
+      .frame {
+        width: 1280px;
+        height: 640px;
+        position: relative;
+        padding: 64px 72px 56px;
+        display: flex;
+        flex-direction: column;
+      }
+      .main {
+        display: flex;
+        align-items: flex-start;
+        gap: 44px;
+        flex: 1;
+      }
+      .logo-wrap {
+        flex-shrink: 0;
+        width: 118px;
+        height: 118px;
+      }
+      .logo-wrap svg {
+        width: 100%;
+        height: 100%;
+        display: block;
+      }
+      .content {
+        flex: 1;
+        min-width: 0;
+        padding-top: 6px;
+      }
+      .name {
+        font-size: 62px;
+        font-weight: 700;
+        line-height: 1.05;
+        letter-spacing: -1.6px;
+        margin: 0 0 6px 0;
+        color: var(--text);
+      }
+      .tagline {
+        font-size: 24px;
+        line-height: 1.25;
+        color: var(--muted);
+        margin: 0 0 28px 0;
+        font-weight: 400;
+      }
+      .terminal {
+        background: var(--elev2);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+        max-width: 620px;
+      }
+      .term-bar {
+        background: var(--elev2);
+        padding: 7px 12px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        border-bottom: 1px solid var(--border);
+      }
+      .dot {
+        width: 11px;
+        height: 11px;
+        border-radius: 50%;
+        display: inline-block;
+      }
+      .dot-r {
+        background: var(--failure);
+      }
+      .dot-y {
+        background: #d29922;
+      }
+      .dot-g {
+        background: var(--success);
+      }
+      .term-title {
+        margin-left: 8px;
+        font-size: 11px;
+        color: var(--muted);
+        font-family: ui-monospace, monospace;
+      }
+      .term-body {
+        background: var(--elev);
+        padding: 14px 18px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        font-size: 16px;
+        line-height: 1.65;
+      }
+      .cmd {
+        display: block;
+        color: var(--text);
+      }
+      .cmd .prompt {
+        color: var(--accent);
+        margin-right: 8px;
+        user-select: none;
+      }
+      .footer {
+        position: absolute;
+        left: 72px;
+        right: 72px;
+        bottom: 28px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 13px;
+        color: var(--muted);
+        font-family: ui-monospace, monospace;
+      }
+      .repo {
+        color: var(--accent);
+      }
+      .badge {
+        display: inline-block;
+        padding: 1px 8px;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        font-size: 11px;
+        color: var(--muted);
+        margin-left: 12px;
+        vertical-align: middle;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="frame">
+      <div class="main">
+        <!-- Logo -->
+        <div class="logo-wrap">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" aria-label="AgentTrace">
+            <title>AgentTrace</title>
+            <!-- Magnifying glass lens -->
+            <circle
+              cx="26"
+              cy="26"
+              r="16"
+              fill="none"
+              stroke="#38bdf8"
+              stroke-width="5"
+              stroke-linecap="round"
+            />
+            <!-- Handle -->
+            <line
+              x1="38"
+              y1="38"
+              x2="52"
+              y2="52"
+              stroke="#38bdf8"
+              stroke-width="6"
+              stroke-linecap="round"
+            />
+            <!-- Trace line (agent execution path) -->
+            <polyline
+              points="13,28 19,17 25,30 31,14 36,27 41,19"
+              fill="none"
+              stroke="#c9d1d9"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+            <!-- Trace markers -->
+            <circle cx="13" cy="28" r="2" fill="#38bdf8" />
+            <circle cx="19" cy="17" r="2" fill="#38bdf8" />
+            <circle cx="25" cy="30" r="2" fill="#38bdf8" />
+            <circle cx="31" cy="14" r="2" fill="#f85149" />
+            <circle cx="36" cy="27" r="2" fill="#38bdf8" />
+            <circle cx="41" cy="19" r="2" fill="#3fb950" />
+          </svg>
+        </div>
 
-      <!-- Text + terminal -->
-      <div class="content">
-        <h1 class="name">AgentTrace</h1>
-        <p class="tagline">Datadog for AI agents.<br>Runs locally. Zero cloud dependency.</p>
+        <!-- Text + terminal -->
+        <div class="content">
+          <h1 class="name">AgentTrace</h1>
+          <p class="tagline">Datadog for AI agents.<br />Runs locally. Zero cloud dependency.</p>
 
-        <!-- Terminal card -->
-        <div class="terminal">
-          <div class="term-bar">
-            <span class="dot dot-r"></span>
-            <span class="dot dot-y"></span>
-            <span class="dot dot-g"></span>
-            <span class="term-title">terminal</span>
-          </div>
-          <div class="term-body">
-            <span class="cmd"><span class="prompt">$</span> npm install @agenttrace/sdk</span>
-            <span class="cmd"><span class="prompt">$</span> pip install agenttrace</span>
-            <span class="cmd"><span class="prompt">$</span> npx agenttrace dashboard</span>
+          <!-- Terminal card -->
+          <div class="terminal">
+            <div class="term-bar">
+              <span class="dot dot-r"></span>
+              <span class="dot dot-y"></span>
+              <span class="dot dot-g"></span>
+              <span class="term-title">terminal</span>
+            </div>
+            <div class="term-body">
+              <span class="cmd"><span class="prompt">$</span> npm install @agenttrace/sdk</span>
+              <span class="cmd"><span class="prompt">$</span> pip install agenttrace</span>
+              <span class="cmd"><span class="prompt">$</span> npx agenttrace dashboard</span>
+            </div>
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- Bottom footer -->
-    <div class="footer">
-      <div>
-        <span class="repo">github.com/Klepsiphron/agenttrace</span>
-        <span class="badge">MIT</span>
+      <!-- Bottom footer -->
+      <div class="footer">
+        <div>
+          <span class="repo">github.com/Klepsiphron/agenttrace</span>
+          <span class="badge">MIT</span>
+        </div>
+        <div>Open source • Local-first observability</div>
       </div>
-      <div>Open source • Local-first observability</div>
     </div>
-  </div>
-</body>
+  </body>
 </html>

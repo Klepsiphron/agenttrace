@@ -52,7 +52,9 @@ export function createDashboardApp(dbPath?: string): DashboardApp {
 
   app.get('/api/costs', (req: Request, res: Response) => {
     try {
-      const runId = (req.query['run-id'] || req.query.runId || req.query['runId']) as string | undefined;
+      const runId = (req.query['run-id'] || req.query.runId || req.query['runId']) as
+        | string
+        | undefined;
       const breakdown = trace.getCostBreakdown({ runId: runId ? String(runId) : undefined });
       res.json(breakdown);
     } catch (err) {

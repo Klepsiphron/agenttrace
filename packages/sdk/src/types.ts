@@ -153,3 +153,23 @@ export interface EvaluateOptions {
   traceIds?: string[];
   concurrency?: number;
 }
+
+/** Alert condition for webhook/email notifications */
+export interface AlertCondition {
+  name: string;
+  condition: (stats: TraceStats) => boolean;
+  webhook?: string;
+  email?: string;
+  cooldown: number; // seconds
+  lastTriggered?: number;
+}
+
+/** Record of a fired alert */
+export interface AlertHistory {
+  id: string;
+  alertName: string;
+  triggeredAt: number;
+  stats: Record<string, number>;
+  delivered: boolean;
+  error?: string;
+}

@@ -5,7 +5,14 @@
  * Command-line interface for querying traces, runs, stats and exports
  */
 
-import { AgentTrace, type Run, type Trace, type TraceStats, type CostBreakdown, ExportFormat } from '@agenttrace/sdk';
+import {
+  AgentTrace,
+  type Run,
+  type Trace,
+  type TraceStats,
+  type CostBreakdown,
+  ExportFormat,
+} from '@agenttrace/sdk';
 import { startDashboard } from '@agenttrace/dashboard';
 import { existsSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -15,7 +22,7 @@ export const VERSION = '0.1.0';
 /** Published npm package name. */
 export const PACKAGE_NAME = '@agenttrace/cli';
 
-const DB_PATH = './agenttrace.db';
+const DB_PATH = process.env.AGENTTRACE_DB_PATH || './agenttrace.db';
 
 // ANSI colors for status
 const GREEN = '\x1b[32m';
@@ -116,6 +123,26 @@ function printStats(stats: TraceStats): void {
   }
 }
 
+function printCosts(breakdown: CostBreakdown, daily: boolean): void {
+  const title = daily ? 'Daily Cost Breakdown' : 'Cost Breakdown by Model';
+  console.log(title);
+  console.log('='.repeat(title.length));
+  const data = daily ? breakdown.costByDay : breakdown.costByModel;
+  const entries = Object.entries(data);
+  if (entries.length === 0) {
+    console.log('No costs recorded.');
+  } else {
+    // sort by cost desc for models, chrono for days
+    const sorted = daily
+      ? entries.sort(([a], [b]) => a.localeCompare(b))
+      : entries.sort(([, c1], [, c2]) => (c2 as number) - (c1 as number));
+    for (const [key, cost] of sorted) {
+      console.log(`  ${key}: $${(cost as number).toFixed(4)}`);
+    }
+  }
+  console.log(`\nTotal: $${breakdown.totalCostUsd.toFixed(4)}`);
+}
+
 function printUsage(): void {
   console.log(`Usage: agenttrace <command> [options]
 
@@ -125,6 +152,7 @@ Commands:
   runs                 List recent runs (most recent first)
   traces               List traces (most recent first)
   stats                Show summary statistics
+  costs                Show cost breakdown by model (or --daily)
   export               Export traces to JSON or CSV
   version              Show CLI version
 
@@ -132,14 +160,16 @@ Options (by command):
   runs, traces:
     --limit N            Number of results (default: runs=20, traces=50)
     --status FILTER      Comma-separated statuses (success,error,failure,running,timeout)
-  traces, export:
+  traces, export, costs:
     --run-id ID          Filter by run ID
   export:
     --format json|csv    Output format (default: json)
     --output FILE        Write to file instead of stdout
+  costs:
+    --daily              Breakdown costs by day instead of by model
 
 Global:
-  --json               Emit machine-readable JSON (for runs, traces, stats, export)
+  --json               Emit machine-readable JSON (for runs, traces, stats, costs, export)
   --help               Show this help
 
 Examples:
@@ -148,6 +178,9 @@ Examples:
   agenttrace traces --run-id 123e4567 --json
   agenttrace export --format csv --output out.csv --run-id abc
   agenttrace dashboard
+  agenttrace costs
+  agenttrace costs --daily --json
+  agenttrace costs --run-id abc123
   npx agenttrace version
 `);
 }
@@ -305,6 +338,21 @@ function main(): void {
         break;
       }
 
+      case 'costs': {
+        const trace = getAgentTrace();
+        const runId = (flags['run-id'] || flags.runId || flags['runId']) as string | undefined;
+        const daily = !!flags.daily;
+        const breakdown = trace.getCostBreakdown({ runId: runId ? String(runId) : undefined });
+        trace.close();
+
+        if (useJson) {
+          console.log(JSON.stringify(breakdown, null, 2));
+        } else {
+          printCosts(breakdown, daily);
+        }
+        break;
+      }
+
       case 'export': {
         const trace = getAgentTrace();
         const format: ExportFormat = flags.format === 'csv' ? 'csv' : 'json';
@@ -362,3 +410,5 @@ const isMain = (() => {
 if (isMain) {
   main();
 }
+
+export { main };

@@ -1,10 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import type {
-  Trace,
-  TraceStats,
-  Run,
-  TokenUsage,
-} from './types.js';
+import type { Trace, TraceStats, Run, TokenUsage } from './types.js';
 
 const { mockStorage, MockTraceStorage } = vi.hoisted(() => {
   const mockStorage = {
@@ -46,7 +41,7 @@ vi.mock('./storage.js', () => ({
   TraceStorage: MockTraceStorage,
 }));
 
-import { AgentTrace, init, PACKAGE_NAME, VERSION, score } from './index.js';
+import { AgentTrace, init, PACKAGE_NAME, VERSION } from './index.js';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -551,7 +546,9 @@ describe('evaluate() and evaluateTrace()', () => {
       makeTrace({ id: 't2', output: 'world!!' }),
     ];
     mockStorage.getTraces.mockReturnValue(traces);
-    mockStorage.getTrace.mockImplementation((id: string) => traces.find((t) => t.id === id) || null);
+    mockStorage.getTrace.mockImplementation(
+      (id: string) => traces.find((t) => t.id === id) || null,
+    );
 
     const lenScorer: Scorer = {
       name: 'len',
@@ -631,7 +628,12 @@ describe('evaluate() and evaluateTrace()', () => {
     const sc: Scorer = { name: 'testsc', fn: () => 0.42 };
     await agent.evaluateTrace('storet', [sc]);
 
-    expect(mockStorage.createScore).toHaveBeenCalledWith(expect.any(String), 'storet', 'testsc', 0.42);
+    expect(mockStorage.createScore).toHaveBeenCalledWith(
+      expect.any(String),
+      'storet',
+      'testsc',
+      0.42,
+    );
 
     const retrieved = mockStorage.getScores('storet');
     expect(retrieved).toHaveLength(1);
@@ -644,7 +646,9 @@ describe('evaluate() and evaluateTrace()', () => {
     const agent = new AgentTrace({ silent: true });
     const traces = Array.from({ length: 5 }, (_, i) => makeTrace({ id: `c${i}` }));
     mockStorage.getTraces.mockReturnValue(traces);
-    mockStorage.getTrace.mockImplementation((id: string) => traces.find((tr) => tr.id === id) || null);
+    mockStorage.getTrace.mockImplementation(
+      (id: string) => traces.find((tr) => tr.id === id) || null,
+    );
 
     const s: Scorer = { name: 'c', fn: (tr: Trace) => tr.id.length };
     const results = await agent.evaluate({ scorers: [s], concurrency: 2 });
