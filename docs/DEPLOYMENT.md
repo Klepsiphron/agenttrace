@@ -1,7 +1,9 @@
 # Deployment Guide
 
 Deploy AgentTrace as a self-hosted observability dashboard. All storage is local
-SQLite -- no external database or cloud dependency required.
+SQLite -- no external database, no cloud dependency, no sign-up required. This
+guide covers six deployment targets plus health checks, environment variables,
+and database backup procedures.
 
 ## Table of Contents
 
@@ -19,7 +21,12 @@ SQLite -- no external database or cloud dependency required.
 
 ## Docker (Single Container)
 
-The project includes a multi-stage Alpine Dockerfile. Build and run:
+The project includes a multi-stage Alpine Dockerfile. The builder stage installs
+Node.js 20, Python 3, and native build tools to compile `better-sqlite3` for
+musl/Alpine. The runner stage copies only built artifacts and production
+dependencies, producing a ~200 MB image.
+
+Build and run:
 
 ```bash
 docker build -t agenttrace:latest .
@@ -36,9 +43,15 @@ The dashboard is available at `http://localhost:4317`. The container runs the
 CLI `dashboard` command on port 4317 with the health check endpoint at
 `/api/health`.
 
-The built image uses `node:20-alpine` and is roughly 200 MB. SQLite data is
-stored under `/app/data` -- always mount a named volume or host bind-mount to
-this path to persist traces across container restarts.
+Always mount a named volume or host bind-mount at `/app/data` to persist traces
+across container restarts. Without a volume, all data is lost when the container
+stops.
+
+To view logs:
+
+```bash
+docker logs -f agenttrace
+```
 
 ---
 
@@ -52,9 +65,10 @@ docker compose up -d
 ```
 
 The compose file defines a named volume (`agenttrace-data`) for the SQLite
-database, a health check, and `restart: unless-stopped` for automatic recovery.
+database, a health check polling `/api/health` every 30 seconds, and
+`restart: unless-stopped` for automatic recovery after host reboots.
 
-To override the port or database path:
+To override the port or database path, add environment overrides:
 
 ```yaml
 services:
@@ -63,6 +77,18 @@ services:
       - '8080:4317'
     environment:
       - AGENTTRACE_DB_PATH=/app/data/agenttrace.db
+```
+
+To tear down cleanly (preserving data):
+
+```bash
+docker compose down
+```
+
+To tear down and delete all data:
+
+```bash
+docker compose down -v
 ```
 
 ---
@@ -145,7 +171,9 @@ spec:
 ```
 
 Set `replicas: 1`. SQLite does not support concurrent writers -- do not scale
-this deployment horizontally without migrating to PostgreSQL.
+this deployment horizontally without migrating to PostgreSQL. For high
+availability, use a single replica with a liveness probe and let Kubernetes
+restart the pod on failure.
 
 ---
 
@@ -153,11 +181,12 @@ this deployment horizontally without migrating to PostgreSQL.
 
 1. Connect your GitHub repo at [railway.app](https://railway.app).
 2. Set the Dockerfile path to `Dockerfile`.
-3. Add a persistent volume mount at `/app/data`.
+3. Add a persistent volume mount at `/app/data` (Railway provides persistent
+   storage on paid plans).
 4. Set environment variables in the Railway dashboard:
    - `AGENTTRACE_DB_PATH=/app/data/agenttrace.db`
    - `NODE_ENV=production`
-5. Railway will auto-detect the exposed port (4317) and provide a public URL.
+5. Railway will auto-detect the exposed port (4317) and assign a public URL.
 
 Override the start command if needed:
 
@@ -165,12 +194,15 @@ Override the start command if needed:
 node packages/cli/dist/index.js dashboard --host 0.0.0.0
 ```
 
+Railway handles SSL termination automatically. Your dashboard will be available
+at `https://<your-app>.railway.app`.
+
 ---
 
 ## Render
 
-Use a **Background Worker** (not a Web Service) since AgentTrace runs as a
-long-lived Node.js process:
+Use a **Background Worker** service type (not a Web Service) since AgentTrace
+runs as a long-lived Node.js process:
 
 1. Create a new Background Worker from your GitHub repo.
 2. Set the Dockerfile path to `Dockerfile`.
@@ -179,6 +211,10 @@ long-lived Node.js process:
    - `AGENTTRACE_DB_PATH=/app/data/agenttrace.db`
    - `NODE_ENV=production`
 5. Render will build the Dockerfile and manage restarts automatically.
+
+Render persistent disks survive deploys and restarts. Free-tier Background
+Workers spin down after 15 minutes of inactivity -- use a paid plan for
+always-on observability.
 
 ---
 
@@ -209,11 +245,14 @@ In the generated `fly.toml`, mount the volume and set the internal port:
   protocol = "tcp"
 ```
 
-Scale to a single VM:
+Scale to a single VM (SQLite is single-writer):
 
 ```bash
 fly scale count 1
 ```
+
+Fly.io provides automatic TLS and a public IPv4 address. Your dashboard will be
+available at `https://agenttrace.fly.dev`.
 
 ---
 
@@ -226,19 +265,23 @@ fly scale count 1
 | `AGENTTRACE_USAGE_LOG` | (unset)              | Optional path for self-tracker usage log.     |
 
 The `--port` and `--host` flags are set via the CLI `dashboard` command (e.g.
-`--host 0.0.0.0`). These are not environment variables.
+`--host 0.0.0.0`). These are not environment variables. The default port is
+4317 and the default host is `127.0.0.1` (override to `0.0.0.0` for container
+deployments).
 
 ---
 
 ## Health Checks
 
-AgentTrace exposes an unauthenticated health endpoint:
+AgentTrace exposes an unauthenticated health endpoint at `/api/health`. No API
+key is required -- this is intentional for load balancer and orchestrator
+compatibility.
 
 ```
 GET /api/health
 ```
 
-Response (200):
+Response (200 -- healthy):
 
 ```json
 {
@@ -256,11 +299,17 @@ Response (200):
 }
 ```
 
-Response (503): returned when the database check fails. The `checks.database`
-field will show `"status": "error"`.
+Response (503 -- unhealthy): returned when the database check fails. The
+`checks.database` field will show `"status": "error"`.
 
-Use this endpoint for Docker `HEALTHCHECK`, Kubernetes probes, or any
-load-balancer health monitor.
+The health check validates four subsystems:
+- **database**: runs a query against SQLite and measures response time
+- **diskSpace**: checks free space on the volume hosting the database
+- **memory**: reports process heap usage
+- **activeAgents / totalTraces**: summary stats from the database
+
+Use this endpoint for Docker `HEALTHCHECK`, Kubernetes liveness/readiness
+probes, or any load-balancer health monitor.
 
 ---
 
@@ -279,6 +328,10 @@ docker cp agenttrace:/app/data/backup.db ./agenttrace-backup-$(date +%F).db
 # Local
 sqlite3 ./agenttrace.db ".backup './agenttrace-backup-$(date +%F).db'"
 ```
+
+The SQLite `.backup` command performs an online backup that is safe to run
+against a live database. It produces a consistent snapshot without locking
+writers for the duration of the copy.
 
 ### Automated backup (cron on Linux)
 
@@ -310,4 +363,9 @@ docker restart agenttrace
 ```
 
 Keep backups on a separate disk or bucket. For disaster recovery, store at
-least 7 days of daily backups and verify restoration periodically.
+least 7 days of daily backups and verify restoration periodically by loading
+a backup into a temporary instance and querying it with the CLI:
+
+```bash
+sqlite3 agenttrace-backup.db "SELECT COUNT(*) FROM traces;"
+```

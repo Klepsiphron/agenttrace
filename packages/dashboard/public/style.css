@@ -656,9 +656,65 @@ a:hover {
   }
 }
 
-.status-hint .sse {
-  color: var(--success);
+/* SSE status indicator */
+.sse-status {
+  font-size: 10px;
+  margin-right: 4px;
+  vertical-align: middle;
 }
+.sse-on {
+  color: var(--success);
+  text-shadow: 0 0 4px rgba(63, 185, 80, 0.4);
+}
+.sse-off {
+  color: var(--text-muted);
+}
+
+/* Panel footer hint */
+.panel-footer-hint {
+  padding: 6px 16px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--text-muted);
+  background: var(--bg-elev2);
+}
+
+/* Panel header right-aligned group */
+.panel-header-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Spinning refresh button */
+.btn.spinning {
+  animation: spin 0.6s linear infinite;
+}
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Feed item entrance animation */
+@keyframes fadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Stat card hover */
+.stat-card {
+  transition: border-color 0.15s ease;
+}
+.stat-card:hover {
+  border-color: var(--accent);
+}
+
 .empty.small {
   padding: 12px;
   font-size: 12px;

@@ -433,7 +433,7 @@ export class AgentTrace {
    * Get traces with filtering
    */
   getTraces(filter: TraceFilter = {}): Trace[] {
-    return this.storage.getTraces(filter);
+    return this.storage.getTraces(filter, this.config.tenantId || undefined);
   }
 
   /**
@@ -1046,7 +1046,7 @@ export class AgentTrace {
       t.createdAt,
     ]);
     return [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
-
+  }
   /**
    * Close the database connection
    */

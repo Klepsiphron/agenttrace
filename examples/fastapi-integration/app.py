@@ -149,16 +149,19 @@ async def chat(req: ChatRequest):
 
     try:
         # Traced LLM call
-        llm_result = agent.trace(
-            "llm-call",
-            lambda: fake_llm_call(req.message, req.model),
-            input={"message": req.message, "model": req.model},
-            model=req.model,
-            tokens={
-                "prompt_tokens": 0,
-                "completion_tokens": 0,
-                "total_tokens": 0,
-            },
+        llm_result = cast(
+            dict[str, Any],
+            agent.trace(
+                "llm-call",
+                lambda: fake_llm_call(req.message, req.model),
+                input={"message": req.message, "model": req.model},
+                model=req.model,
+                tokens={
+                    "prompt_tokens": 0,
+                    "completion_tokens": 0,
+                    "total_tokens": 0,
+                },
+            ),
         )
 
         prompt_tokens = llm_result["prompt_tokens"]
@@ -174,12 +177,15 @@ async def chat(req: ChatRequest):
         )
 
         # Traced response generation step
-        response_text = agent.trace(
-            "generate-response",
-            lambda: llm_result["text"],
-            input={"raw": llm_result["text"]},
-            tokens=tokens,
-            model=model,
+        response_text = cast(
+            str,
+            agent.trace(
+                "generate-response",
+                lambda: llm_result["text"],
+                input={"raw": llm_result["text"]},
+                tokens=tokens,
+                model=model,
+            ),
         )
 
         # Track agent-level action in the usage tracker
@@ -215,10 +221,13 @@ async def search(req: SearchRequest):
     `with agent.trace(...) as ctx:` is ideal for multi-step operations
     where you want to manually set output, tokens, or metadata.
     """
-    results = agent.trace(
-        "search-tool",
-        lambda: fake_search(req.query, req.max_results),
-        input={"query": req.query, "max_results": req.max_results},
+    results = cast(
+        list[dict[str, Any]],
+        agent.trace(
+            "search-tool",
+            lambda: fake_search(req.query, req.max_results),
+            input={"query": req.query, "max_results": req.max_results},
+        ),
     )
 
     tracker.track_action("search", req.query[:50])

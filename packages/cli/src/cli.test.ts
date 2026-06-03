@@ -23,9 +23,9 @@ function rmrf(p: string): void {
         const d = path.dirname(p);
         if (fs.existsSync(d)) fs.rmSync(d, { recursive: true, force: true });
       }
-    } catch (_) {
-      /* ignore */
     }
+  } catch (_e) {
+    /* ignore */
   }
 }
 
