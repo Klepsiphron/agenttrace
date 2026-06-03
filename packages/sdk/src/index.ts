@@ -23,6 +23,9 @@ import {
   TraceContext,
   TraceTreeNode,
   HealthReport,
+  AgentUsageRecord,
+  AgentUsageFilter,
+  UsageStats,
 } from './types.js';
 
 export const VERSION = '0.1.0';
@@ -48,6 +51,9 @@ export type {
   AlertHistory,
   TraceTreeNode,
   HealthReport,
+  AgentUsageRecord,
+  AgentUsageFilter,
+  UsageStats,
 } from './types.js';
 
 export { TraceContext } from './types.js';

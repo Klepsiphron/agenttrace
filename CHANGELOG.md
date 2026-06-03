@@ -16,9 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- TypeScript SDK (`@agenttrace/sdk`): trace wrapper, cost tracking, SQLite storage
-- Python SDK (`agenttrace`): same API, context manager + decorator, 23 tests
-- Full CLI (`@agenttrace/cli`): init, dashboard, runs, traces, stats, export, version
+- TypeScript SDK (`@agenttrace-io/sdk`): trace wrapper, cost tracking, SQLite storage
+- Python SDK (`agenttrace-io`): same API, context manager + decorator, 23 tests
+- Full CLI (`@agenttrace-io/cli`): init, dashboard, runs, traces, stats, export, version
 - Express dashboard: dark theme, runs list, trace details, stats, export
 - OpenTelemetry export: OTLP JSON format for integration with existing tools
 - LangGraph, CrewAI, and custom agent integration examples
@@ -32,9 +32,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Package Structure
 
-- `@agenttrace/sdk` (npm) -- TypeScript SDK
-- `agenttrace` (PyPI) -- Python SDK
-- `@agenttrace/dashboard` (npm) -- Local web dashboard
-- `@agenttrace/cli` (npm) -- CLI tool
-- `@agenttrace/middleware-langgraph` (npm) -- LangGraph integration
-- `agenttrace-middleware-crewai` (PyPI) -- CrewAI integration
+- `@agenttrace-io/sdk` (npm) -- TypeScript SDK
+- `agenttrace-io` (PyPI) -- Python SDK
+- `@agenttrace-io/dashboard` (npm) -- Local web dashboard
+- `@agenttrace-io/cli` (npm) -- CLI tool
+- `@agenttrace-io/middleware-langgraph` (npm) -- LangGraph integration
+- `agenttrace-io-middleware-crewai` (PyPI) -- CrewAI integration

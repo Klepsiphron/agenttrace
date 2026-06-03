@@ -7,17 +7,17 @@ Trace your first agent operation in under a minute. AgentTrace stores everything
 ### TypeScript
 
 ```bash
-npm install @agenttrace/sdk
+npm install @agenttrace-io/sdk
 # CLI (for dashboard + export commands)
-npm install -g @agenttrace/cli
+npm install -g @agenttrace-io/cli
 # or use npx
 ```
 
 ### Python
 
 ```bash
-pip install agenttrace
-# CLI is Node-based: use npx agenttrace ... (or npm i -g @agenttrace/cli)
+pip install agenttrace-io
+# CLI is Node-based: use npx agenttrace-io ... (or npm i -g @agenttrace-io/cli ; alias npx agenttrace also works)
 ```
 
 ## Trace your first function
@@ -25,7 +25,7 @@ pip install agenttrace
 ### TypeScript
 
 ```typescript
-import { init, trace } from '@agenttrace/sdk';
+import { init, trace } from '@agenttrace-io/sdk';
 
 const agent = init(); // uses ./agenttrace.db
 

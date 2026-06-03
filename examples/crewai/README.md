@@ -6,7 +6,7 @@ Shows how to trace a CrewAI multi-agent workflow with AgentTrace.
 
 ```bash
 pip install crewai
-npm install @agenttrace/sdk
+npm install @agenttrace-io/sdk
 ```
 
 ## Usage

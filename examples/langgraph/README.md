@@ -6,7 +6,7 @@ Shows how to trace a LangGraph agent with AgentTrace.
 
 ```bash
 pip install langgraph langchain-openai
-npm install @agenttrace/sdk
+npm install @agenttrace-io/sdk
 ```
 
 ## Usage

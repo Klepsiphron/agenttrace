@@ -5,13 +5,13 @@ Shows how to trace any custom agent with the AgentTrace SDK.
 ## Setup
 
 ```bash
-npm install @agenttrace/sdk
+npm install @agenttrace-io/sdk
 ```
 
 ## Basic Usage
 
 ```typescript
-import { init, trace } from '@agenttrace/sdk';
+import { init, trace } from '@agenttrace-io/sdk';
 
 // Initialize with default SQLite storage
 const agent = init();
@@ -60,7 +60,7 @@ console.log(result);
 ## With Manual Token Tracking
 
 ```typescript
-import { init, startTrace } from '@agenttrace/sdk';
+import { init, startTrace } from '@agenttrace-io/sdk';
 
 const agent = init();
 
@@ -92,10 +92,10 @@ async function trackedAgent(input: string) {
 
 ```bash
 # Start the dashboard
-npx agenttrace dashboard
+npx agenttrace-io dashboard
 
 # Or query from CLI
-npx agenttrace runs --limit 10
-npx agenttrace stats
-npx agenttrace export --format json --output traces.json
+npx agenttrace-io runs --limit 10
+npx agenttrace-io stats
+npx agenttrace-io export --format json --output traces.json
 ```

@@ -15,7 +15,7 @@ pnpm install && pnpm build
 ### TypeScript
 
 ```typescript
-import { init, trace } from '@agenttrace/sdk';
+import { init, trace } from '@agenttrace-io/sdk';
 
 const agent = init();
 const result = await trace('my-agent', async () => {
@@ -27,7 +27,7 @@ console.log(agent.getStats());
 agent.close();
 
 // Or use the CLI
-// npx agenttrace dashboard
+// npx agenttrace-io dashboard  # or npx agenttrace (alias)
 ```
 
 ### Python
@@ -49,10 +49,10 @@ agent.close()
 ### CLI
 
 ```bash
-npx agenttrace init           # Create database
-npx agenttrace runs           # List recent runs
-npx agenttrace stats          # Show statistics
-npx agenttrace dashboard      # Start local dashboard at localhost:4317
+npx agenttrace-io init           # Create database (or npx agenttrace)
+npx agenttrace-io runs           # List recent runs
+npx agenttrace-io stats          # Show statistics
+npx agenttrace-io dashboard      # Start local dashboard at localhost:4317
 ```
 
 ### Docker

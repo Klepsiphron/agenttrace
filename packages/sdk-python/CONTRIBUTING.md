@@ -47,7 +47,7 @@ pytest tests/test_core.py  # specific file
 - **Docstrings**: Every public class, function, and method must have a docstring (use `"""` style, one-line summary or multi-line with Args/Returns sections where helpful). Internal helpers may be lighter.
 - **Naming**: Use `snake_case` for functions, methods, variables, attributes, and filenames. Use `PascalCase` for classes and types. Never use camelCase in Python code (the SDK normalizes camelCase inputs from config for TS parity).
 - **Modules**: Keep implementation in `src/agenttrace/` (core.py, storage.py, types.py). Export from `__init__.py`.
-- **Dependencies**: Zero runtime dependencies (only stdlib + optional dev/test). Match the spirit of the TS SDK (no deps in `@agenttrace/sdk`).
+- **Dependencies**: Zero runtime dependencies (only stdlib + optional dev/test). Match the spirit of the TS SDK (no deps in `@agenttrace-io/sdk`).
 - **Formatting**: No strict auto-formatter enforced yet, but keep code clean and consistent with existing style. Use 4-space indents.
 - **Error handling & logging**: Respect the `silent` config flag; do not print unless necessary.
 

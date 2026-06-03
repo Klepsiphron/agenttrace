@@ -17,10 +17,10 @@ pnpm test
 ```
 agenttrace/
 ├── packages/
-│   ├── sdk/              # @agenttrace/sdk -- TypeScript SDK
-│   ├── sdk-python/       # agenttrace -- Python SDK
-│   ├── dashboard/        # @agenttrace/dashboard -- Local web UI
-│   ├── cli/              # @agenttrace/cli -- CLI tool
+│   ├── sdk/              # @agenttrace-io/sdk -- TypeScript SDK
+│   ├── sdk-python/       # agenttrace-io -- Python SDK
+│   ├── dashboard/        # @agenttrace-io/dashboard -- Local web UI
+│   ├── cli/              # @agenttrace-io/cli -- CLI tool
 │   └── middleware-*/     # Framework-specific integrations
 ├── docs/                 # Documentation and planning
 ├── docs-site/            # GitHub Pages site
@@ -45,7 +45,7 @@ agenttrace/
 ## Code Standards
 
 - TypeScript strict mode; avoid `any` (use `unknown` + type guards)
-- Zero runtime dependencies in `@agenttrace/sdk`
+- Zero runtime dependencies in `@agenttrace-io/sdk`
 - Format with Prettier (auto-run on commit)
 - ESLint must pass -- no warnings
 - Every public function needs tests

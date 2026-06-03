@@ -117,7 +117,7 @@ describe('CLI cost commands (new tests)', () => {
 
   it('costs command prints breakdown by model (default)', async () => {
     await seedCosts();
-    process.argv = ['node', 'agenttrace', 'costs'];
+    process.argv = ['node', 'agenttrace-io', 'costs'];
     try {
       main();
     } catch (e: unknown) {
@@ -132,7 +132,7 @@ describe('CLI cost commands (new tests)', () => {
 
   it('costs --daily prints daily breakdown', async () => {
     await seedCosts();
-    process.argv = ['node', 'agenttrace', 'costs', '--daily'];
+    process.argv = ['node', 'agenttrace-io', 'costs', '--daily'];
     try {
       main();
     } catch (e: unknown) {
@@ -145,7 +145,7 @@ describe('CLI cost commands (new tests)', () => {
 
   it("costs --run-id <id> shows only that run's costs", async () => {
     const { runId, run2 } = await seedCosts();
-    process.argv = ['node', 'agenttrace', 'costs', '--run-id', runId];
+    process.argv = ['node', 'agenttrace-io', 'costs', '--run-id', runId];
     try {
       main();
     } catch (e: unknown) {
@@ -158,7 +158,7 @@ describe('CLI cost commands (new tests)', () => {
 
     // now for run2
     logs.length = 0;
-    process.argv = ['node', 'agenttrace', 'costs', '--run-id', run2];
+    process.argv = ['node', 'agenttrace-io', 'costs', '--run-id', run2];
     try {
       main();
     } catch (e: unknown) {
@@ -171,7 +171,7 @@ describe('CLI cost commands (new tests)', () => {
 
   it('costs --json emits JSON with costByModel and costByDay', async () => {
     await seedCosts();
-    process.argv = ['node', 'agenttrace', 'costs', '--json'];
+    process.argv = ['node', 'agenttrace-io', 'costs', '--json'];
     try {
       main();
     } catch (e: unknown) {

@@ -166,7 +166,7 @@ function printTraceTree(node: TraceTreeNode | null | undefined, prefix = '', isL
 }
 
 function printUsage(): void {
-  console.log(`Usage: agenttrace <command> [options]
+  console.log(`Usage: agenttrace-io <command> [options]  (alias: agenttrace)
 
 Commands:
   init                 Create empty agenttrace.db in current dir
@@ -206,21 +206,22 @@ Global:
   --help               Show this help
 
 Examples:
-  agenttrace init
-  agenttrace runs --limit 5 --status success,running
-  agenttrace traces --run-id 123e4567 --json
-  agenttrace export --format csv --output out.csv --run-id abc
-  agenttrace dashboard
-  agenttrace costs
-  agenttrace costs --daily --json
-  agenttrace costs --run-id abc123
-  agenttrace alerts list
-  agenttrace alerts test --name high-error-rate
-  agenttrace alerts history
-  agenttrace tree --trace-id abc123def
-  agenttrace self-stats
-  agenttrace self-stats --json
-  npx agenttrace version
+  agenttrace-io init
+  agenttrace-io runs --limit 5 --status success,running
+  agenttrace-io traces --run-id 123e4567 --json
+  agenttrace-io export --format csv --output out.csv --run-id abc
+  agenttrace-io dashboard
+  agenttrace-io costs
+  agenttrace-io costs --daily --json
+  agenttrace-io costs --run-id abc123
+  agenttrace-io alerts list
+  agenttrace-io alerts test --name high-error-rate
+  agenttrace-io alerts history
+  agenttrace-io tree --trace-id abc123def
+  agenttrace-io self-stats
+  agenttrace-io self-stats --json
+  npx agenttrace-io version
+  # alias also works: npx agenttrace ...
 `);
 }
 
@@ -354,7 +355,8 @@ function printSelfStats(storage: TraceStorage, useJson: boolean): void {
   const sortedDays = Object.keys(costByDay).sort();
   if (sortedDays.length > 0) {
     for (const d of sortedDays.slice(-7)) {
-      console.log(`  ${d}: $${costByDay[d].toFixed(6)}`);
+      const c = costByDay[d] ?? 0;
+      console.log(`  ${d}: $${c.toFixed(6)}`);
     }
   }
   console.log('');
@@ -401,7 +403,7 @@ function getAgentTrace(requireDb = true): AgentTrace {
   const dbp = getDbPath();
   if (requireDb && !existsSync(dbp)) {
     console.error(`No ${dbp} found in current directory.`);
-    console.error('Run "agenttrace init" to create one.');
+    console.error('Run "agenttrace-io init" to create one.');
     process.exit(1);
   }
   return new AgentTrace({ dbPath: dbp, silent: true });
@@ -575,7 +577,7 @@ async function runMain(): Promise<void> {
         | string
         | undefined;
       if (!traceId) {
-        console.error('Usage: agenttrace tree --trace-id <id>');
+        console.error('Usage: agenttrace-io tree --trace-id <id>');
         process.exit(1);
       }
       const tr = getAgentTrace();
@@ -607,7 +609,7 @@ async function runMain(): Promise<void> {
       const dbExists = existsSync(dbp);
       if (!dbExists && (sub === 'test' || sub === 'history')) {
         console.error(`No ${dbp} found in current directory.`);
-        console.error('Run "agenttrace init" to create one.');
+        console.error('Run "agenttrace-io init" to create one.');
         process.exit(1);
       }
       if (sub === 'list' || sub === '') {
@@ -661,7 +663,7 @@ async function runMain(): Promise<void> {
       if (sub === 'test') {
         const name = flags.name || flags['name'] ? String(flags.name || flags['name']) : '';
         if (!name) {
-          console.error('Usage: agenttrace alerts test --name <name>');
+          console.error('Usage: agenttrace-io alerts test --name <name>');
           agent.close();
           process.exit(1);
         }
