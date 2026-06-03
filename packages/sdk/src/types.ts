@@ -40,6 +40,8 @@ export interface Trace {
   metadata: Record<string, unknown>;
   createdAt: number;
   updatedAt: number;
+  /** Parent trace ID for multi-agent / hierarchical tracing */
+  parentId?: string;
 }
 
 /** Summary of an agent run (collection of traces) */
@@ -172,4 +174,26 @@ export interface AlertHistory {
   stats: Record<string, number>;
   delivered: boolean;
   error?: string;
+}
+
+/**
+ * TraceContext can be passed between collaborating agents to link their traces
+ * into a parent/child hierarchy.
+ */
+export class TraceContext {
+  traceId: string;
+  parentSpanId?: string;
+  metadata: Record<string, unknown>;
+
+  constructor(traceId: string, parentSpanId?: string, metadata: Record<string, unknown> = {}) {
+    this.traceId = traceId;
+    this.parentSpanId = parentSpanId;
+    this.metadata = { ...metadata };
+  }
+}
+
+/** Node in a trace tree returned by getTraceTree / GET /api/traces/:id/tree */
+export interface TraceTreeNode {
+  trace: Trace;
+  children: TraceTreeNode[];
 }

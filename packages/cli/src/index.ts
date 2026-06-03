@@ -23,7 +23,9 @@ export const VERSION = '0.1.0';
 /** Published npm package name. */
 export const PACKAGE_NAME = '@agenttrace/cli';
 
-const DB_PATH = process.env.AGENTTRACE_DB_PATH || './agenttrace.db';
+function getDbPath(): string {
+  return process.env.AGENTTRACE_DB_PATH || './agenttrace.db';
+}
 
 // ANSI colors for status
 const GREEN = '\x1b[32m';
@@ -229,12 +231,13 @@ function parseArgs(argv: string[]): ParsedArgs {
 }
 
 function getAgentTrace(requireDb = true): AgentTrace {
-  if (requireDb && !existsSync(DB_PATH)) {
-    console.error(`No ${DB_PATH} found in current directory.`);
+  const dbp = getDbPath();
+  if (requireDb && !existsSync(dbp)) {
+    console.error(`No ${dbp} found in current directory.`);
     console.error('Run "agenttrace init" to create one.');
     process.exit(1);
   }
-  return new AgentTrace({ dbPath: DB_PATH, silent: true });
+  return new AgentTrace({ dbPath: dbp, silent: true });
 }
 
 async function main(): Promise<void> {
@@ -266,12 +269,13 @@ async function main(): Promise<void> {
 
     switch (command) {
       case 'init': {
-        if (existsSync(DB_PATH)) {
-          console.log(`${DB_PATH} already exists.`);
+        const dbp = getDbPath();
+        if (existsSync(dbp)) {
+          console.log(`${dbp} already exists.`);
         } else {
-          const trace = new AgentTrace({ dbPath: DB_PATH, silent: true });
+          const trace = new AgentTrace({ dbPath: dbp, silent: true });
           trace.close();
-          console.log(`Created ${DB_PATH}`);
+          console.log(`Created ${dbp}`);
         }
         break;
       }
@@ -280,7 +284,7 @@ async function main(): Promise<void> {
         const rawPort = flags.port ? parseInt(String(flags.port), 10) : NaN;
         const port = Number.isFinite(rawPort) && rawPort > 0 ? rawPort : undefined;
         const host = typeof flags.host === 'string' ? String(flags.host) : undefined;
-        startDashboard({ dbPath: DB_PATH, port, host });
+        startDashboard({ dbPath: getDbPath(), port, host });
         // server keeps process alive
         return;
       }
@@ -403,9 +407,10 @@ async function main(): Promise<void> {
 
       case 'alerts': {
         const sub = alertsSub || 'list';
-        const dbExists = existsSync(DB_PATH);
+        const dbp = getDbPath();
+        const dbExists = existsSync(dbp);
         if (!dbExists && (sub === 'test' || sub === 'history')) {
-          console.error(`No ${DB_PATH} found in current directory.`);
+          console.error(`No ${dbp} found in current directory.`);
           console.error('Run "agenttrace init" to create one.');
           process.exit(1);
         }
@@ -418,7 +423,7 @@ async function main(): Promise<void> {
             }
             break;
           }
-          const agent = new AgentTrace({ dbPath: DB_PATH, silent: true });
+          const agent = new AgentTrace({ dbPath: dbp, silent: true });
           const alerts = agent.getAlerts();
           agent.close();
           if (useJson) {
@@ -437,7 +442,7 @@ async function main(): Promise<void> {
           }
           break;
         }
-        const agent = new AgentTrace({ dbPath: DB_PATH, silent: true });
+        const agent = new AgentTrace({ dbPath: dbp, silent: true });
         if (sub === 'history') {
           const history = agent.getAlertHistory();
           agent.close();

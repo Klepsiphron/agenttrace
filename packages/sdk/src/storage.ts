@@ -5,7 +5,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- SQLite row mapping uses loose any (pre-existing pattern in file) */
 
 import Database from 'better-sqlite3';
-import { Trace, Run, TraceFilter, TraceStats, TokenUsage, CostBreakdown, AlertHistory } from './types.js';
+import { randomUUID } from 'node:crypto';
+import { Trace, Run, TraceFilter, TraceStats, TokenUsage, CostBreakdown, AlertHistory, TraceTreeNode } from './types.js';
 
 export class TraceStorage {
   private db: Database;
@@ -54,6 +55,7 @@ export class TraceStorage {
         cost_usd REAL DEFAULT 0,
         error TEXT,
         metadata TEXT DEFAULT '{}',
+        parent_id TEXT,
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL,
         FOREIGN KEY (run_id) REFERENCES runs(id) ON DELETE CASCADE
@@ -76,6 +78,7 @@ export class TraceStorage {
       CREATE INDEX IF NOT EXISTS idx_traces_status ON traces(status);
       CREATE INDEX IF NOT EXISTS idx_traces_created_at ON traces(created_at);
       CREATE INDEX IF NOT EXISTS idx_traces_cost ON traces(cost_usd);
+      CREATE INDEX IF NOT EXISTS idx_traces_parent_id ON traces(parent_id);
       CREATE INDEX IF NOT EXISTS idx_tool_calls_trace_id ON tool_calls(trace_id);
       CREATE INDEX IF NOT EXISTS idx_tool_calls_name ON tool_calls(name);
 
@@ -122,7 +125,34 @@ export class TraceStorage {
       .prepare('SELECT value FROM version WHERE key = ?')
       .get('schema_version');
     if (!version) {
-      this.db.prepare('INSERT INTO version (key, value) VALUES (?, ?)').run('schema_version', '1');
+      this.db.prepare('INSERT INTO version (key, value) VALUES (?, ?)').run('schema_version', '2');
+    }
+
+    // v2+ migration for multi-agent tracing (parent_id + trace_links)
+    const verRow = this.db
+      .prepare('SELECT value FROM version WHERE key = ?')
+      .get('schema_version') as any;
+    const schemaVer = verRow ? parseInt(String(verRow.value), 10) : 0;
+    if (schemaVer < 2) {
+      try {
+        this.db.exec('ALTER TABLE traces ADD COLUMN parent_id TEXT');
+      } catch {
+        // column may already exist (e.g. partial migration)
+      }
+      this.db.exec(`
+        CREATE TABLE IF NOT EXISTS trace_links (
+          id TEXT PRIMARY KEY,
+          source_trace_id TEXT NOT NULL,
+          target_trace_id TEXT NOT NULL,
+          relation TEXT NOT NULL DEFAULT 'related',
+          created_at INTEGER NOT NULL,
+          FOREIGN KEY (source_trace_id) REFERENCES traces(id) ON DELETE CASCADE,
+          FOREIGN KEY (target_trace_id) REFERENCES traces(id) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_trace_links_source ON trace_links(source_trace_id);
+        CREATE INDEX IF NOT EXISTS idx_trace_links_target ON trace_links(target_trace_id);
+      `);
+      this.db.prepare('INSERT OR REPLACE INTO version (key, value) VALUES (?, ?)').run('schema_version', '2');
     }
   }
 
