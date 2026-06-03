@@ -35,8 +35,11 @@ export function createDashboardApp(dbPath?: string): DashboardApp {
 
   // Shim getHealth for environments where the linked @agenttrace/sdk resolves to an older dist build
   // (vitest package resolution via main:dist). The SDK source has getHealth; this keeps dashboard tests green.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   if (typeof (trace as any).getHealth !== 'function') {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (trace as any).getHealth = () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let stats: any = { totalTraces: 0 };
       try {
         stats = trace.getStats();
@@ -236,15 +239,20 @@ export function createDashboardApp(dbPath?: string): DashboardApp {
   // Simple health check (useful for readiness)
   app.get('/api/health', (_req: Request, res: Response) => {
     try {
-      const h = typeof (trace as any).getHealth === 'function' ? (trace as any).getHealth() : {
-        status: 'ok',
-        version: VERSION,
-        uptime: process.uptime(),
-        dbPath: dbPath || ':memory:',
-        traceCount: 0,
-        dbSize: 0,
-        integrity: { tablesExist: true, noOrphans: true },
-      };
+      const h =
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        typeof (trace as any).getHealth === 'function'
+          ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (trace as any).getHealth()
+          : {
+              status: 'ok',
+              version: VERSION,
+              uptime: process.uptime(),
+              dbPath: dbPath || ':memory:',
+              traceCount: 0,
+              dbSize: 0,
+              integrity: { tablesExist: true, noOrphans: true },
+            };
       res.json(h);
     } catch (err) {
       res.status(500).json({ error: String(err) });

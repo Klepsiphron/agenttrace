@@ -50,8 +50,8 @@ export interface QueriesResult {
 
 export interface ExportPerf {
   size: number;
-  json: { timeMs: number; outputLength: number };
-  csv: { timeMs: number; outputLength: number };
+  json: { timeMs: number; outputLength: number; latencies?: LatencyStats };
+  csv: { timeMs: number; outputLength: number; latencies?: LatencyStats };
 }
 
 export interface ExportsResult {
@@ -275,19 +275,34 @@ async function benchExports(): Promise<ExportsResult> {
 
   for (const size of sizes) {
     const { agent } = populateDataset(size);
-    // JSON
-    let t0 = performance.now();
-    const jsonStr = agent.export('json');
-    const jsonTime = performance.now() - t0;
-    // CSV
-    t0 = performance.now();
-    const csvStr = agent.export('csv');
-    const csvTime = performance.now() - t0;
+    const jsonTimes: number[] = [];
+    const csvTimes: number[] = [];
+    let jsonStr = '';
+    let csvStr = '';
+
+    const reps = size <= 1000 ? 10 : 1; // multiple reps only for small to get latency stats
+    for (let r = 0; r < reps; r++) {
+      let t0 = performance.now();
+      jsonStr = agent.export('json');
+      jsonTimes.push(performance.now() - t0);
+
+      t0 = performance.now();
+      csvStr = agent.export('csv');
+      csvTimes.push(performance.now() - t0);
+    }
 
     results.push({
       size,
-      json: { timeMs: Math.round(jsonTime * 100) / 100, outputLength: jsonStr.length },
-      csv: { timeMs: Math.round(csvTime * 100) / 100, outputLength: csvStr.length },
+      json: {
+        timeMs: Math.round((jsonTimes.reduce((a, b) => a + b, 0) / jsonTimes.length) * 100) / 100,
+        outputLength: jsonStr.length,
+        ...(reps > 1 ? { latencies: computeLatencies(jsonTimes) } : {}),
+      },
+      csv: {
+        timeMs: Math.round((csvTimes.reduce((a, b) => a + b, 0) / csvTimes.length) * 100) / 100,
+        outputLength: csvStr.length,
+        ...(reps > 1 ? { latencies: computeLatencies(csvTimes) } : {}),
+      },
     });
     agent.close();
   }

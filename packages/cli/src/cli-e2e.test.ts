@@ -54,8 +54,7 @@ describe('CLI e2e (real SQLite, all commands + flags)', () => {
     origEnv = process.env.AGENTTRACE_DB_PATH;
     process.env.AGENTTRACE_DB_PATH = tmpDb;
 
-    logs = [];
-    errs = [];
+    resetCapture();
     origLog = console.log;
     origErr = console.error;
     console.log = (...args: unknown[]) => {
@@ -67,11 +66,12 @@ describe('CLI e2e (real SQLite, all commands + flags)', () => {
 
     vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
 
+    type MockServer = { close: ReturnType<typeof vi.fn>; port?: number; host?: string };
     dashStartSpy = vi
       .spyOn(dashboardMod, 'startDashboard')
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .mockImplementation(
-        (cfg?: any) => ({ close: vi.fn(), port: cfg?.port, host: cfg?.host }) as any,
+        (cfg?: { port?: number; host?: string }) =>
+          ({ close: vi.fn(), port: cfg?.port, host: cfg?.host }) as MockServer,
       );
   });
 
@@ -103,6 +103,16 @@ describe('CLI e2e (real SQLite, all commands + flags)', () => {
         /* cli error path: console.error already captured in errs; exit was no-op */
       });
     }
+  }
+
+  function resetCapture(): void {
+    resetCapture();
+    console.log = (...args: unknown[]) => {
+      logs.push(args.map((a) => (typeof a === 'string' ? a : JSON.stringify(a))).join(' '));
+    };
+    console.error = (...args: unknown[]) => {
+      errs.push(args.map((a) => String(a)).join(' '));
+    };
   }
 
   async function seedBasicTraces() {
@@ -234,7 +244,7 @@ describe('CLI e2e (real SQLite, all commands + flags)', () => {
     // precreate
     const t = new AgentTrace({ dbPath: tmpDb, silent: true });
     t.close();
-    logs.length = 0;
+    resetCapture();
     process.argv = ['node', 'agenttrace', 'init'];
     await invokeMain();
     const out = logs.join('\n');
@@ -287,14 +297,14 @@ describe('CLI e2e (real SQLite, all commands + flags)', () => {
     expect(out).toContain('t-success');
 
     // run-id
-    logs.length = 0;
+    resetCapture();
     process.argv = ['node', 'agenttrace', 'traces', '--run-id', runId, '--limit', '10'];
     await invokeMain();
     out = logs.join('\n');
     expect(out).toContain('t-success');
 
     // status error json
-    logs.length = 0;
+    resetCapture();
     process.argv = ['node', 'agenttrace', 'traces', '--status', 'error', '--json'];
     await invokeMain();
     const j = logs.find((l) => l.trim().startsWith('['));
@@ -310,7 +320,7 @@ describe('CLI e2e (real SQLite, all commands + flags)', () => {
     expect(out).toContain('AgentTrace Statistics');
     expect(out).toContain('Total Runs');
 
-    logs.length = 0;
+    resetCapture();
     process.argv = ['node', 'agenttrace', 'stats', '--json'];
     await invokeMain();
     const j = logs.find((l) => l.trim().startsWith('{'));
@@ -329,13 +339,13 @@ describe('CLI e2e (real SQLite, all commands + flags)', () => {
     expect(out).toContain('gpt-4.1');
     expect(out).toContain('gemini-2.5-flash');
 
-    logs.length = 0;
+    resetCapture();
     process.argv = ['node', 'agenttrace', 'costs', '--daily'];
     await invokeMain();
     out = logs.join('\n');
     expect(out).toContain('Daily Cost Breakdown');
 
-    logs.length = 0;
+    resetCapture();
     process.argv = ['node', 'agenttrace', 'costs', '--run-id', runId, '--json'];
     await invokeMain();
     const j = logs.find((l) => l.trim().startsWith('{'));
@@ -343,7 +353,7 @@ describe('CLI e2e (real SQLite, all commands + flags)', () => {
     expect(c.costByModel['gpt-4.1']).toBeGreaterThan(0);
     expect(c.costByModel['llama-4-scout']).toBeUndefined();
 
-    logs.length = 0;
+    resetCapture();
     process.argv = ['node', 'agenttrace', 'costs', '--run-id', run2];
     await invokeMain();
     out = logs.join('\n');
@@ -361,14 +371,14 @@ describe('CLI e2e (real SQLite, all commands + flags)', () => {
     expect(out).toContain('"name": "t-success"');
 
     // csv
-    logs.length = 0;
+    resetCapture();
     process.argv = ['node', 'agenttrace', 'export', '--format', 'csv'];
     await invokeMain();
     out = logs.join('\n');
     expect(out).toContain('id,runId,name,status');
 
     // otel
-    logs.length = 0;
+    resetCapture();
     process.argv = ['node', 'agenttrace', 'export', '--format', 'otel', '--json']; // json flag ignored for data but ok
     await invokeMain();
     out = logs.join('\n');
@@ -376,7 +386,7 @@ describe('CLI e2e (real SQLite, all commands + flags)', () => {
 
     // to file
     const outFile = path.join(path.dirname(tmpDb), 'exp.json');
-    logs.length = 0;
+    resetCapture();
     process.argv = [
       'node',
       'agenttrace',
@@ -427,7 +437,7 @@ describe('CLI e2e (real SQLite, all commands + flags)', () => {
     expect(out).toContain('No alerts configured');
 
     // json no db
-    logs.length = 0;
+    resetCapture();
     process.argv = ['node', 'agenttrace', 'alerts', 'list', '--json'];
     await invokeMain();
     expect(logs.some((l) => l.trim() === '[]')).toBe(true);
@@ -435,7 +445,7 @@ describe('CLI e2e (real SQLite, all commands + flags)', () => {
     // create db but no alerts
     const t0 = new AgentTrace({ dbPath: tmpDb, silent: true });
     t0.close();
-    logs.length = 0;
+    resetCapture();
     process.argv = ['node', 'agenttrace', 'alerts'];
     await invokeMain();
     out = logs.join('\n');
@@ -443,7 +453,7 @@ describe('CLI e2e (real SQLite, all commands + flags)', () => {
 
     // seed alert
     await seedForAlerts();
-    logs.length = 0;
+    resetCapture();
     process.argv = ['node', 'agenttrace', 'alerts', 'list'];
     await invokeMain();
     out = logs.join('\n');
@@ -452,7 +462,7 @@ describe('CLI e2e (real SQLite, all commands + flags)', () => {
     expect(out).toContain('cooldown=10');
 
     // json
-    logs.length = 0;
+    resetCapture();
     process.argv = ['node', 'agenttrace', 'alerts', 'list', '--json'];
     await invokeMain();
     const jlist = logs.find((l) => l.trim().startsWith('['));
@@ -463,7 +473,13 @@ describe('CLI e2e (real SQLite, all commands + flags)', () => {
   it('alerts test --name and history', async () => {
     await seedForAlerts();
     // test fires (even if condition false, test forces)
-    logs.length = 0;
+    resetCapture();
+    console.log = (...args: unknown[]) => {
+      logs.push(args.map((a) => (typeof a === 'string' ? a : JSON.stringify(a))).join(' '));
+    };
+    console.error = (...args: unknown[]) => {
+      errs.push(args.map((a) => String(a)).join(' '));
+    };
     process.argv = ['node', 'agenttrace', 'alerts', 'test', '--name', 'high-error-rate'];
     await invokeMain();
     const out = logs.join('\n');
@@ -471,7 +487,10 @@ describe('CLI e2e (real SQLite, all commands + flags)', () => {
     expect(out).toContain('high-error-rate');
 
     // history
-    logs.length = 0;
+    logs = [];
+    console.log = (...args: unknown[]) => {
+      logs.push(args.map((a) => (typeof a === 'string' ? a : JSON.stringify(a))).join(' '));
+    };
     process.argv = ['node', 'agenttrace', 'alerts', 'history'];
     await invokeMain();
     const hout = logs.join('\n');
@@ -479,7 +498,10 @@ describe('CLI e2e (real SQLite, all commands + flags)', () => {
     expect(hout).toContain('high-error-rate');
 
     // history --json
-    logs.length = 0;
+    logs = [];
+    console.log = (...args: unknown[]) => {
+      logs.push(args.map((a) => (typeof a === 'string' ? a : JSON.stringify(a))).join(' '));
+    };
     process.argv = ['node', 'agenttrace', 'alerts', 'history', '--json'];
     await invokeMain();
     const hj = logs.find((l) => l.trim().startsWith('['));
@@ -497,7 +519,7 @@ describe('CLI e2e (real SQLite, all commands + flags)', () => {
     expect(errs.join(' ')).toContain('Usage: agenttrace tree --trace-id');
 
     // table tree for root
-    logs.length = 0;
+    resetCapture();
     errs.length = 0;
     process.argv = ['node', 'agenttrace', 'tree', '--trace-id', rootId];
     await invokeMain();
@@ -512,19 +534,26 @@ describe('CLI e2e (real SQLite, all commands + flags)', () => {
     const child = ts.find((x) => x.name === 'child-trace')!;
     t2.close();
 
-    logs.length = 0;
+    resetCapture();
     process.argv = ['node', 'agenttrace', 'tree', '--trace-id', child.id, '--json'];
     await invokeMain();
     const tj = logs.find((l) => l.trim().startsWith('{'));
     const tree = JSON.parse(tj!);
-    expect(tree.trace.name).toBe('child-trace');
+    // getTraceTree always roots at ultimate ancestor (per SDK)
+    expect(tree.trace.name).toBe('root-trace');
     expect(Array.isArray(tree.children)).toBe(true);
+    const childNames = JSON.stringify(tree);
+    expect(childNames).toContain('child-trace');
   });
 
   it('evaluate default, --json, --run-id, --trace-id (stores scores, various flags)', async () => {
     const { runId } = await seedBasicTraces();
 
     // default evaluate (all traces)
+    logs = [];
+    console.log = (...args: unknown[]) => {
+      logs.push(args.map((a) => (typeof a === 'string' ? a : JSON.stringify(a))).join(' '));
+    };
     process.argv = ['node', 'agenttrace', 'evaluate'];
     await invokeMain();
     let out = logs.join('\n');
@@ -534,7 +563,10 @@ describe('CLI e2e (real SQLite, all commands + flags)', () => {
     expect(out).toContain('error-rate');
 
     // --json
-    logs.length = 0;
+    logs = [];
+    console.log = (...args: unknown[]) => {
+      logs.push(args.map((a) => (typeof a === 'string' ? a : JSON.stringify(a))).join(' '));
+    };
     process.argv = ['node', 'agenttrace', 'evaluate', '--json'];
     await invokeMain();
     let j = logs.find((l) => l.trim().startsWith('['));
@@ -544,7 +576,10 @@ describe('CLI e2e (real SQLite, all commands + flags)', () => {
     expect(res[0].scores).toHaveProperty('output-length');
 
     // --run-id
-    logs.length = 0;
+    logs = [];
+    console.log = (...args: unknown[]) => {
+      logs.push(args.map((a) => (typeof a === 'string' ? a : JSON.stringify(a))).join(' '));
+    };
     process.argv = ['node', 'agenttrace', 'evaluate', '--run-id', runId, '--json'];
     await invokeMain();
     j = logs.find((l) => l.trim().startsWith('['));
@@ -557,7 +592,10 @@ describe('CLI e2e (real SQLite, all commands + flags)', () => {
     const tid = ts[0].id;
     t3.close();
 
-    logs.length = 0;
+    logs = [];
+    console.log = (...args: unknown[]) => {
+      logs.push(args.map((a) => (typeof a === 'string' ? a : JSON.stringify(a))).join(' '));
+    };
     process.argv = ['node', 'agenttrace', 'evaluate', '--trace-id', tid];
     await invokeMain();
     out = logs.join('\n');
@@ -572,7 +610,7 @@ describe('CLI e2e (real SQLite, all commands + flags)', () => {
     let out = logs.join('\n');
     expect(out).toContain('Schema version: 0');
 
-    logs.length = 0;
+    resetCapture();
     process.argv = ['node', 'agenttrace', 'migrate', 'status', '--json'];
     await invokeMain();
     let j = logs.find((l) => l.trim().startsWith('{'));
@@ -582,7 +620,7 @@ describe('CLI e2e (real SQLite, all commands + flags)', () => {
     expect(fs.existsSync(tmpDb)).toBe(false);
 
     // run migrate (applies)
-    logs.length = 0;
+    resetCapture();
     process.argv = ['node', 'agenttrace', 'migrate'];
     await invokeMain();
     out = logs.join('\n');
@@ -592,21 +630,21 @@ describe('CLI e2e (real SQLite, all commands + flags)', () => {
     expect(v1).toBeGreaterThan(0);
 
     // status now
-    logs.length = 0;
+    resetCapture();
     process.argv = ['node', 'agenttrace', 'migrate', 'status'];
     await invokeMain();
     out = logs.join('\n');
     expect(out).toContain(`Schema version: ${v1}`);
 
     // migrate again no-op
-    logs.length = 0;
+    resetCapture();
     process.argv = ['node', 'agenttrace', 'migrate'];
     await invokeMain();
     out = logs.join('\n');
     expect(out).toContain('No pending migrations');
 
     // json apply result (idempotent)
-    logs.length = 0;
+    resetCapture();
     process.argv = ['node', 'agenttrace', 'migrate', '--json'];
     await invokeMain();
     j = logs.find((l) => l.trim().startsWith('{'));
@@ -621,19 +659,19 @@ describe('CLI e2e (real SQLite, all commands + flags)', () => {
     await invokeMain();
 
     // runs --json empty
-    logs.length = 0;
+    resetCapture();
     process.argv = ['node', 'agenttrace', 'runs', '--json'];
     await invokeMain();
     expect(logs.some((l) => l.includes('[]'))).toBe(true);
 
     // traces --json
-    logs.length = 0;
+    resetCapture();
     process.argv = ['node', 'agenttrace', 'traces', '--json'];
     await invokeMain();
     expect(logs.some((l) => l.includes('[]'))).toBe(true);
 
     // costs json (no traces => total 0)
-    logs.length = 0;
+    resetCapture();
     process.argv = ['node', 'agenttrace', 'costs', '--json'];
     await invokeMain();
     const cj = logs.find((l) => l.trim().startsWith('{'));
@@ -641,13 +679,13 @@ describe('CLI e2e (real SQLite, all commands + flags)', () => {
     expect(c.totalCostUsd).toBe(0);
 
     // alerts list json empty
-    logs.length = 0;
+    resetCapture();
     process.argv = ['node', 'agenttrace', 'alerts', 'list', '--json'];
     await invokeMain();
     expect(logs.some((l) => l.trim() === '[]')).toBe(true);
 
     // tree missing id errors before json
-    logs.length = 0;
+    resetCapture();
     errs.length = 0;
     process.argv = ['node', 'agenttrace', 'tree', '--trace-id', 'nonexistent', '--json'];
     await invokeMain();
@@ -656,14 +694,14 @@ describe('CLI e2e (real SQLite, all commands + flags)', () => {
     expect(eout.length + logs.join('').length).toBeGreaterThan(0);
 
     // evaluate json empty
-    logs.length = 0;
+    resetCapture();
     process.argv = ['node', 'agenttrace', 'evaluate', '--json'];
     await invokeMain();
     const ej = logs.find((l) => l.trim().startsWith('['));
     expect(JSON.parse(ej!)).toEqual([]);
 
     // migrate status json (db now exists from init)
-    logs.length = 0;
+    resetCapture();
     process.argv = ['node', 'agenttrace', 'migrate', 'status', '--json'];
     await invokeMain();
     const mj = logs.find((l) => l.trim().startsWith('{'));

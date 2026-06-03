@@ -100,7 +100,6 @@ class TraceStorage:
             CREATE INDEX IF NOT EXISTS idx_traces_status ON traces(status);
             CREATE INDEX IF NOT EXISTS idx_traces_created_at ON traces(created_at);
             CREATE INDEX IF NOT EXISTS idx_traces_cost ON traces(cost_usd);
-            CREATE INDEX IF NOT EXISTS idx_traces_parent_id ON traces(parent_id);
             CREATE INDEX IF NOT EXISTS idx_tool_calls_trace_id ON tool_calls(trace_id);
             CREATE INDEX IF NOT EXISTS idx_tool_calls_name ON tool_calls(name);
 
@@ -171,6 +170,13 @@ class TraceStorage:
             self.conn.commit()
         except sqlite3.OperationalError:
             pass  # column already exists
+
+        # Ensure the index on parent_id (was in script but moved here so col-ensure precedes for old DBs)
+        try:
+            self.conn.execute("CREATE INDEX IF NOT EXISTS idx_traces_parent_id ON traces(parent_id)")
+            self.conn.commit()
+        except Exception:
+            pass
 
         # Migration tracking
         row = self.conn.execute(

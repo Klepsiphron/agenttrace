@@ -781,16 +781,14 @@ export class TraceStorage {
     const tablesExist = missing.length === 0;
 
     // PRAGMA integrity_check
-    let pragmaOk = true;
     let pragmaMsg = '';
     try {
       const res = this.db.pragma('integrity_check') as Array<{ integrity_check: string }>;
-      pragmaOk = Array.isArray(res) && res.length === 1 && res[0]?.integrity_check === 'ok';
-      if (!pragmaOk) {
+      const ok = Array.isArray(res) && res.length === 1 && res[0]?.integrity_check === 'ok';
+      if (!ok) {
         pragmaMsg = res && res[0] ? String(res[0].integrity_check) : 'failed';
       }
     } catch (e) {
-      pragmaOk = false;
       pragmaMsg = String(e);
     }
 
@@ -845,7 +843,7 @@ export class TraceStorage {
 
     const noOrphans = orphanCount === 0;
     const detailsParts: string[] = [];
-    if (!pragmaOk) detailsParts.push(`pragma: ${pragmaMsg || 'failed'}`);
+    if (pragmaMsg) detailsParts.push(`pragma: ${pragmaMsg}`);
     if (orphanDetails.length) detailsParts.push(...orphanDetails);
     const details = detailsParts.length ? detailsParts.join('; ') : undefined;
 
