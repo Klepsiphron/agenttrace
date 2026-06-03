@@ -34,6 +34,8 @@ export type {
   FrameworkIntegration,
 } from './types.js';
 
+export { TraceStorage } from './storage.js';
+
 // Default cost calculator (approximate 2026 pricing)
 function defaultCostCalculator(tokens: TokenUsage, model?: string): number {
   const rates: Record<string, { prompt: number; completion: number }> = {
