@@ -3,8 +3,6 @@
  * Tests the full flow: trace → store → query → export
  */
 
-
-
 import { describe, expect, it, beforeEach, afterEach } from 'vitest';
 import { AgentTrace, score } from './index';
 import { TraceStorage } from './storage';
@@ -246,9 +244,15 @@ describe('AgentTrace Integration', () => {
 
   it('linkTraces and getTraceTree includes linked as children', async () => {
     const runId = agenttrace.startRun('link-run');
-    await agenttrace.trace('t1', async () => 'a', { tokens: { promptTokens: 0, completionTokens: 0, totalTokens: 0 } });
-    await agenttrace.trace('t2', async () => 'b', { tokens: { promptTokens: 0, completionTokens: 0, totalTokens: 0 } });
-    await agenttrace.trace('t3', async () => 'c', { tokens: { promptTokens: 0, completionTokens: 0, totalTokens: 0 } });
+    await agenttrace.trace('t1', async () => 'a', {
+      tokens: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+    });
+    await agenttrace.trace('t2', async () => 'b', {
+      tokens: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+    });
+    await agenttrace.trace('t3', async () => 'c', {
+      tokens: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+    });
     const tr1 = agenttrace.getTraces({ runId, name: 't1', limit: 1 })[0];
     const tr2 = agenttrace.getTraces({ runId, name: 't2', limit: 1 })[0];
     const tr3 = agenttrace.getTraces({ runId, name: 't3', limit: 1 })[0];
@@ -258,7 +262,7 @@ describe('AgentTrace Integration', () => {
     const allIds: string[] = [];
     const collect = (node: { id: string; children?: { id: string }[] }) => {
       if (node && node.trace) allIds.push(node.trace.id);
-      (node && node.children || []).forEach(collect);
+      ((node && node.children) || []).forEach(collect);
     };
     collect(tree);
     expect(allIds).toContain(tr1.id);
@@ -268,19 +272,29 @@ describe('AgentTrace Integration', () => {
 
   it('getTraceTree walks up to root and includes full subtree', async () => {
     const runId = agenttrace.startRun('tree-run');
-    await agenttrace.trace('root', async () => 0, { tokens: { promptTokens: 0, completionTokens: 0, totalTokens: 0 } });
+    await agenttrace.trace('root', async () => 0, {
+      tokens: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+    });
     const roots = agenttrace.getTraces({ runId, name: 'root', limit: 1 });
     const root = roots[0];
-    await agenttrace.trace('c1', async () => 1, { parentId: root.id, tokens: { promptTokens: 0, completionTokens: 0, totalTokens: 0 } });
+    await agenttrace.trace('c1', async () => 1, {
+      parentId: root.id,
+      tokens: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+    });
     const c1s = agenttrace.getTraces({ runId, name: 'c1', limit: 1 });
     const c1 = c1s[0];
-    await agenttrace.trace('gc', async () => 2, { parentId: c1.id, tokens: { promptTokens: 0, completionTokens: 0, totalTokens: 0 } });
+    await agenttrace.trace('gc', async () => 2, {
+      parentId: c1.id,
+      tokens: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+    });
     const gcs = agenttrace.getTraces({ runId, name: 'gc', limit: 1 });
     const gc = gcs[0];
     const treeFromLeaf = agenttrace.getTraceTree(gc.id);
     expect(treeFromLeaf.trace.id).toBe(root.id); // walked to root
     // depth check
-    const lvl1 = treeFromLeaf.children.find((n: unknown) => (n as Record<string, unknown>).trace?.id === c1.id);
+    const lvl1 = treeFromLeaf.children.find(
+      (n: unknown) => (n as Record<string, unknown>).trace?.id === c1.id,
+    );
     expect(lvl1).toBeTruthy();
     expect(lvl1!.children.length).toBe(1);
     expect(lvl1!.children[0].trace.id).toBe(gc.id);
@@ -288,10 +302,15 @@ describe('AgentTrace Integration', () => {
 
   it('dashboard tree API and storage getTraceTree work (via sdk)', async () => {
     const runId = agenttrace.startRun('api-tree');
-    await agenttrace.trace('r', async () => 'r', { tokens: { promptTokens: 0, completionTokens: 0, totalTokens: 0 } });
+    await agenttrace.trace('r', async () => 'r', {
+      tokens: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+    });
     const rs = agenttrace.getTraces({ runId, name: 'r', limit: 1 });
     const r = rs[0];
-    await agenttrace.trace('ch', async () => 'ch', { parentId: r.id, tokens: { promptTokens: 0, completionTokens: 0, totalTokens: 0 } });
+    await agenttrace.trace('ch', async () => 'ch', {
+      parentId: r.id,
+      tokens: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+    });
     const chs = agenttrace.getTraces({ runId, name: 'ch', limit: 1 });
     const ch = chs[0];
     const tree = agenttrace.getTraceTree(r.id);

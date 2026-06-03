@@ -39,8 +39,8 @@ COPY . .
 # Build all packages (TS -> JS for sdk, dashboard, cli, langgraph middleware)
 RUN pnpm build
 
-# Remove dev dependencies for smaller runtime image (use reinstall to avoid interactive prompt from prune)
-RUN rm -rf node_modules && pnpm install --frozen-lockfile --prod
+# Note: We keep full node_modules (incl. devDeps) so better-sqlite3 (root devDep, used by SDK at runtime via workspace hoisting) is present.
+# (A --prod install would omit it since it is not declared in any package "dependencies"; host source not modified.)
 
 # ============================================
 # Runtime stage: minimal image with built app

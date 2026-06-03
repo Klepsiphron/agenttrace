@@ -54,7 +54,12 @@ describe('dashboard cost API endpoints (new tests)', () => {
       model: 'gpt-4o',
     });
     await trace.trace('costed-2', async () => 'res2', {
-      tokens: { promptTokens: 200, completionTokens: 100, totalTokens: 300, model: 'gemini-2.5-pro' },
+      tokens: {
+        promptTokens: 200,
+        completionTokens: 100,
+        totalTokens: 300,
+        model: 'gemini-2.5-pro',
+      },
       model: 'gemini-2.5-pro',
     });
 
@@ -84,7 +89,12 @@ describe('dashboard cost API endpoints (new tests)', () => {
 
     const run2 = trace.startRun('run-two');
     await trace.trace('r2-op', async () => 'y', {
-      tokens: { promptTokens: 1000, completionTokens: 0, totalTokens: 1000, model: 'claude-haiku-4.5' },
+      tokens: {
+        promptTokens: 1000,
+        completionTokens: 0,
+        totalTokens: 1000,
+        model: 'claude-haiku-4.5',
+      },
       model: 'claude-haiku-4.5',
     });
     trace.completeRun();

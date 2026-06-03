@@ -5,7 +5,16 @@
 
 import Database from 'better-sqlite3';
 import { randomUUID } from 'node:crypto';
-import { Trace, Run, TraceFilter, TraceStats, TokenUsage, CostBreakdown, AlertHistory, TraceTreeNode } from './types.js';
+import {
+  Trace,
+  Run,
+  TraceFilter,
+  TraceStats,
+  TokenUsage,
+  CostBreakdown,
+  AlertHistory,
+  TraceTreeNode,
+} from './types.js';
 
 export class TraceStorage {
   private db: Database;
@@ -163,7 +172,9 @@ export class TraceStorage {
         CREATE INDEX IF NOT EXISTS idx_trace_links_source ON trace_links(source_trace_id);
         CREATE INDEX IF NOT EXISTS idx_trace_links_target ON trace_links(target_trace_id);
       `);
-      this.db.prepare('INSERT OR REPLACE INTO version (key, value) VALUES (?, ?)').run('schema_version', '2');
+      this.db
+        .prepare('INSERT OR REPLACE INTO version (key, value) VALUES (?, ?)')
+        .run('schema_version', '2');
     }
   }
 
@@ -425,7 +436,9 @@ export class TraceStorage {
     config: { webhook?: string; email?: string; cooldown: number; lastTriggered?: number };
     createdAt: number;
   }> {
-    const rows = this.db.prepare('SELECT * FROM alerts ORDER BY created_at DESC').all() as unknown[];
+    const rows = this.db
+      .prepare('SELECT * FROM alerts ORDER BY created_at DESC')
+      .all() as unknown[];
     return rows.map((r) => {
       const rec = r as Record<string, unknown>;
       return {
@@ -457,7 +470,9 @@ export class TraceStorage {
   }
 
   getAlertHistory(): AlertHistory[] {
-    const rows = this.db.prepare('SELECT * FROM alert_history ORDER BY triggered_at DESC').all() as unknown[];
+    const rows = this.db
+      .prepare('SELECT * FROM alert_history ORDER BY triggered_at DESC')
+      .all() as unknown[];
     return rows.map((r) => {
       const rec = r as Record<string, unknown>;
       return {
@@ -480,7 +495,9 @@ export class TraceStorage {
   }
 
   getTraceParentId(traceId: string): string | null {
-    const row = this.db.prepare('SELECT parent_id FROM traces WHERE id = ?').get(traceId) as unknown;
+    const row = this.db
+      .prepare('SELECT parent_id FROM traces WHERE id = ?')
+      .get(traceId) as unknown;
     const rec = row as Record<string, unknown> | undefined;
     return rec && rec.parent_id ? String(rec.parent_id) : null;
   }
@@ -502,7 +519,9 @@ export class TraceStorage {
       `,
       )
       .all(traceId, traceId) as unknown[];
-    return rows.map((r) => String((r as Record<string, unknown>).id)).filter((id) => id !== traceId);
+    return rows
+      .map((r) => String((r as Record<string, unknown>).id))
+      .filter((id) => id !== traceId);
   }
 
   linkTraces(traceIds: string[]): void {
@@ -565,14 +584,24 @@ export class TraceStorage {
   // ---- Stats ----
 
   getStats(): TraceStats {
-    const totalRuns = this.db.prepare('SELECT COUNT(*) as c FROM runs').get() as unknown as { c: number };
-    const totalTraces = this.db.prepare('SELECT COUNT(*) as c FROM traces').get() as unknown as { c: number };
+    const totalRuns = this.db.prepare('SELECT COUNT(*) as c FROM runs').get() as unknown as {
+      c: number;
+    };
+    const totalTraces = this.db.prepare('SELECT COUNT(*) as c FROM traces').get() as unknown as {
+      c: number;
+    };
     const successCount = this.db
       .prepare("SELECT COUNT(*) as c FROM traces WHERE status = 'success'")
       .get() as unknown as { c: number };
-    const avgLatency = this.db.prepare('SELECT AVG(latency_ms) as v FROM traces').get() as unknown as { v: number };
-    const totalCost = this.db.prepare('SELECT SUM(cost_usd) as v FROM traces').get() as unknown as { v: number };
-    const totalTokens = this.db.prepare('SELECT SUM(total_tokens) as v FROM traces').get() as unknown as { v: number };
+    const avgLatency = this.db
+      .prepare('SELECT AVG(latency_ms) as v FROM traces')
+      .get() as unknown as { v: number };
+    const totalCost = this.db.prepare('SELECT SUM(cost_usd) as v FROM traces').get() as unknown as {
+      v: number;
+    };
+    const totalTokens = this.db
+      .prepare('SELECT SUM(total_tokens) as v FROM traces')
+      .get() as unknown as { v: number };
 
     const topTools = this.db
       .prepare(
@@ -675,7 +704,9 @@ export class TraceStorage {
   // ---- Cleanup ----
 
   cleanup(maxTraces: number = 10000): number {
-    const count = this.db.prepare('SELECT COUNT(*) as c FROM traces').get() as unknown as { c: number };
+    const count = this.db.prepare('SELECT COUNT(*) as c FROM traces').get() as unknown as {
+      c: number;
+    };
     if (count.c <= maxTraces) return 0;
 
     const toDelete = count.c - maxTraces;

@@ -4,8 +4,6 @@
  * Covers full workflows, errors, costs, export, stats, filters, concurrency, scale.
  */
 
-
-
 import { describe, expect, it } from 'vitest';
 import { AgentTrace, init, getAgentTrace, type Trace } from './index';
 import { TraceStorage } from './storage';
@@ -28,7 +26,11 @@ function cleanupDbFiles(dbPath: string): void {
 
 describe('AgentTrace E2E (real SQLite)', () => {
   // Shared helpers; each test manages its own agent + db for isolation
-  function createAgent(dbPath?: string): { agent: AgentTrace; dbPath: string; cleanup: () => void } {
+  function createAgent(dbPath?: string): {
+    agent: AgentTrace;
+    dbPath: string;
+    cleanup: () => void;
+  } {
     const db = dbPath || createTempDbPath();
     const agent = new AgentTrace({ dbPath: db, silent: true });
     const cleanup = () => {
@@ -64,36 +66,42 @@ describe('AgentTrace E2E (real SQLite)', () => {
       // Verify singleton
       expect(getAgentTrace()).toBe(agent);
 
-      const runId = agent.startRun('e2e-workflow-run', { purpose: 'comprehensive-e2e', env: 'test' });
+      const runId = agent.startRun('e2e-workflow-run', {
+        purpose: 'comprehensive-e2e',
+        env: 'test',
+      });
       expect(typeof runId).toBe('string');
       expect(runId.length).toBeGreaterThan(10);
 
       // multiple traces (mix of inputs, outputs, tokens)
-      const res1 = await agent.trace(
-        'step-llm',
-        async () => ({ answer: 42, ok: true }),
-        {
-          input: { question: 'what is life?' },
-          tokens: { promptTokens: 120, completionTokens: 60, totalTokens: 180, model: 'gpt-4o', provider: 'openai' },
-          metadata: { step: 1 },
+      const res1 = await agent.trace('step-llm', async () => ({ answer: 42, ok: true }), {
+        input: { question: 'what is life?' },
+        tokens: {
+          promptTokens: 120,
+          completionTokens: 60,
+          totalTokens: 180,
+          model: 'gpt-4o',
+          provider: 'openai',
         },
-      );
+        metadata: { step: 1 },
+      });
       expect(res1).toEqual({ answer: 42, ok: true });
 
-      const res2 = await agent.trace(
-        'step-tool',
-        async () => 'tool-output-xyz',
-        {
-          input: { tool: 'search', q: 'x' },
-          tokens: { promptTokens: 30, completionTokens: 10, totalTokens: 40 },
-          metadata: { step: 2, tool: 'web' },
-        },
-      );
+      const res2 = await agent.trace('step-tool', async () => 'tool-output-xyz', {
+        input: { tool: 'search', q: 'x' },
+        tokens: { promptTokens: 30, completionTokens: 10, totalTokens: 40 },
+        metadata: { step: 2, tool: 'web' },
+      });
       expect(res2).toBe('tool-output-xyz');
 
       const res3 = await agent.trace('step-final', async () => 'done', {
         input: null,
-        tokens: { promptTokens: 5, completionTokens: 15, totalTokens: 20, model: 'claude-sonnet-4' },
+        tokens: {
+          promptTokens: 5,
+          completionTokens: 15,
+          totalTokens: 20,
+          model: 'claude-sonnet-4',
+        },
       });
       expect(res3).toBe('done');
 
@@ -159,9 +167,13 @@ describe('AgentTrace E2E (real SQLite)', () => {
     try {
       const runId = agent.startRun('error-run');
       await expect(
-        agent.trace('failing-step', async () => {
-          throw new Error('intentional e2e failure: boom');
-        }, { input: { willFail: true } }),
+        agent.trace(
+          'failing-step',
+          async () => {
+            throw new Error('intentional e2e failure: boom');
+          },
+          { input: { willFail: true } },
+        ),
       ).rejects.toThrow('intentional e2e failure: boom');
 
       const traces = agent.getTraces({ runId });
@@ -203,7 +215,12 @@ describe('AgentTrace E2E (real SQLite)', () => {
 
       // unknown model (falls to default rate)
       await agent.trace('default-priced', async () => 'ok2', {
-        tokens: { promptTokens: 200, completionTokens: 100, totalTokens: 300, model: 'mystery-model' },
+        tokens: {
+          promptTokens: 200,
+          completionTokens: 100,
+          totalTokens: 300,
+          model: 'mystery-model',
+        },
         model: 'mystery-model',
       });
 
@@ -284,11 +301,19 @@ describe('AgentTrace E2E (real SQLite)', () => {
     try {
       agent.startRun('stats-run');
 
-      await agent.trace('s1', async () => 1, { tokens: { promptTokens: 100, completionTokens: 50, totalTokens: 150 } });
-      await agent.trace('s2', async () => 2, { tokens: { promptTokens: 0, completionTokens: 200, totalTokens: 200 } });
+      await agent.trace('s1', async () => 1, {
+        tokens: { promptTokens: 100, completionTokens: 50, totalTokens: 150 },
+      });
+      await agent.trace('s2', async () => 2, {
+        tokens: { promptTokens: 0, completionTokens: 200, totalTokens: 200 },
+      });
 
       // error one
-      await expect(agent.trace('s3', async () => { throw new Error('stats-err'); })).rejects.toThrow();
+      await expect(
+        agent.trace('s3', async () => {
+          throw new Error('stats-err');
+        }),
+      ).rejects.toThrow();
 
       const stats = agent.getStats();
       expect(stats.totalRuns).toBe(1);
@@ -320,7 +345,9 @@ describe('AgentTrace E2E (real SQLite)', () => {
       // small delay to ensure createdAt separation if needed
       await new Promise((r) => setTimeout(r, 2));
       await expect(
-        agent.trace('beta-fail', async () => { throw new Error('filter-err'); }),
+        agent.trace('beta-fail', async () => {
+          throw new Error('filter-err');
+        }),
       ).rejects.toThrow();
       await new Promise((r) => setTimeout(r, 2));
       const _t3 = await agent.trace('alpha-two', async () => 'c', {
@@ -350,7 +377,9 @@ describe('AgentTrace E2E (real SQLite)', () => {
       const allInRun = agent.getTraces({ runId });
       const minCa = Math.min(...allInRun.map((t) => t.createdAt));
       const maxCa = Math.max(...allInRun.map((t) => t.createdAt));
-      expect(agent.getTraces({ runId, fromDate: minCa - 1000, toDate: maxCa + 1000 }).length).toBe(3);
+      expect(agent.getTraces({ runId, fromDate: minCa - 1000, toDate: maxCa + 1000 }).length).toBe(
+        3,
+      );
       expect(agent.getTraces({ runId, fromDate: maxCa + 100000 }).length).toBe(0);
 
       // cost filters (high cost one is the gpt-4o)
@@ -476,7 +505,9 @@ describe('AgentTrace E2E (real SQLite)', () => {
     try {
       // must startRun to satisfy FK (traces reference a run row)
       const runId = agent.startRun('smoke-run');
-      await agent.trace('smoke-1', async () => 1, { tokens: { promptTokens: 1, completionTokens: 1, totalTokens: 2 } });
+      await agent.trace('smoke-1', async () => 1, {
+        tokens: { promptTokens: 1, completionTokens: 1, totalTokens: 2 },
+      });
       await agent.trace('smoke-2', async () => 2);
 
       // getTraces without filter returns all (including this run's)

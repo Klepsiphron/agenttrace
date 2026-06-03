@@ -68,13 +68,12 @@ export function createDashboardApp(dbPath?: string): DashboardApp {
       const allRuns = trace.getRuns(Math.max(1, Math.min(1000, limit || 200)));
 
       const status = req.query.status as string | undefined;
-      const runs =
-        status
-          ? (() => {
-              const allowed = status.split(',').filter(Boolean);
-              return allowed.length ? allRuns.filter((r) => allowed.includes(r.status)) : allRuns;
-            })()
-          : allRuns;
+      const runs = status
+        ? (() => {
+            const allowed = status.split(',').filter(Boolean);
+            return allowed.length ? allRuns.filter((r) => allowed.includes(r.status)) : allRuns;
+          })()
+        : allRuns;
 
       res.json(runs);
     } catch (err) {

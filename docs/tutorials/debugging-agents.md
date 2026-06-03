@@ -15,12 +15,18 @@ const agent = init();
 const runId = agent.startRun('debug-demo');
 
 try {
-  await trace('planner', async () => { /* ... */ });
+  await trace('planner', async () => {
+    /* ... */
+  });
 
-  await trace('tool:web_search', async () => {
-    // this one will fail in our demo
-    throw new Error('rate limit from search API');
-  }, { input: { q: 'agent observability' } });
+  await trace(
+    'tool:web_search',
+    async () => {
+      // this one will fail in our demo
+      throw new Error('rate limit from search API');
+    },
+    { input: { q: 'agent observability' } },
+  );
 
   await trace('writer', async () => 'done');
 } catch (e) {
@@ -80,8 +86,7 @@ console.dir(errors, { depth: 2 });
 const runErrors = agent.getTraces({ runId: 'run-xxx', status: ['error', 'failure'] });
 
 // Find tool-related failures by name prefix
-const toolFails = agent.getTraces({ name: 'tool:' })
-  .filter(t => t.status !== 'success');
+const toolFails = agent.getTraces({ name: 'tool:' }).filter((t) => t.status !== 'success');
 ```
 
 #### Python
@@ -118,7 +123,7 @@ For traces that embed `toolCalls` (advanced usage or certain middlewares):
 ```typescript
 const bad = agent.getTrace('the-trace-id');
 if (bad?.toolCalls?.length) {
-  bad.toolCalls.forEach(tc => {
+  bad.toolCalls.forEach((tc) => {
     if (!tc.success) console.log('BROKEN TOOL:', tc.name, tc.error, tc.input);
   });
 }
@@ -148,12 +153,14 @@ npx agenttrace traces --min-latency 2000   # >2s
 ```typescript
 const slow = agent.getTraces({ minLatency: 1500 }).sort((a, b) => b.latencyMs - a.latencyMs);
 
-console.table(slow.map(t => ({
-  name: t.name,
-  latency: t.latencyMs + 'ms',
-  cost: t.costUsd,
-  status: t.status,
-})));
+console.table(
+  slow.map((t) => ({
+    name: t.name,
+    latency: t.latencyMs + 'ms',
+    cost: t.costUsd,
+    status: t.status,
+  })),
+);
 
 const stats = agent.getStats();
 console.log('Average latency:', stats.avgLatencyMs, 'ms');

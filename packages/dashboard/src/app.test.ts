@@ -1,5 +1,3 @@
-
-
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { JSDOM } from 'jsdom';
 import fs from 'fs';
@@ -90,7 +88,10 @@ describe('AgentTrace Dashboard Frontend (app.js)', () => {
       },
     );
 
-    const globalDom = global as unknown as Record<string, unknown> & { window?: unknown; document?: unknown };
+    const globalDom = global as unknown as Record<string, unknown> & {
+      window?: unknown;
+      document?: unknown;
+    };
     globalDom.window = dom.window;
     globalDom.document = dom.window.document;
     globalDom.HTMLElement = dom.window.HTMLElement;
@@ -175,7 +176,11 @@ describe('AgentTrace Dashboard Frontend (app.js)', () => {
 
   function click(el: Element | null) {
     if (el) {
-      el.dispatchEvent(new ((dom.window as Record<string, unknown>).MouseEvent as typeof MouseEvent)('click', { bubbles: true }));
+      el.dispatchEvent(
+        new ((dom.window as Record<string, unknown>).MouseEvent as typeof MouseEvent)('click', {
+          bubbles: true,
+        }),
+      );
     }
   }
 
@@ -435,7 +440,10 @@ describe('AgentTrace Dashboard Frontend (app.js)', () => {
 
     expect(fetchMock).toHaveBeenCalledWith('/api/export?format=json');
     // Should have created blob url and clicked anchor (our mock)
-    expect((global as unknown as Record<string, unknown> & { URL: { createObjectURL: unknown } }).URL.createObjectURL).toHaveBeenCalled();
+    expect(
+      (global as unknown as Record<string, unknown> & { URL: { createObjectURL: unknown } }).URL
+        .createObjectURL,
+    ).toHaveBeenCalled();
   });
 
   it('export CSV button uses ?format=csv', async () => {
@@ -462,7 +470,10 @@ describe('AgentTrace Dashboard Frontend (app.js)', () => {
     loadAppScript();
     await new Promise((r) => setTimeout(r, 5));
 
-    expect((global as unknown as Record<string, unknown>).setInterval).toHaveBeenCalledWith(expect.any(Function), 5000);
+    expect((global as unknown as Record<string, unknown>).setInterval).toHaveBeenCalledWith(
+      expect.any(Function),
+      5000,
+    );
   });
 
   it('handles empty states gracefully (no runs, no traces)', async () => {

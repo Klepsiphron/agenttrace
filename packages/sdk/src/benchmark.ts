@@ -71,7 +71,11 @@ export interface ConcurrentResult {
   tracesPerSecond: number;
 }
 
-function makeTraceData(i: number, runId: string, baseTime: number): Omit<Trace, 'createdAt' | 'updatedAt'> {
+function makeTraceData(
+  i: number,
+  runId: string,
+  baseTime: number,
+): Omit<Trace, 'createdAt' | 'updatedAt'> {
   const models = ['gpt-4o', 'gpt-4o-mini', 'claude-sonnet-4', 'gemini-2.0-flash'] as const;
   const model = models[i % models.length];
   const isError = i % 20 === 0;
@@ -163,7 +167,12 @@ async function benchQueries(agent: AgentTrace): Promise<QueriesResult> {
   let t0 = performance.now();
   let res = agent.getTraces();
   let t = performance.now() - t0;
-  queries.push({ name: 'noFilter', filter: {}, count: res.length, timeMs: Math.round(t * 100) / 100 });
+  queries.push({
+    name: 'noFilter',
+    filter: {},
+    count: res.length,
+    timeMs: Math.round(t * 100) / 100,
+  });
 
   // by status success
   t0 = performance.now();

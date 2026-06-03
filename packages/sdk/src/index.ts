@@ -454,7 +454,7 @@ export class AgentTrace {
     const now = Date.now();
 
     for (const alert of this.registeredAlerts) {
-      const cooldownMs = Math.max(0, (alert.cooldown || 0)) * 1000;
+      const cooldownMs = Math.max(0, alert.cooldown || 0) * 1000;
       const last = alert.lastTriggered || 0;
       if (cooldownMs > 0 && now - last < cooldownMs) {
         continue;
@@ -480,7 +480,11 @@ export class AgentTrace {
     return results;
   }
 
-  private async deliverAlert(alert: AlertCondition, stats: TraceStats, now: number): Promise<AlertHistory> {
+  private async deliverAlert(
+    alert: AlertCondition,
+    stats: TraceStats,
+    now: number,
+  ): Promise<AlertHistory> {
     const numericStats: Record<string, number> = {
       totalRuns: stats.totalRuns || 0,
       totalTraces: stats.totalTraces || 0,

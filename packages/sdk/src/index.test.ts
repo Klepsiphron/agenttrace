@@ -664,7 +664,12 @@ describe('evaluate() and evaluateTrace()', () => {
 describe('alert()', () => {
   it('creates an AlertCondition', () => {
     const cond = (stats: TraceStats) => stats.totalTraces > 10;
-    const a = alert({ name: 'high-volume', condition: cond, cooldown: 120, webhook: 'https://ex/hook' });
+    const a = alert({
+      name: 'high-volume',
+      condition: cond,
+      cooldown: 120,
+      webhook: 'https://ex/hook',
+    });
     expect(a.name).toBe('high-volume');
     expect(typeof a.condition).toBe('function');
     expect(a.condition({ totalTraces: 5 } as unknown as TraceStats)).toBe(false);

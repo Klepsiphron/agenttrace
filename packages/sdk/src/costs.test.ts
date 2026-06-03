@@ -38,7 +38,12 @@ describe('cost tracking improvements (new tests)', () => {
 
     agent.startRun('reg-run');
     await agent.trace('custom-priced', async () => 'ok', {
-      tokens: { promptTokens: 1000, completionTokens: 500, totalTokens: 1500, model: 'custom-rate-model' },
+      tokens: {
+        promptTokens: 1000,
+        completionTokens: 500,
+        totalTokens: 1500,
+        model: 'custom-rate-model',
+      },
       model: 'custom-rate-model',
     });
 
@@ -55,7 +60,12 @@ describe('cost tracking improvements (new tests)', () => {
       model: 'gpt-4o',
     });
     await agent.trace('m2', async () => 'b', {
-      tokens: { promptTokens: 0, completionTokens: 1000, totalTokens: 1000, model: 'claude-sonnet-4' },
+      tokens: {
+        promptTokens: 0,
+        completionTokens: 1000,
+        totalTokens: 1000,
+        model: 'claude-sonnet-4',
+      },
       model: 'claude-sonnet-4',
     });
 
@@ -111,15 +121,30 @@ describe('cost tracking improvements (new tests)', () => {
   it('calculates for newly added models (claude-opus-4, gemini-2.5 etc)', async () => {
     agent.startRun('new-models-run');
     await agent.trace('opus', async () => 'o', {
-      tokens: { promptTokens: 1000, completionTokens: 0, totalTokens: 1000, model: 'claude-opus-4' },
+      tokens: {
+        promptTokens: 1000,
+        completionTokens: 0,
+        totalTokens: 1000,
+        model: 'claude-opus-4',
+      },
       model: 'claude-opus-4',
     });
     await agent.trace('g25f', async () => 'g', {
-      tokens: { promptTokens: 1000, completionTokens: 0, totalTokens: 1000, model: 'gemini-2.5-flash' },
+      tokens: {
+        promptTokens: 1000,
+        completionTokens: 0,
+        totalTokens: 1000,
+        model: 'gemini-2.5-flash',
+      },
       model: 'gemini-2.5-flash',
     });
     await agent.trace('ll4m', async () => 'l', {
-      tokens: { promptTokens: 1000, completionTokens: 0, totalTokens: 1000, model: 'llama-4-maverick' },
+      tokens: {
+        promptTokens: 1000,
+        completionTokens: 0,
+        totalTokens: 1000,
+        model: 'llama-4-maverick',
+      },
       model: 'llama-4-maverick',
     });
 

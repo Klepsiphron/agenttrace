@@ -6,7 +6,7 @@ AI agents have become remarkably capable, but when they go wrong — or cost too
 
 We built AgentTrace because the existing options forced an uncomfortable choice: send your prompts, outputs, and agent traces to a third-party cloud, or accept significant operational overhead to self-host something production-grade.
 
-AgentTrace is open-source (MIT), local-first observability for AI agents. Drop in the SDK (TypeScript or Python), wrap your agent logic or use framework middleware, and every token, tool call, latency, and cost is captured in a local SQLite database. Query it from the terminal with a full-featured CLI, view it in a dark-themed local web dashboard, or export it as JSON, CSV, or OpenTelemetry spans. Your data never leaves your machine unless *you* explicitly send it.
+AgentTrace is open-source (MIT), local-first observability for AI agents. Drop in the SDK (TypeScript or Python), wrap your agent logic or use framework middleware, and every token, tool call, latency, and cost is captured in a local SQLite database. Query it from the terminal with a full-featured CLI, view it in a dark-themed local web dashboard, or export it as JSON, CSV, or OpenTelemetry spans. Your data never leaves your machine unless _you_ explicitly send it.
 
 This post covers the problem, surveys the current landscape (Langfuse, LangSmith, Braintrust, Helicone, Arize Phoenix), explains our deliberately narrow but deep approach, walks through key features with code, provides an honest comparison, and shows how to get started today.
 
@@ -49,16 +49,16 @@ Several strong products address LLM/agent observability. They excel for teams bu
 
 **Arize Phoenix** (OSS, 9k+ stars) is the nearest local peer: `pip install arize-phoenix` spins up fast for notebooks or a single Docker container, native OTEL/OpenInference with broad auto-instrumentation (LangGraph, CrewAI, etc.), plus evals, datasets, and prompt playground. Excellent for dev/debug. The full Arize AX is paid enterprise. It runs a local server process even for local use; less emphasis on pure terminal CLI or ad-hoc SQLite queries against a plain `.db` file.
 
-**Common limitations.** Most tools target *production teams* or *full LLM platforms* (prompt registries, heavy experiment harnesses, annotation queues). This brings either mandatory cloud data movement or non-trivial self-host infra (Docker/K8s, multiple services, ongoing maintenance). Pricing (seats, traces, scores, GB, requests) is reasonable at scale but painful during rapid iteration. Very few make the CLI a first-class, zero-config interface.
+**Common limitations.** Most tools target _production teams_ or _full LLM platforms_ (prompt registries, heavy experiment harnesses, annotation queues). This brings either mandatory cloud data movement or non-trivial self-host infra (Docker/K8s, multiple services, ongoing maintenance). Pricing (seats, traces, scores, GB, requests) is reasonable at scale but painful during rapid iteration. Very few make the CLI a first-class, zero-config interface.
 
 ## Our Approach: Local-First, CLI-First, Privacy-First
 
-AgentTrace bets on a common 80% case: "I want to understand what just happened in *this* agent run on *my* machine, right now — without accounts, Docker, or data leaving."
+AgentTrace bets on a common 80% case: "I want to understand what just happened in _this_ agent run on _my_ machine, right now — without accounts, Docker, or data leaving."
 
 - **Storage is one SQLite file** (`agenttrace.db`). WAL + normalized schema (runs, traces, tool_calls, scores, alerts, links). Own it, query it with `sqlite3`, rsync it, or `.gitignore` it. No servers or volumes.
 - **CLI is primary.** `npx agenttrace runs`, `stats`, `costs --daily`, `tree`, `export --format otel`, `alerts` etc. stay in your terminal flow.
 - **Dashboard is tiny and local.** `npx agenttrace dashboard` starts an embedded Express UI against the same DB. No separate frontend install.
-- **Zero cloud by default.** Data leaves only via explicit export or a webhook *you* configure.
+- **Zero cloud by default.** Data leaves only via explicit export or a webhook _you_ configure.
 - **Framework-agnostic + middlewares.** Works for raw calls or custom loops. Ships LangGraph (TS) and CrewAI (Py) auto-instrumentation for nodes/tasks/tools.
 - **Cost built-in.** ~15 models with 2026 rates + `registerModelRate()`. Per-trace + breakdowns.
 - **TS + Py parity.** Same DB schema; mixed teams share one file.
@@ -118,10 +118,17 @@ npx agenttrace dashboard   # localhost UI
 **Evals (post-hoc):**
 
 ```typescript
-await agent.evaluate({ runId: 'r1', scorers: [
-  { name: 'relevance', fn: t => judge(t.output) },
-  { name: 'tool_ok', fn: t => (t.toolCalls||[]).filter(x=>x.success).length / (t.toolCalls||[]).length || 0 }
-]});
+await agent.evaluate({
+  runId: 'r1',
+  scorers: [
+    { name: 'relevance', fn: (t) => judge(t.output) },
+    {
+      name: 'tool_ok',
+      fn: (t) =>
+        (t.toolCalls || []).filter((x) => x.success).length / (t.toolCalls || []).length || 0,
+    },
+  ],
+});
 ```
 
 Scores persist to the DB.
@@ -136,26 +143,26 @@ Register conditions on stats (e.g. `totalCostUsd > 5`); auto-checked on traces; 
 
 Here is an honest, 2026-era snapshot focused on the dimensions that matter for local/privacy-focused agent development. (Numbers and plans change; verify on vendor sites.)
 
-| Dimension                        | AgentTrace                          | Langfuse                                      | LangSmith                                      | Braintrust                               | Helicone                                 | Arize Phoenix (OSS)                     |
-|----------------------------------|-------------------------------------|-----------------------------------------------|------------------------------------------------|------------------------------------------|------------------------------------------|-----------------------------------------|
-| **Core model**                   | Local SQLite file, zero infra       | OSS (self-host) + Cloud                       | Cloud (self-host Enterprise)                   | Cloud (self-host Enterprise)             | OSS self-host + Cloud                    | Local-first OSS server + Cloud AX       |
-| **Setup for local use**          | `npm install` or `pip install` + file | Docker Compose (multiple services)            | Sign up (or Enterprise k8s)                    | Sign up (Enterprise for self-host)       | Docker Compose                           | `pip install arize-phoenix` or single container |
-| **CLI / terminal UX**            | Full featured (runs, stats, tree, costs, export, alerts) | Web UI primary                                | Web UI primary                                 | Web + strong experiment UX               | Web + gateway focus                      | Web UI + notebook + some CLI client     |
-| **Data leaves machine by default**| Never (unless you export/webhook)  | Only on cloud tier                            | Always on standard plans                       | Always on standard plans                 | On cloud; self-host keeps it             | Local Phoenix keeps it; cloud sends     |
-| **Built-in cost tracking**       | Yes (15+ models, runtime registration) | Yes                                           | Yes                                            | Yes (estimated)                          | Yes (via gateway)                        | Limited / via attributes                |
-| **Evals / scoring**              | Post-hoc scorers + storage          | Full (online/offline, LLM judges, datasets)   | Full (online/offline, datasets)                | Excellent (Loop, experiments, human review) | Scores + experiments                     | Strong (phoenix-evals, experiments)     |
-| **Prompt management / playground**| No                                 | Yes                                           | Yes (Prompt Hub)                               | Yes + strong iteration                   | Limited                                  | Yes (Prompt IDE, management)            |
-| **Framework integrations**       | Agnostic + LangGraph/CrewAI middleware | Broad + OTel + LiteLLM proxy                  | Excellent for LangGraph, others via OTEL       | Broad via instrumentation                | Strong via proxy/gateway                 | Excellent (OpenInference, many)         |
-| **OTEL export**                  | Native, zero-dep OTLP JSON          | Native                                        | Supported                                      | Supported                                | Supported                                | Native (core strength)                  |
-| **Local dashboard**              | Yes (npx, embedded, single process) | Yes (after Docker)                            | N/A (cloud)                                    | N/A (cloud/Enterprise)                   | Yes (self-host)                          | Yes (local server)                      |
-| **Pricing for local / solo dev** | Free forever (MIT)                  | Free self-host (infra cost only); cloud free tier then paid | Free tier (5k traces, 14d); paid $39/seat + usage | Free tier (limited GB/scores); Pro $249/mo | Free tier 10k req; usage after; self-host free | Free OSS; AX cloud/enterprise paid      |
-| **Self-host complexity**         | None (file + optional tiny server)  | Medium-High (Docker + 5+ services)            | High (Enterprise k8s/hybrid)                   | Enterprise only (hybrid data plane)      | Medium (Docker)                          | Low (pip or single container)           |
-| **Maturity / community (approx)**| New (small)                         | High (~28k GitHub stars)                      | High (LangChain ecosystem)                     | High (focused AI teams)                  | Growing                                  | High (~9k+ GitHub stars)                |
-| **Best for**                     | Privacy, terminal workflows, zero-config local tracing, mixed TS/Py | Full-featured OSS platform, teams okay with Docker or cloud | LangGraph production apps, teams wanting managed platform | Evals-heavy quality workflows, experiment iteration | Gateway + obs in one, usage-based scale | Local dev/debug + rich evals in notebook or Docker, OTEL fans |
+| Dimension                          | AgentTrace                                                          | Langfuse                                                    | LangSmith                                                 | Braintrust                                          | Helicone                                       | Arize Phoenix (OSS)                                           |
+| ---------------------------------- | ------------------------------------------------------------------- | ----------------------------------------------------------- | --------------------------------------------------------- | --------------------------------------------------- | ---------------------------------------------- | ------------------------------------------------------------- |
+| **Core model**                     | Local SQLite file, zero infra                                       | OSS (self-host) + Cloud                                     | Cloud (self-host Enterprise)                              | Cloud (self-host Enterprise)                        | OSS self-host + Cloud                          | Local-first OSS server + Cloud AX                             |
+| **Setup for local use**            | `npm install` or `pip install` + file                               | Docker Compose (multiple services)                          | Sign up (or Enterprise k8s)                               | Sign up (Enterprise for self-host)                  | Docker Compose                                 | `pip install arize-phoenix` or single container               |
+| **CLI / terminal UX**              | Full featured (runs, stats, tree, costs, export, alerts)            | Web UI primary                                              | Web UI primary                                            | Web + strong experiment UX                          | Web + gateway focus                            | Web UI + notebook + some CLI client                           |
+| **Data leaves machine by default** | Never (unless you export/webhook)                                   | Only on cloud tier                                          | Always on standard plans                                  | Always on standard plans                            | On cloud; self-host keeps it                   | Local Phoenix keeps it; cloud sends                           |
+| **Built-in cost tracking**         | Yes (15+ models, runtime registration)                              | Yes                                                         | Yes                                                       | Yes (estimated)                                     | Yes (via gateway)                              | Limited / via attributes                                      |
+| **Evals / scoring**                | Post-hoc scorers + storage                                          | Full (online/offline, LLM judges, datasets)                 | Full (online/offline, datasets)                           | Excellent (Loop, experiments, human review)         | Scores + experiments                           | Strong (phoenix-evals, experiments)                           |
+| **Prompt management / playground** | No                                                                  | Yes                                                         | Yes (Prompt Hub)                                          | Yes + strong iteration                              | Limited                                        | Yes (Prompt IDE, management)                                  |
+| **Framework integrations**         | Agnostic + LangGraph/CrewAI middleware                              | Broad + OTel + LiteLLM proxy                                | Excellent for LangGraph, others via OTEL                  | Broad via instrumentation                           | Strong via proxy/gateway                       | Excellent (OpenInference, many)                               |
+| **OTEL export**                    | Native, zero-dep OTLP JSON                                          | Native                                                      | Supported                                                 | Supported                                           | Supported                                      | Native (core strength)                                        |
+| **Local dashboard**                | Yes (npx, embedded, single process)                                 | Yes (after Docker)                                          | N/A (cloud)                                               | N/A (cloud/Enterprise)                              | Yes (self-host)                                | Yes (local server)                                            |
+| **Pricing for local / solo dev**   | Free forever (MIT)                                                  | Free self-host (infra cost only); cloud free tier then paid | Free tier (5k traces, 14d); paid $39/seat + usage         | Free tier (limited GB/scores); Pro $249/mo          | Free tier 10k req; usage after; self-host free | Free OSS; AX cloud/enterprise paid                            |
+| **Self-host complexity**           | None (file + optional tiny server)                                  | Medium-High (Docker + 5+ services)                          | High (Enterprise k8s/hybrid)                              | Enterprise only (hybrid data plane)                 | Medium (Docker)                                | Low (pip or single container)                                 |
+| **Maturity / community (approx)**  | New (small)                                                         | High (~28k GitHub stars)                                    | High (LangChain ecosystem)                                | High (focused AI teams)                             | Growing                                        | High (~9k+ GitHub stars)                                      |
+| **Best for**                       | Privacy, terminal workflows, zero-config local tracing, mixed TS/Py | Full-featured OSS platform, teams okay with Docker or cloud | LangGraph production apps, teams wanting managed platform | Evals-heavy quality workflows, experiment iteration | Gateway + obs in one, usage-based scale        | Local dev/debug + rich evals in notebook or Docker, OTEL fans |
 
 **When to choose AgentTrace:**
 
-- You want observability *right now* without installing Docker, creating accounts, or provisioning infra.
+- You want observability _right now_ without installing Docker, creating accounts, or provisioning infra.
 - Your prompts and traces are sensitive (or you just prefer to keep them local until you decide otherwise).
 - You (or your team) live in the terminal and want first-class `agenttrace stats` / `tree` / `export` workflows.
 - You build agents across languages or frameworks and don't want to bet on one ecosystem's observability.
@@ -168,7 +175,7 @@ Here is an honest, 2026-era snapshot focused on the dimensions that matter for l
 - You love the notebook + rich local UI + strong evals experience of Phoenix and are happy running a local server process → Arize Phoenix.
 - You want an AI gateway with caching/fallbacks + observability in the same layer → Helicone.
 
-We compete on *simplicity and guarantees*, not on breadth of lifecycle features.
+We compete on _simplicity and guarantees_, not on breadth of lifecycle features.
 
 ## Getting Started
 

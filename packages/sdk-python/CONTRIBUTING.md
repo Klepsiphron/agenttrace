@@ -29,12 +29,13 @@ This installs `pytest` and makes the `agenttrace` package importable from source
 pytest
 ```
 
-- Tests live in `tests/` (test_*.py)
+- Tests live in `tests/` (test\_\*.py)
 - Uses pytest configuration from `pyproject.toml` (verbose, short tracebacks)
 - Integration tests use temporary SQLite DB files
 - All tests must pass before PR
 
 Example:
+
 ```bash
 pytest -q                  # quieter
 pytest tests/test_core.py  # specific file
@@ -67,6 +68,7 @@ When adding features, **mirror the TypeScript SDK API** (`packages/sdk/src/index
 - Version: Bump in `pyproject.toml` and `__init__.py` / core.py `VERSION` (keep in sync with TS for now).
 
 Example of mirroring:
+
 - TS `getCostBreakdown` → Python `get_cost_breakdown`
 - TS `dbPath` in config → Python accepts `db_path` (and normalizes `dbPath`)
 

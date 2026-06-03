@@ -78,7 +78,7 @@ manual = Scorer(name="custom", fn=lambda t: 0.5)
 ```typescript
 const results = await agent.evaluate({
   scorers: [outputLength, lowLatency, noError, hasCitations],
-  runId: 'your-run-id',   // omit to score everything
+  runId: 'your-run-id', // omit to score everything
   concurrency: 4,
 });
 
@@ -155,10 +155,12 @@ Example: find the best traces by composite score
 const traces = agent.getTraces({ runId });
 const scored = await agent.evaluate({ scorers: [outputLength, lowLatency], runId });
 
-const withComposite = scored.map(r => {
-  const composite = (r.scores['output-length'] || 0) * 0.6 + (r.scores['low-latency'] || 0) * 0.4;
-  return { traceId: r.traceId, composite, ...r.scores };
-}).sort((a, b) => b.composite - a.composite);
+const withComposite = scored
+  .map((r) => {
+    const composite = (r.scores['output-length'] || 0) * 0.6 + (r.scores['low-latency'] || 0) * 0.4;
+    return { traceId: r.traceId, composite, ...r.scores };
+  })
+  .sort((a, b) => b.composite - a.composite);
 
 console.log('Best traces:', withComposite.slice(0, 3));
 ```

@@ -32,20 +32,28 @@ const agent = init(); // uses ./agenttrace.db
 async function researchAgent(query: string) {
   return await trace('research-agent', async () => {
     // Step 1: retrieval
-    const docs = await trace('retrieve', async () => {
-      // ... call your retriever
-      return ['doc1', 'doc2'];
-    }, { input: query });
+    const docs = await trace(
+      'retrieve',
+      async () => {
+        // ... call your retriever
+        return ['doc1', 'doc2'];
+      },
+      { input: query },
+    );
 
     // Step 2: LLM call with tokens for accurate cost
-    const answer = await trace('synthesize', async () => {
-      const res = await callLLM({ model: 'gpt-4o-mini', prompt: query + docs.join() });
-      return res;
-    }, {
-      input: { query, docs },
-      tokens: { promptTokens: 120, completionTokens: 45, totalTokens: 165 },
-      model: 'gpt-4o-mini',
-    });
+    const answer = await trace(
+      'synthesize',
+      async () => {
+        const res = await callLLM({ model: 'gpt-4o-mini', prompt: query + docs.join() });
+        return res;
+      },
+      {
+        input: { query, docs },
+        tokens: { promptTokens: 120, completionTokens: 45, totalTokens: 165 },
+        model: 'gpt-4o-mini',
+      },
+    );
 
     return answer;
   });

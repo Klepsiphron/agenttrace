@@ -1,5 +1,3 @@
-
-
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
@@ -87,21 +85,30 @@ describe('CLI cost commands (new tests)', () => {
       model: 'gpt-4.1',
     });
     await t.trace('seed-gem', async () => 'ok', {
-      tokens: { promptTokens: 1000, completionTokens: 0, totalTokens: 1000, model: 'gemini-2.5-flash' },
+      tokens: {
+        promptTokens: 1000,
+        completionTokens: 0,
+        totalTokens: 1000,
+        model: 'gemini-2.5-flash',
+      },
       model: 'gemini-2.5-flash',
     });
     t.completeRun();
     // another run
     const run2 = t.startRun('cli-run2');
     await t.trace('seed-ll', async () => 'ok', {
-      tokens: { promptTokens: 2000, completionTokens: 0, totalTokens: 2000, model: 'llama-4-scout' },
+      tokens: {
+        promptTokens: 2000,
+        completionTokens: 0,
+        totalTokens: 2000,
+        model: 'llama-4-scout',
+      },
       model: 'llama-4-scout',
     });
     t.completeRun();
     t.close();
     return { runId, run2 };
   }
-
 
   it('exports package name and version unchanged', () => {
     expect(PACKAGE_NAME).toBe('@agenttrace/cli');
@@ -136,7 +143,7 @@ describe('CLI cost commands (new tests)', () => {
     expect(out).toMatch(/\d{4}-\d{2}-\d{2}/); // a date key
   });
 
-  it('costs --run-id <id> shows only that run\'s costs', async () => {
+  it("costs --run-id <id> shows only that run's costs", async () => {
     const { runId, run2 } = await seedCosts();
     process.argv = ['node', 'agenttrace', 'costs', '--run-id', runId];
     try {

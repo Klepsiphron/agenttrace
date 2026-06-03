@@ -2,6 +2,7 @@
 
 **Date of research:** 2026-06 (current session)  
 **Sources:**
+
 - GitHub: https://github.com/tensorstax/agenttrace (primary source code per request; 63 stars, main branch)
 - PyPI: `agenttrace` (v0.1.2)
 - npm: `@agenttrace/sdk` (v0.1.0, published ~4 months prior by ripple0129; repo links in metadata point to non-existent github.com/agenttrace/agenttrace)
@@ -19,7 +20,8 @@
 **Primary artifact:** A lightweight, hackable, local-first tracing + evaluation framework for AI agents/LLMs. MIT licensed (copyright PigeonsAI/TensorStax).
 
 **Key architecture (from src/agenttrace/agenttrace.py):**
-- **TraceManager** (singleton): 
+
+- **TraceManager** (singleton):
   - Decorator-based tracing: `@tracer.trace(tags=["foo"], session_id="bar")` on sync or async functions.
   - Internals use START/END (merged to COMPLETE) trace_type entries.
   - Captures: function name, args/kwargs (deep sanitized for JSON, handles OpenAI objects + Pydantic), result, duration_ms, optional `tool_eval` (JSON schema validation for tool outputs when `tools` kwarg present with `input_schema`).
@@ -43,6 +45,7 @@
 **Usage style (from README):** Heavy decorator + explicit session_id/tags for grouping/categorization. Designed for "wrap your agent functions/LLM calls".
 
 **Web Dashboard:** Not embedded. Requires separate:
+
 - `cd frontend && npm run install:all && npm run start`
 - Starts Express backend (port 3033, uses `sqlite` + `sqlite3` driver via `open()`) + React client (Vite 5173).
 - API: `/api/traces*` (list/filter by type/tag/function/session, sessions, types, functions, tags, DELETE single/session), `/api/evals*`, `/api/db*`.
@@ -58,6 +61,7 @@
 **Description (from npm README + extracted dist/):** "TypeScript SDK for recording AI agent activity to an AgentTrace server." Apache-2.0. Weekly downloads ~3. 1 dependency: `@agenttrace/shared`.
 
 **Core API (from dist/agent-trace.js + types):**
+
 - `AgentTrace.init({ apiKey: required, agentId: required, endpoint?, flushInterval=5000, maxBufferSize=50 })`
 - Event types: llm_call, heartbeat, error, custom (via zod in shared).
 - `track({ provider?, model?, tokens: {input,output,total}?, latency_ms?, status?, error_message?, tags?, trace_id?, span_id?, parent_span_id? })` — enqueues "llm_call" event.
@@ -92,9 +96,10 @@ curl -s https://pypi.org/pypi/agenttrace-io/json
 ```
 
 **Interpretation:**
+
 - **npm `@agenttrace-io/sdk`**: "Not found" means the scoped package name is **available** for publishing (no existing package at that path).
 - **PyPI `agenttrace-io`**: "Not Found" means the distribution name is **available**.
-- Additional: Direct GET on npm scope `@agenttrace-io` returns MethodNotAllowed (normal for scopes; you query specific packages). No evidence of existing `@agenttrace-io` org/packages in search results or metadata. 
+- Additional: Direct GET on npm scope `@agenttrace-io` returns MethodNotAllowed (normal for scopes; you query specific packages). No evidence of existing `@agenttrace-io` org/packages in search results or metadata.
 - For contrast (not requested but relevant): `agenttrace` is **taken on both** (PyPI v0.1.2 by TensorStax; npm `@agenttrace/sdk` exists and is the one analyzed). Our project already publishes under `agenttrace` (PyPI) and `@agenttrace/sdk` (npm), creating direct name collision risk for users.
 
 **Recommendation in doc context:** `@agenttrace-io` (and variants like `@agenttrace-io/sdk`, `agenttrace-io`) appears clear for a scoped "io" org/brand if we want to differentiate (e.g., for a hosted sibling or to avoid collision). However, "agenttrace" namespace is already contested on PyPI.
@@ -104,35 +109,37 @@ curl -s https://pypi.org/pypi/agenttrace-io/json
 ## 3. How Our Approach Differs
 
 **High-level philosophy:**
-- **Theirs (tensorstax + @agenttrace/sdk):** Python-centric local decorator tracing + powerful built-in eval runner. Terminal live feedback. Evaluation is "during experiment" with test cases + scorers at definition. Dashboard is a full separate full-stack Node/React app (you run a server to view). The npm SDK is orthogonal: thin client for pushing to *a server* (ingest + presumably hosted UI/alerts). Emphasis on hackability, tags/sessions, tool schema validation, and eval-as-first-class during development.
+
+- **Theirs (tensorstax + @agenttrace/sdk):** Python-centric local decorator tracing + powerful built-in eval runner. Terminal live feedback. Evaluation is "during experiment" with test cases + scorers at definition. Dashboard is a full separate full-stack Node/React app (you run a server to view). The npm SDK is orthogonal: thin client for pushing to _a server_ (ingest + presumably hosted UI/alerts). Emphasis on hackability, tags/sessions, tool schema validation, and eval-as-first-class during development.
 - **Ours (this monorepo):** Full cross-language (TS + Python parity), local-only zero-cloud by design, structured relational SQLite (runs/traces/tool_calls/scores/alerts with aggregates), explicit cost tracking + model rates, framework-native auto-instrumentation via middlewares, integrated CLI (rich queries + export + dashboard), embedded dashboard (Express + static assets, npx-launched, no separate frontend repo install), post-hoc evaluation (scorers on existing traces), built-in OTEL export, alerting/webhooks on stats, run lifecycle (start/complete). Data model is normalized (not JSON blobs), supports token/cost/latency as first-class columns.
 
 **Detailed feature contrast (selected):**
 
-| Aspect                    | tensorstax/agenttrace (Py) + npm SDK          | Our AgentTrace (monorepo)                                      |
-|---------------------------|-----------------------------------------------|----------------------------------------------------------------|
-| **Primary languages**    | Python SDK core; TS only for frontend + thin client SDK | First-class TS SDK + Python SDK (near API parity)             |
-| **Tracing model**        | Decorator `@trace(...)` on fns; START/END/COMPLETE; session_id + tags; JSON data blob | `trace(name, fn, {input,tokens,model,...})` + Py context/decorator; explicit runs; normalized rows + separate tool_calls |
-| **Auto cost**            | No (pricing utils in shared but not wired to traces) | Yes, default calculator + 15+ models, `registerModelRate`, per-trace + breakdowns |
-| **Token handling**       | User captures in result/kwargs; not normalized top-level | Explicit `TokenUsage` (prompt/completion/total + model/provider) |
-| **Framework integrations**| Manual decorators (examples use raw OpenAI) | LangGraph middleware (before/afterNode, heuristic token extract from langchain usage_metadata etc.); CrewAI event hooks (tasks + tools) |
-| **Evaluations**          | First-class `TracerEval` (data+task+scores at run time, trials, tool schema tracking, stores eval_* tables, scorer source snapshot) | Post-hoc `evaluate({scorers, runId/traceIds})` + `score(name, fn)`; stores in `scores` table; concurrency control |
-| **Tool calls**           | Optional schema validation during trace (if tools+input_schema); captured in data | `ToolCall[]` structured (name, input, output, latency, success, error, ts); recorded at trace time (middleware support) |
-| **Storage**              | SQLite (flat traces + eval tables); in-mem buffer | SQLite (WAL + FKs); normalized runs + traces + tool_calls + scores + alerts + history; run stat rollups; auto cleanup maxTraces |
-| **Dashboard/UI**         | Separate `frontend/` (Express 3033 + React/Vite 5173); must `npm run` + install; reads same DB | Integrated `@agenttrace/dashboard` (npx agenttrace dashboard or via cli); static + API in one; also full CLI tables |
-| **CLI**                  | Minimal: only "start" for frontend           | Full: runs, stats, export (json/csv/otel), dashboard, init, version; colored tables |
-| **Export**               | Via UI or direct DB query                     | `export('json'|'csv'|'otel')`; full OTLP JSON spans generated client-side (no deps) |
-| **Alerting / webhooks**  | Heartbeats in npm SDK (for server-side agent-down detection) | Built-in `registerAlert({name, condition(stats)=>bool, webhook, cooldown})`; auto-check on traces; delivery history; persisted |
-| **Distributed tracing**  | Manual startTrace/startSpan in npm SDK (emits custom events) | runId + metadata; traces linked to runs (no explicit spans yet) |
-| **Liveness**             | heartbeats (npm client)                       | Via runs (status running/success) + stats; no explicit heartbeats |
-| **Costs / pricing**      | Shared lib has calculateCost + model list     | Deeply integrated (per trace, breakdowns by model/day, getCostBreakdown) |
-| **OTEL**                 | None                                          | Native `export('otel')` + resource/span attrs with agenttrace.* namespace |
-| **Local-only guarantee** | Yes for Python lib; npm SDK is client-to-server | Yes, everywhere (SQLite file, never leaves machine unless user exports or configures webhook) |
-| **Zero-config UI**       | Requires Node + npm install in frontend/     | `npx agenttrace dashboard` (pulls @agenttrace/*); or programmatic |
-| **Version (core)**       | 0.1.2 (Py), 0.1.0 (npm)                       | 0.1.0 (all packages)                                          |
-| **License**              | MIT (GitHub), Apache-2.0 (npm SDK)            | MIT (all)                                                     |
+| Aspect                     | tensorstax/agenttrace (Py) + npm SDK                                                                                                  | Our AgentTrace (monorepo)                                                                                                               |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | ----- | -------------------------------------------------------------- |
+| **Primary languages**      | Python SDK core; TS only for frontend + thin client SDK                                                                               | First-class TS SDK + Python SDK (near API parity)                                                                                       |
+| **Tracing model**          | Decorator `@trace(...)` on fns; START/END/COMPLETE; session_id + tags; JSON data blob                                                 | `trace(name, fn, {input,tokens,model,...})` + Py context/decorator; explicit runs; normalized rows + separate tool_calls                |
+| **Auto cost**              | No (pricing utils in shared but not wired to traces)                                                                                  | Yes, default calculator + 15+ models, `registerModelRate`, per-trace + breakdowns                                                       |
+| **Token handling**         | User captures in result/kwargs; not normalized top-level                                                                              | Explicit `TokenUsage` (prompt/completion/total + model/provider)                                                                        |
+| **Framework integrations** | Manual decorators (examples use raw OpenAI)                                                                                           | LangGraph middleware (before/afterNode, heuristic token extract from langchain usage_metadata etc.); CrewAI event hooks (tasks + tools) |
+| **Evaluations**            | First-class `TracerEval` (data+task+scores at run time, trials, tool schema tracking, stores eval\_\* tables, scorer source snapshot) | Post-hoc `evaluate({scorers, runId/traceIds})` + `score(name, fn)`; stores in `scores` table; concurrency control                       |
+| **Tool calls**             | Optional schema validation during trace (if tools+input_schema); captured in data                                                     | `ToolCall[]` structured (name, input, output, latency, success, error, ts); recorded at trace time (middleware support)                 |
+| **Storage**                | SQLite (flat traces + eval tables); in-mem buffer                                                                                     | SQLite (WAL + FKs); normalized runs + traces + tool_calls + scores + alerts + history; run stat rollups; auto cleanup maxTraces         |
+| **Dashboard/UI**           | Separate `frontend/` (Express 3033 + React/Vite 5173); must `npm run` + install; reads same DB                                        | Integrated `@agenttrace/dashboard` (npx agenttrace dashboard or via cli); static + API in one; also full CLI tables                     |
+| **CLI**                    | Minimal: only "start" for frontend                                                                                                    | Full: runs, stats, export (json/csv/otel), dashboard, init, version; colored tables                                                     |
+| **Export**                 | Via UI or direct DB query                                                                                                             | `export('json'                                                                                                                          | 'csv' | 'otel')`; full OTLP JSON spans generated client-side (no deps) |
+| **Alerting / webhooks**    | Heartbeats in npm SDK (for server-side agent-down detection)                                                                          | Built-in `registerAlert({name, condition(stats)=>bool, webhook, cooldown})`; auto-check on traces; delivery history; persisted          |
+| **Distributed tracing**    | Manual startTrace/startSpan in npm SDK (emits custom events)                                                                          | runId + metadata; traces linked to runs (no explicit spans yet)                                                                         |
+| **Liveness**               | heartbeats (npm client)                                                                                                               | Via runs (status running/success) + stats; no explicit heartbeats                                                                       |
+| **Costs / pricing**        | Shared lib has calculateCost + model list                                                                                             | Deeply integrated (per trace, breakdowns by model/day, getCostBreakdown)                                                                |
+| **OTEL**                   | None                                                                                                                                  | Native `export('otel')` + resource/span attrs with agenttrace.\* namespace                                                              |
+| **Local-only guarantee**   | Yes for Python lib; npm SDK is client-to-server                                                                                       | Yes, everywhere (SQLite file, never leaves machine unless user exports or configures webhook)                                           |
+| **Zero-config UI**         | Requires Node + npm install in frontend/                                                                                              | `npx agenttrace dashboard` (pulls @agenttrace/\*); or programmatic                                                                      |
+| **Version (core)**         | 0.1.2 (Py), 0.1.0 (npm)                                                                                                               | 0.1.0 (all packages)                                                                                                                    |
+| **License**                | MIT (GitHub), Apache-2.0 (npm SDK)                                                                                                    | MIT (all)                                                                                                                               |
 
 **Data model differences (key):**
+
 - Their traces are semi-structured (fixed columns + arbitrary JSON "data"). Good for flexibility/hackability.
 - Ours: strongly typed columns for tokens/cost/latency/status/error + JSON only for input/output/metadata. Separate normalized tool_calls table. Enables efficient SQL aggregates (our getStats, costByModel, topTools, costByDay etc.).
 - Runs vs sessions: ours has explicit Run with rollup counters/totals; theirs relies on session_id + post-query grouping.
@@ -146,9 +153,10 @@ curl -s https://pypi.org/pypi/agenttrace-io/json
 ## 4. What We Can Learn From Theirs
 
 **Positive / Adoptable ideas:**
-- **Decorator ergonomics + dual usage:** Their `@tracer.trace` (no parens for simple, or with options) + support for both sync/async via inspect.iscoroutinefunction is clean. Our Python already has context + decorator + lambda forms (via _TraceContext); TS could benefit from better decorator sugar or a `trace` decorator helper.
+
+- **Decorator ergonomics + dual usage:** Their `@tracer.trace` (no parens for simple, or with options) + support for both sync/async via inspect.iscoroutinefunction is clean. Our Python already has context + decorator + lambda forms (via \_TraceContext); TS could benefit from better decorator sugar or a `trace` decorator helper.
 - **Live terminal feedback:** Spinners during active traces + immediate ✓ completion + duration is delightful for CLI/agent dev loops. Easy win: add optional progress logging/spinner to our trace() (behind config.silent or a `verbose` flag). Our CLI already has color, we can extend.
-- **First-class evals with experiment tracking:** `TracerEval` + dedicated eval_* tables + "run an eval" as a primitive (with trials, tool tracking, score code capture) is more "eval harness" than our current scorer application. Their approach shines for regression testing agents over time. We have plans/ docs for evaluation framework (see docs/plans/2026-06-03-evaluation-framework.md); we can learn from their data model (eval_results as blobs with full outputs + per-scorer) and UI concepts.
+- **First-class evals with experiment tracking:** `TracerEval` + dedicated eval\_\* tables + "run an eval" as a primitive (with trials, tool tracking, score code capture) is more "eval harness" than our current scorer application. Their approach shines for regression testing agents over time. We have plans/ docs for evaluation framework (see docs/plans/2026-06-03-evaluation-framework.md); we can learn from their data model (eval_results as blobs with full outputs + per-scorer) and UI concepts.
 - **Tool output schema validation as scoring primitive:** Built into tracing path for tool-calling agents. We can add optional `outputSchema` or validator to trace options, or a built-in scorer type.
 - **Session + tags for flexible grouping:** Simple, powerful for filtering in UI without rigid "run" concept. We have runId + metadata + name filter; adding lightweight tags (array on Trace) would be compatible and useful for their-style workflows.
 - **Source capture for reproducibility:** Snapshotting scorer source code via inspect is clever for audit. We could do similar for registered scorers/alert conditions.
@@ -157,6 +165,7 @@ curl -s https://pypi.org/pypi/agenttrace-io/json
 - **Pricing in shared:** Having a central model list + cost calc (even if not auto-applied in their Python core) is good. We already do this well and more comprehensively (many 2026 models, runtime registration).
 
 **Areas where their design shows tradeoffs (avoid or improve):**
+
 - Flat JSON data + START/END merging makes some queries (aggregates, cost sums) harder without app-layer code. Our normalized + trigger-like run stat updates + SQL aggregates are stronger for stats/CLI/costs.
 - No cost or token columns at storage level limits observability value out of the box (users must parse data).
 - Dashboard requires running a full Node dev server + installs (friction vs our npx single-command).
@@ -184,7 +193,7 @@ curl -s https://pypi.org/pypi/agenttrace-io/json
 - **Privacy + simplicity positioning:** Matches their "local" but delivers more out-of-box (costs, CLI, middlewares, OTEL, alerts) without requiring a separate UI server process for viewing. Our comparison.md already positions vs Langfuse/LangSmith on these axes; the tensorstax project is another local-ish peer that we differentiate from via integration depth and cost/standards support.
 - **Avoiding name collision pitfalls:** By documenting this, we can choose clear branding (e.g., lean into @agenttrace-io if expanding).
 
-**Market/context:** Both projects are small/new (theirs ~63 GitHub stars, low npm downloads for the SDK). Direct PyPI name collision on "agenttrace" already exists — users installing "agenttrace" get theirs. Our TS packages under @agenttrace/* are distinct. The npm @agenttrace/sdk (server client) + our @agenttrace/sdk (local) would also collide if a user encounters both.
+**Market/context:** Both projects are small/new (theirs ~63 GitHub stars, low npm downloads for the SDK). Direct PyPI name collision on "agenttrace" already exists — users installing "agenttrace" get theirs. Our TS packages under @agenttrace/\* are distinct. The npm @agenttrace/sdk (server client) + our @agenttrace/sdk (local) would also collide if a user encounters both.
 
 ---
 
@@ -197,6 +206,7 @@ curl -s https://pypi.org/pypi/agenttrace-io/json
 5. **Next steps (internal):** Update our comparison.md or ROADMAP with this peer; consider scoped packages or README clarifiers ("not to be confused with the TensorStax agenttrace PyPI package"); explore adding tags + live trace UX polish.
 
 **Appendix: Key file references (from research)**
+
 - Tensorstax core: https://github.com/tensorstax/agenttrace/blob/main/src/agenttrace/agenttrace.py
 - Their frontend server repo layer + DB: frontend/server/repositories/traceRepository.ts + services/dbService.ts
 - npm SDK source (extracted): dist/agent-trace.js (buffering, init, track, startTrace, flush logic)
