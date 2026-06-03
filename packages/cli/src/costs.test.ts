@@ -5,6 +5,8 @@ import * as path from 'node:path';
 import { main, PACKAGE_NAME, VERSION } from './index.js';
 import { AgentTrace } from '@agenttrace/sdk';
 
+/* eslint-disable @typescript-eslint/no-explicit-any -- test console/process spies and error catching use loose types */
+
 function makeTempDbPath(): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'agenttrace-cli-costs-'));
   return path.join(dir, 'agenttrace.db');
@@ -106,7 +108,7 @@ describe('CLI cost commands (new tests)', () => {
   });
 
   it('costs command prints breakdown by model (default)', async () => {
-    const { runId } = await seedCosts();
+    await seedCosts();
     process.argv = ['node', 'agenttrace', 'costs'];
     try {
       main();

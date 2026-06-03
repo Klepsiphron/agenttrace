@@ -154,6 +154,7 @@ Commands:
   stats                Show summary statistics
   costs                Show cost breakdown by model (or --daily)
   export               Export traces to JSON or CSV
+  alerts               Manage alerts: list | test --name N | history
   version              Show CLI version
 
 Options (by command):
@@ -167,6 +168,10 @@ Options (by command):
     --output FILE        Write to file instead of stdout
   costs:
     --daily              Breakdown costs by day instead of by model
+  alerts:
+    list                 List configured alerts
+    test --name NAME     Test delivery for alert (forces condition + ignores cooldown)
+    history              Show alert trigger history
 
 Global:
   --json               Emit machine-readable JSON (for runs, traces, stats, costs, export)
@@ -181,6 +186,9 @@ Examples:
   agenttrace costs
   agenttrace costs --daily --json
   agenttrace costs --run-id abc123
+  agenttrace alerts list
+  agenttrace alerts test --name high-error-rate
+  agenttrace alerts history
   npx agenttrace version
 `);
 }
@@ -228,7 +236,7 @@ function getAgentTrace(requireDb = true): AgentTrace {
   return new AgentTrace({ dbPath: DB_PATH, silent: true });
 }
 
-function main(): void {
+async function main(): Promise<void> {
   try {
     const { command, flags } = parseArgs(process.argv);
 
@@ -238,6 +246,22 @@ function main(): void {
     }
 
     const useJson = !!flags.json;
+
+    // detect subcommand for alerts (e.g. alerts list, alerts test)
+    let _alertsSub: string | undefined;
+    if (command === 'alerts') {
+      const argvArgs = process.argv.slice(2);
+      const idx = argvArgs.indexOf('alerts');
+      if (idx !== -1) {
+        for (let k = idx + 1; k < argvArgs.length; k++) {
+          const c = argvArgs[k];
+          if (typeof c === 'string' && !c.startsWith('-')) {
+            _alertsSub = c;
+            break;
+          }
+        }
+      }
+    }
 
     switch (command) {
       case 'init': {
@@ -376,6 +400,101 @@ function main(): void {
         break;
       }
 
+      case 'alerts': {
+        const sub = alertsSub || 'list';
+        const dbExists = existsSync(DB_PATH);
+        if (!dbExists && (sub === 'test' || sub === 'history')) {
+          console.error(`No ${DB_PATH} found in current directory.`);
+          console.error('Run "agenttrace init" to create one.');
+          process.exit(1);
+        }
+        if (sub === 'list' || sub === '') {
+          if (!dbExists) {
+            if (useJson) {
+              console.log('[]');
+            } else {
+              console.log('No alerts configured.');
+            }
+            break;
+          }
+          const agent = new AgentTrace({ dbPath: DB_PATH, silent: true });
+          const alerts = agent.getAlerts();
+          agent.close();
+          if (useJson) {
+            console.log(JSON.stringify(alerts, null, 2));
+          } else if (alerts.length === 0) {
+            console.log('No alerts configured.');
+          } else {
+            console.log('Configured alerts:');
+            for (const a of alerts) {
+              const parts: string[] = [`cooldown=${a.cooldown}s`];
+              if (a.webhook) parts.push('webhook');
+              if (a.email) parts.push('email');
+              const last = a.lastTriggered ? new Date(a.lastTriggered).toISOString().slice(0, 19) : 'never';
+              console.log(`  ${a.name} (${parts.join(', ')}) lastTriggered=${last}`);
+            }
+          }
+          break;
+        }
+        const agent = new AgentTrace({ dbPath: DB_PATH, silent: true });
+        if (sub === 'history') {
+          const history = agent.getAlertHistory();
+          agent.close();
+          if (useJson) {
+            console.log(JSON.stringify(history, null, 2));
+          } else if (history.length === 0) {
+            console.log('No alert history.');
+          } else {
+            console.log('Alert history (newest first):');
+            for (const h of history.slice(0, 100)) {
+              const t = new Date(h.triggeredAt).toISOString().slice(0, 19).replace('T', ' ');
+              const del = h.delivered ? 'delivered' : `failed${h.error ? ' (' + h.error + ')' : ''}`;
+              console.log(`  ${t}  ${h.alertName}  ${del}`);
+            }
+          }
+          break;
+        }
+        if (sub === 'test') {
+          const name = (flags.name || flags['name']) ? String(flags.name || flags['name']) : '';
+          if (!name) {
+            console.error('Usage: agenttrace alerts test --name <name>');
+            agent.close();
+            process.exit(1);
+          }
+          const alerts = agent.getAlerts();
+          const def = alerts.find((a: AlertCondition) => a.name === name);
+          if (!def) {
+            console.error(`Alert '${name}' not found. Register it via the SDK first.`);
+            agent.close();
+            process.exit(1);
+          }
+          // Force a test by registering a temp always-true version (bypasses cooldown + uses stored config)
+          const testAlert: AlertCondition = {
+            name: def.name,
+            condition: () => true,
+            webhook: def.webhook,
+            email: def.email,
+            cooldown: 0,
+            lastTriggered: 0,
+          };
+          agent.registerAlert(testAlert);
+          const fired = await agent.checkAlerts();
+          agent.close();
+          if (fired.length > 0) {
+            const f = fired[0];
+            const outcome = f.delivered ? 'delivered' : `failed${f.error ? ': ' + f.error : ''}`;
+            console.log(`Test-fired alert '${name}'. ${outcome}`);
+          } else {
+            console.log(`Alert '${name}' test did not fire.`);
+          }
+          break;
+        }
+        console.error(`Unknown alerts subcommand: ${sub}`);
+        printUsage();
+        agent.close();
+        process.exit(1);
+      }
+
       case 'version': {
         console.log(`${PACKAGE_NAME} ${VERSION}`);
         break;
@@ -408,7 +527,10 @@ const isMain = (() => {
 })();
 
 if (isMain) {
-  main();
+  main().catch((err: unknown) => {
+    console.error('Error:', err instanceof Error ? err.message : String(err));
+    process.exit(1);
+  });
 }
 
 export { main };

@@ -293,6 +293,13 @@ export class AgentTrace {
       if (this.config.autoCleanup) {
         this.storage.cleanup(this.config.maxTraces);
       }
+
+      // Auto-check alerts after each trace (awaited so history/delivery visible to caller immediately)
+      try {
+        await this.checkAlerts();
+      } catch {
+        // alerts must never cause trace() to fail
+      }
     }
 
     return result!;
@@ -660,4 +667,14 @@ export function getAgentTrace(): AgentTrace {
  */
 export function score(name: string, fn: Scorer['fn']): Scorer {
   return { name, fn };
+}
+
+/**
+ * Helper to create an AlertCondition (omits lastTriggered which is internal).
+ */
+export function alert(config: Omit<AlertCondition, 'lastTriggered'>): AlertCondition {
+  return {
+    ...config,
+    lastTriggered: undefined,
+  };
 }

@@ -2,10 +2,12 @@ import { describe, it, expect, afterEach } from 'vitest';
 import { createDashboardApp } from './index.js';
 import * as http from 'node:http';
 
+/* eslint-disable @typescript-eslint/no-explicit-any -- test server address and fetch harness use loose types */
+
 function getServerPort(server: http.Server): number {
   const addr = server.address();
   if (addr && typeof addr === 'object' && 'port' in addr) {
-    return (addr as any).port || 0;
+    return ((addr as any).port as number) || 0;
   }
   return 0;
 }
@@ -18,12 +20,16 @@ describe('dashboard cost API endpoints (new tests)', () => {
     servers.forEach((s) => {
       try {
         s.close();
-      } catch {}
+      } catch {
+        // ignore close errors in cleanup
+      }
     });
     closes.forEach((c) => {
       try {
         c();
-      } catch {}
+      } catch {
+        // ignore close errors in cleanup
+      }
     });
     servers = [];
     closes = [];
