@@ -15,17 +15,20 @@ from .core import (
     evaluate_trace,
 )
 from .types import (
-    Trace,
+    AgentUsageFilter,
+    AgentUsageRecord,
+    EvaluateOptions,
+    ExportFormat,
     Run,
+    Scorer,
+    ScorerResult,
     TokenUsage,
     ToolCall,
+    Trace,
     TraceConfig,
     TraceFilter,
     TraceStats,
-    ExportFormat,
-    Scorer,
-    ScorerResult,
-    EvaluateOptions,
+    UsageStats,
 )
 
 __all__ = [
@@ -50,4 +53,7 @@ __all__ = [
     "Scorer",
     "ScorerResult",
     "EvaluateOptions",
+    "AgentUsageRecord",
+    "AgentUsageFilter",
+    "UsageStats",
 ]

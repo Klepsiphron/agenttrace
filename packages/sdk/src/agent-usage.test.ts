@@ -37,7 +37,9 @@ describe('agent_usage tracking system', () => {
 
   it('creates agent_usage table on schema init', () => {
     // Access private db for schema verification (standard in storage tests)
-    const db = (storage as unknown as { db: { prepare: (sql: string) => { get: () => { name?: string } } } }).db;
+    const db = (
+      storage as unknown as { db: { prepare: (sql: string) => { get: () => { name?: string } } } }
+    ).db;
     const row = db
       .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='agent_usage'")
       .get();

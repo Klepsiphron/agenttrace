@@ -12,6 +12,9 @@ import {
   type TraceStats,
   type CostBreakdown,
   type TraceTreeNode,
+  type AgentUsageRecord,
+  type AgentWho,
+  type AgentSession,
   AlertCondition,
   ExportFormat,
   TraceStorage,
@@ -181,6 +184,10 @@ Commands:
   alerts               Manage alerts: list | test --name N | history
   health               Check health of gateway, dashboard, and database
   self-stats           Show OWL/Hermes self-tracked usage (today, week, top actions, costs, sessions)
+  who                  Show active agents (usage tracking)
+  cost                 Show agent cost breakdown (periods + by agent/model)
+  sessions             List agent sessions with aggregates
+  activity             Show recent agent activity timeline
   version              Show CLI version
 
 Options (by command):
@@ -200,6 +207,24 @@ Options (by command):
     list                 List configured alerts
     test --name NAME     Test delivery for alert (forces condition + ignores cooldown)
     history              Show alert trigger history
+  who:
+    --active             Only agents active in last 30min
+    --type TYPE          Filter by agent type
+    --limit N            Max agents to show (default 50)
+  cost:
+    --from DATE          Start date (YYYY-MM-DD or ISO)
+    --to DATE            End date (YYYY-MM-DD or ISO)
+    --agent NAME         Filter to specific agent
+    --format json|table  Output format (default: table)
+  sessions:
+    --agent NAME         Filter by agent name
+    --active             Only sessions with recent activity (30min)
+    --limit N            Max sessions (default 20)
+  activity:
+    --agent NAME         Filter by agent
+    --type ACTION        Filter by action type
+    --limit N            Max entries (default 30)
+    --since DURATION     e.g. 1h, 30m, 2d (from now backwards)
 
 Global:
   --json               Emit machine-readable JSON (for runs, traces, stats, costs, export, self-stats)
@@ -220,6 +245,11 @@ Examples:
   agenttrace-io tree --trace-id abc123def
   agenttrace-io self-stats
   agenttrace-io self-stats --json
+  agenttrace-io who --active --limit 10
+  agenttrace-io cost --format table
+  agenttrace-io cost --agent researcher-1 --from 2026-01-01
+  agenttrace-io sessions --active
+  agenttrace-io activity --since 2h --limit 20
   npx agenttrace-io version
   # alias also works: npx agenttrace ...
 `);
@@ -276,7 +306,10 @@ function printSelfStats(storage: TraceStorage, useJson: boolean): void {
   const actionCounts: Record<string, number> = {};
   for (const t of selfTraces) {
     const meta = t.metadata || {};
-    const at = (meta.actionType as string) || (t.name || '').replace(/^self:/, '').split(':')[0] || 'unknown';
+    const at =
+      (meta.actionType as string) ||
+      (t.name || '').replace(/^self:/, '').split(':')[0] ||
+      'unknown';
     actionCounts[at] = (actionCounts[at] || 0) + 1;
   }
   const topActions = Object.entries(actionCounts)
@@ -360,10 +393,161 @@ function printSelfStats(storage: TraceStorage, useJson: boolean): void {
     }
   }
   console.log('');
-  console.log(`Active Sessions: ${activeSessions}${activeSessionIds.length ? ' (' + activeSessionIds.join(', ') + ')' : ''}`);
+  console.log(
+    `Active Sessions: ${activeSessions}${activeSessionIds.length ? ' (' + activeSessionIds.join(', ') + ')' : ''}`,
+  );
   if (summary.totalSelfTraces === 0) {
     console.log('\n(No self-tracked data yet. Use SelfTracker in your agent to record actions.)');
   }
+}
+
+// ---- Agent usage CLI helpers (who, cost, sessions, activity) ----
+
+function parseSinceDuration(s: string | boolean | undefined): number | undefined {
+  if (!s || typeof s !== 'string') return undefined;
+  const m = s.trim().match(/^(\d+)([smhd])$/i);
+  if (!m) return undefined;
+  const n = parseInt(m[1], 10);
+  if (!Number.isFinite(n) || n <= 0) return undefined;
+  const unit = m[2].toLowerCase();
+  const mult = unit === 's' ? 1000 : unit === 'm' ? 60000 : unit === 'h' ? 3600000 : 86400000;
+  return Date.now() - n * mult;
+}
+
+function parseDateInput(d: string | boolean | undefined): number | undefined {
+  if (!d || typeof d !== 'string') return undefined;
+  const t = Date.parse(d);
+  if (Number.isFinite(t)) return t;
+  return undefined;
+}
+
+function formatDuration(ms: number): string {
+  if (ms < 1000) return `${ms}ms`;
+  const totalSec = Math.floor(ms / 1000);
+  if (totalSec < 60) return `${totalSec}s`;
+  const m = Math.floor(totalSec / 60);
+  const s = totalSec % 60;
+  return `${m}m${s}s`;
+}
+
+function formatDateShort(ts: number): string {
+  if (!ts) return '';
+  return new Date(ts).toISOString().slice(0, 19).replace('T', ' ');
+}
+
+function getModelFromRec(r: AgentUsageRecord): string {
+  const meta = r.metadata || {};
+  const m = (meta as Record<string, unknown>).model;
+  return typeof m === 'string' ? m : 'unknown';
+}
+
+function computeAgentCostBreakdown(recs: AgentUsageRecord[]): {
+  totalCostUsd: number;
+  costByAgent: Record<string, number>;
+  costByModel: Record<string, number>;
+} {
+  let total = 0;
+  const byAgent: Record<string, number> = {};
+  const byModel: Record<string, number> = {};
+  for (const r of recs) {
+    const c = r.costUsd || 0;
+    total += c;
+    byAgent[r.agentName] = (byAgent[r.agentName] || 0) + c;
+    const mod = getModelFromRec(r);
+    byModel[mod] = (byModel[mod] || 0) + c;
+  }
+  return { totalCostUsd: total, costByAgent: byAgent, costByModel: byModel };
+}
+
+function getPeriodStarts(): { today: number; week: number; month: number; all: number } {
+  const now = Date.now();
+  const dToday = new Date(now);
+  dToday.setHours(0, 0, 0, 0);
+  const today = dToday.getTime();
+
+  // week start (monday) reuse logic similar to self-stats
+  const dWeek = new Date(now);
+  const day = dWeek.getDay();
+  const diff = dWeek.getDate() - day + (day === 0 ? -6 : 1);
+  dWeek.setDate(diff);
+  dWeek.setHours(0, 0, 0, 0);
+  const week = dWeek.getTime();
+
+  const dMonth = new Date(now);
+  dMonth.setDate(1);
+  dMonth.setHours(0, 0, 0, 0);
+  const month = dMonth.getTime();
+
+  return { today, week, month, all: 0 };
+}
+
+function printAgentCostSection(title: string, bd: ReturnType<typeof computeAgentCostBreakdown>): void {
+  console.log(title);
+  console.log('='.repeat(title.length));
+  console.log(`Total: $${bd.totalCostUsd.toFixed(4)}`);
+  // by agent
+  const agents = Object.entries(bd.costByAgent).sort(([, a], [, b]) => b - a);
+  if (agents.length > 0) {
+    console.log('By Agent:');
+    for (const [name, c] of agents.slice(0, 10)) {
+      console.log(`  ${name}: $${c.toFixed(4)}`);
+    }
+  }
+  // by model
+  const models = Object.entries(bd.costByModel).sort(([, a], [, b]) => b - a);
+  if (models.length > 0) {
+    console.log('By Model:');
+    for (const [m, c] of models.slice(0, 10)) {
+      console.log(`  ${m}: $${c.toFixed(4)}`);
+    }
+  }
+  console.log('');
+}
+
+function printWhoTable(who: AgentWho[]): void {
+  const headers = ['Agent', 'Type', 'Session', 'Last Action', 'Actions', 'Tokens', 'Cost'];
+  const rows = who.map((w) => [
+    w.agentName,
+    w.agentType || '',
+    w.sessionId ? w.sessionId.substring(0, 8) : '',
+    w.lastAction,
+    String(w.actions),
+    String(w.tokens),
+    (w.costUsd || 0).toFixed(4),
+  ]);
+  printTable(headers, rows);
+}
+
+function printSessionsTable(sessions: AgentSession[]): void {
+  const headers = ['Session ID', 'Agent', 'Started', 'Duration', 'Actions', 'Tokens', 'Cost', 'Status'];
+  const rows = sessions.map((s) => [
+    s.sessionId.substring(0, 12),
+    s.agentName,
+    formatDateShort(s.startedAt),
+    formatDuration(s.durationMs),
+    String(s.actions),
+    String(s.tokens),
+    (s.costUsd || 0).toFixed(4),
+    colorizeStatus(s.status),
+  ]);
+  printTable(headers, rows);
+}
+
+function printActivityTimeline(recs: AgentUsageRecord[]): void {
+  if (recs.length === 0) {
+    console.log('No activity found.');
+    return;
+  }
+  const headers = ['Time', 'Agent', 'Action', 'Tokens', 'Cost', 'Status'];
+  const rows = recs.map((r) => [
+    formatDateShort(r.createdAt),
+    r.agentName,
+    r.action + (r.target ? `:${r.target}` : ''),
+    String(r.tokensUsed || 0),
+    (r.costUsd || 0).toFixed(4),
+    colorizeStatus(r.status),
+  ]);
+  printTable(headers, rows);
 }
 
 interface ParsedArgs {
@@ -777,15 +961,15 @@ async function runMain(): Promise<void> {
         console.log('=================');
         const gStr = gatewayOk ? `${GREEN}ok${RESET}` : `${RED}fail${RESET}`;
         console.log(`gateway:   ${gStr}`);
-        const dStr = dashOk
-          ? `${GREEN}ok${RESET}`
-          : `${YELLOW}not running${RESET}`;
+        const dStr = dashOk ? `${GREEN}ok${RESET}` : `${YELLOW}not running${RESET}`;
         console.log(`dashboard: ${dStr} (${dashUrl})`);
         const dbStr = dbOk ? `${GREEN}ok${RESET}` : `${RED}fail${RESET}`;
         const extra = dbOk ? ` (traces=${dbTraceCount}, size=${dbSize}B)` : '';
         console.log(`database:  ${dbStr} (${dbp})${extra}`);
         if (dbOk && dbIntegrity && (!dbIntegrity.tablesExist || !dbIntegrity.noOrphans)) {
-          console.log(`  ${YELLOW}integrity: tablesExist=${dbIntegrity.tablesExist}, noOrphans=${dbIntegrity.noOrphans}${dbIntegrity.details ? ' ' + dbIntegrity.details : ''}${RESET}`);
+          console.log(
+            `  ${YELLOW}integrity: tablesExist=${dbIntegrity.tablesExist}, noOrphans=${dbIntegrity.noOrphans}${dbIntegrity.details ? ' ' + dbIntegrity.details : ''}${RESET}`,
+          );
         }
       }
 
@@ -806,6 +990,158 @@ async function runMain(): Promise<void> {
       const storage = new TraceStorage(dbp);
       try {
         printSelfStats(storage, useJson);
+      } finally {
+        storage.close();
+      }
+      break;
+    }
+
+    case 'who': {
+      const dbp = getDbPath();
+      const storage = new TraceStorage(dbp);
+      try {
+        const activeOnly = !!flags.active;
+        const typeF = flags.type ? String(flags.type) : undefined;
+        const rawLim = flags.limit ? parseInt(String(flags.limit), 10) : NaN;
+        const lim = Number.isFinite(rawLim) && rawLim > 0 ? rawLim : 50;
+        const who = storage.getAgentWho({ activeOnly, agentType: typeF, limit: lim });
+        if (useJson) {
+          console.log(JSON.stringify(who, null, 2));
+        } else if (who.length === 0) {
+          console.log('No agents found.');
+        } else {
+          printWhoTable(who);
+        }
+      } finally {
+        storage.close();
+      }
+      break;
+    }
+
+    case 'cost': {
+      const dbp = getDbPath();
+      const storage = new TraceStorage(dbp);
+      try {
+        const agentF = flags.agent ? String(flags.agent) : undefined;
+        const from = parseDateInput(flags.from);
+        const to = parseDateInput(flags.to);
+        const fmt = (flags.format ? String(flags.format) : 'table').toLowerCase();
+        const isJson = fmt === 'json' || useJson;
+
+        const allRecs = storage.getAgentUsage({
+          agentName: agentF,
+          limit: 50000,
+        });
+
+        if (from || to) {
+          const filtered = allRecs.filter((r) => {
+            if (from && r.createdAt < from) return false;
+            if (to && r.createdAt > to) return false;
+            return true;
+          });
+          const bd = computeAgentCostBreakdown(filtered);
+          if (isJson) {
+            console.log(
+              JSON.stringify(
+                {
+                  range: { from: from ? new Date(from).toISOString() : null, to: to ? new Date(to).toISOString() : null },
+                  agent: agentF || null,
+                  ...bd,
+                },
+                null,
+                2,
+              ),
+            );
+          } else {
+            const title = `Agent Cost Breakdown (custom range)${agentF ? ` for ${agentF}` : ''}`;
+            printAgentCostSection(title, bd);
+          }
+        } else {
+          // show 4 periods + breakdowns
+          const periods = getPeriodStarts();
+          const todayRecs = allRecs.filter((r) => r.createdAt >= periods.today);
+          const weekRecs = allRecs.filter((r) => r.createdAt >= periods.week);
+          const monthRecs = allRecs.filter((r) => r.createdAt >= periods.month);
+          const allBd = computeAgentCostBreakdown(allRecs);
+          const todayBd = computeAgentCostBreakdown(todayRecs);
+          const weekBd = computeAgentCostBreakdown(weekRecs);
+          const monthBd = computeAgentCostBreakdown(monthRecs);
+
+          if (isJson) {
+            console.log(
+              JSON.stringify(
+                {
+                  agent: agentF || null,
+                  today: todayBd,
+                  week: weekBd,
+                  month: monthBd,
+                  allTime: allBd,
+                },
+                null,
+                2,
+              ),
+            );
+          } else {
+            console.log('Agent Cost Breakdown');
+            console.log('====================');
+            if (agentF) console.log(`Filter: agent=${agentF}`);
+            console.log('');
+            printAgentCostSection('Today', todayBd);
+            printAgentCostSection('This Week', weekBd);
+            printAgentCostSection('This Month', monthBd);
+            printAgentCostSection('All Time', allBd);
+          }
+        }
+      } finally {
+        storage.close();
+      }
+      break;
+    }
+
+    case 'sessions': {
+      const dbp = getDbPath();
+      const storage = new TraceStorage(dbp);
+      try {
+        const agentF = flags.agent ? String(flags.agent) : undefined;
+        const activeOnly = !!flags.active;
+        const rawLim = flags.limit ? parseInt(String(flags.limit), 10) : NaN;
+        const lim = Number.isFinite(rawLim) && rawLim > 0 ? rawLim : 20;
+        const sessions = storage.getAgentSessions({ agentName: agentF, activeOnly, limit: lim });
+        if (useJson) {
+          console.log(JSON.stringify(sessions, null, 2));
+        } else if (sessions.length === 0) {
+          console.log('No sessions found.');
+        } else {
+          printSessionsTable(sessions);
+        }
+      } finally {
+        storage.close();
+      }
+      break;
+    }
+
+    case 'activity': {
+      const dbp = getDbPath();
+      const storage = new TraceStorage(dbp);
+      try {
+        const agentF = flags.agent ? String(flags.agent) : undefined;
+        const actionF = flags.type ? String(flags.type) : undefined; // --type means action
+        const rawLim = flags.limit ? parseInt(String(flags.limit), 10) : NaN;
+        const lim = Number.isFinite(rawLim) && rawLim > 0 ? rawLim : 30;
+        const sinceFrom = parseSinceDuration(flags.since);
+        const f: Record<string, unknown> = { limit: lim };
+        if (agentF) f.agentName = agentF;
+        if (actionF) f.action = actionF;
+        if (sinceFrom) f.fromDate = sinceFrom;
+        const recs = storage.getAgentUsage(f as AgentUsageFilter);
+        // recs are newest-first; for "chronological" we keep that order (recent activity first is conventional)
+        if (useJson) {
+          console.log(JSON.stringify(recs, null, 2));
+        } else if (recs.length === 0) {
+          console.log('No activity found.');
+        } else {
+          printActivityTimeline(recs);
+        }
       } finally {
         storage.close();
       }

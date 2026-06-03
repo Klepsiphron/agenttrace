@@ -1,11 +1,11 @@
-import { defineConfig, globalIgnores } from "eslint/config";
-import js from "@eslint/js";
-import tseslint from "typescript-eslint";
-import globals from "globals";
-import eslintConfigPrettier from "eslint-config-prettier";
+import { defineConfig, globalIgnores } from 'eslint/config';
+import js from '@eslint/js';
+import tseslint from 'typescript-eslint';
+import globals from 'globals';
+import eslintConfigPrettier from 'eslint-config-prettier';
 
 export default defineConfig([
-  globalIgnores(["**/dist/**", "**/node_modules/**"]),
+  globalIgnores(['**/dist/**', '**/node_modules/**']),
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
@@ -15,12 +15,12 @@ export default defineConfig([
       },
     },
     rules: {
-      "@typescript-eslint/no-unused-vars": [
-        "error",
+      '@typescript-eslint/no-unused-vars': [
+        'error',
         {
-          argsIgnorePattern: "^_",
-          varsIgnorePattern: "^_",
-          caughtErrorsIgnorePattern: "^_",
+          argsIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+          caughtErrorsIgnorePattern: '^_',
         },
       ],
     },

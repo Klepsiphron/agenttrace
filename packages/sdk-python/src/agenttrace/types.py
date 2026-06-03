@@ -6,7 +6,7 @@ Open source AI agent observability
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Callable, Literal, Optional
+from typing import Any, Callable, Literal, Optional, Union
 
 
 Status = Literal["success", "failure", "error", "timeout"]
@@ -151,3 +151,52 @@ class EvaluateOptions:
     run_id: Optional[str] = None
     trace_ids: Optional[list[str]] = None
     concurrency: Optional[int] = None
+
+
+UsageStatus = Literal["success", "failure", "timeout"]
+
+
+@dataclass
+class AgentUsageRecord:
+    """Record of agent usage / action for the agent_usage tracking system (mirrors TS)."""
+
+    id: str
+    agent_name: str
+    agent_type: Optional[str] = None
+    session_id: Optional[str] = None
+    action: str = ""
+    target: Optional[str] = None
+    tokens_used: int = 0
+    cost_usd: float = 0.0
+    duration_ms: int = 0
+    status: UsageStatus = "success"
+    metadata: dict[str, Any] = field(default_factory=dict)
+    created_at: int = 0
+
+
+@dataclass
+class AgentUsageFilter:
+    """Filter for querying agent usage records (mirrors TS, plus session_id for Python convenience)."""
+
+    agent_name: Optional[str] = None
+    agent_type: Optional[str] = None
+    action: Optional[str] = None
+    status: Optional[Union[UsageStatus, list[UsageStatus]]] = None
+    from_date: Optional[int] = None
+    to_date: Optional[int] = None
+    limit: Optional[int] = None
+    offset: Optional[int] = None
+    session_id: Optional[str] = None
+
+
+@dataclass
+class UsageStats:
+    """Aggregated usage statistics (mirrors TS)."""
+
+    total_agents: int = 0
+    total_actions: int = 0
+    total_tokens: int = 0
+    total_cost_usd: float = 0.0
+    avg_duration_ms: float = 0.0
+    actions_by_type: dict[str, int] = field(default_factory=dict)
+    top_agents: list[dict[str, Any]] = field(default_factory=list)

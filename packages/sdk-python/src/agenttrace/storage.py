@@ -12,6 +12,8 @@ from pathlib import Path
 from typing import Any, Optional
 
 from .types import (
+    AgentUsageFilter,
+    AgentUsageRecord,
     Run,
     RunStatus,
     TokenUsage,
@@ -19,6 +21,7 @@ from .types import (
     Trace,
     TraceFilter,
     TraceStats,
+    UsageStats,
 )
 
 
@@ -110,6 +113,27 @@ class TraceStorage:
 
             CREATE INDEX IF NOT EXISTS idx_scores_trace_id ON scores(trace_id);
             CREATE INDEX IF NOT EXISTS idx_scores_name ON scores(name);
+
+            CREATE TABLE IF NOT EXISTS agent_usage (
+                id TEXT PRIMARY KEY,
+                agent_name TEXT NOT NULL,
+                agent_type TEXT,
+                session_id TEXT,
+                action TEXT NOT NULL,
+                target TEXT,
+                tokens_used INTEGER DEFAULT 0,
+                cost_usd REAL DEFAULT 0,
+                duration_ms INTEGER DEFAULT 0,
+                status TEXT DEFAULT 'success',
+                metadata TEXT DEFAULT '{}',
+                created_at INTEGER NOT NULL
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_agent_usage_agent_name ON agent_usage(agent_name);
+            CREATE INDEX IF NOT EXISTS idx_agent_usage_session_id ON agent_usage(session_id);
+            CREATE INDEX IF NOT EXISTS idx_agent_usage_action ON agent_usage(action);
+            CREATE INDEX IF NOT EXISTS idx_agent_usage_status ON agent_usage(status);
+            CREATE INDEX IF NOT EXISTS idx_agent_usage_created_at ON agent_usage(created_at);
 
             CREATE TABLE IF NOT EXISTS version (
                 key TEXT PRIMARY KEY,
@@ -536,6 +560,216 @@ class TraceStorage:
             for r in rows
         ]
 
+    # ---- Agent usage tracking (mirrors TS) ----
+
+    def record_agent_usage(self, params: AgentUsageRecord | dict[str, Any]) -> None:
+        """Insert an agent usage record."""
+        if isinstance(params, dict):
+            p = params
+        else:
+            p = {
+                "id": params.id,
+                "agentName": params.agent_name,
+                "agentType": params.agent_type,
+                "sessionId": params.session_id,
+                "action": params.action,
+                "target": params.target,
+                "tokensUsed": params.tokens_used,
+                "costUsd": params.cost_usd,
+                "durationMs": params.duration_ms,
+                "status": params.status,
+                "metadata": params.metadata,
+                "createdAt": params.created_at,
+            }
+        now = int(time.time() * 1000)
+        self.conn.execute(
+            """
+            INSERT INTO agent_usage (id, agent_name, agent_type, session_id, action, target, tokens_used, cost_usd, duration_ms, status, metadata, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                p.get("id") or str(__import__("uuid").uuid4()),
+                p.get("agentName") or p.get("agent_name"),
+                p.get("agentType") or p.get("agent_type"),
+                p.get("sessionId") or p.get("session_id"),
+                p.get("action"),
+                p.get("target") or p.get("target"),
+                p.get("tokensUsed") or p.get("tokens_used", 0),
+                p.get("costUsd") or p.get("cost_usd", 0),
+                p.get("durationMs") or p.get("duration_ms", 0),
+                p.get("status") or "success",
+                self._safe_json(p.get("metadata") or {}),
+                p.get("createdAt") or p.get("created_at") or now,
+            ),
+        )
+        self.conn.commit()
+
+    def get_agent_usage(
+        self, filter: AgentUsageFilter | dict[str, Any] = {}
+    ) -> list[AgentUsageRecord]:
+        """Query agent usage records with optional filters."""
+        if isinstance(filter, dict):
+            f = filter
+        else:
+            f = {
+                "agent_name": filter.agent_name,
+                "agent_type": filter.agent_type,
+                "action": filter.action,
+                "status": filter.status,
+                "from_date": filter.from_date,
+                "to_date": filter.to_date,
+                "limit": filter.limit,
+                "offset": filter.offset,
+                "session_id": getattr(filter, "session_id", None),
+            }
+
+        sql = "SELECT * FROM agent_usage WHERE 1=1"
+        params: list[Any] = []
+
+        if f.get("agent_name"):
+            sql += " AND agent_name = ?"
+            params.append(f["agent_name"])
+        if f.get("agent_type"):
+            sql += " AND agent_type = ?"
+            params.append(f["agent_type"])
+        if f.get("action"):
+            sql += " AND action = ?"
+            params.append(f["action"])
+        if f.get("status"):
+            statuses = f["status"]
+            if isinstance(statuses, str):
+                statuses = [statuses]
+            placeholders = ",".join("?" for _ in statuses)
+            sql += f" AND status IN ({placeholders})"
+            params.extend(statuses)
+        if f.get("from_date") is not None:
+            sql += " AND created_at >= ?"
+            params.append(f["from_date"])
+        if f.get("to_date") is not None:
+            sql += " AND created_at <= ?"
+            params.append(f["to_date"])
+        if f.get("session_id"):
+            sql += " AND session_id = ?"
+            params.append(f["session_id"])
+
+        sql += " ORDER BY created_at DESC"
+
+        if f.get("limit") is not None:
+            sql += " LIMIT ?"
+            params.append(f["limit"])
+        if f.get("offset") is not None:
+            sql += " OFFSET ?"
+            params.append(f["offset"])
+
+        rows = self.conn.execute(sql, params).fetchall()
+        return [self._row_to_agent_usage(r) for r in rows]
+
+    def get_usage_stats(
+        self, agent_name: Optional[str] = None, from_date: Optional[int] = None, to_date: Optional[int] = None
+    ) -> UsageStats:
+        """Return aggregated usage stats, optionally filtered by agent and date range."""
+        where_parts: list[str] = []
+        params: list[Any] = []
+        if agent_name:
+            where_parts.append("agent_name = ?")
+            params.append(agent_name)
+        if from_date is not None:
+            where_parts.append("created_at >= ?")
+            params.append(from_date)
+        if to_date is not None:
+            where_parts.append("created_at <= ?")
+            params.append(to_date)
+        where = f" WHERE {' AND '.join(where_parts)}" if where_parts else ""
+
+        total_actions_row = self.conn.execute(
+            f"SELECT COUNT(*) as c FROM agent_usage{where}", params
+        ).fetchone()
+        total_actions = total_actions_row["c"] if total_actions_row else 0
+
+        total_agents_row = self.conn.execute(
+            f"SELECT COUNT(DISTINCT agent_name) as c FROM agent_usage{where}", params
+        ).fetchone()
+        total_agents = total_agents_row["c"] if total_agents_row else 0
+
+        totals_row = self.conn.execute(
+            f"""SELECT 
+                  COALESCE(SUM(tokens_used), 0) as tokens,
+                  COALESCE(SUM(cost_usd), 0) as cost,
+                  COALESCE(AVG(duration_ms), 0) as avg_dur
+                 FROM agent_usage{where}""",
+            params,
+        ).fetchone()
+        total_tokens = totals_row["tokens"] if totals_row else 0
+        total_cost_usd = totals_row["cost"] if totals_row else 0.0
+        avg_duration_ms = totals_row["avg_dur"] if totals_row else 0.0
+
+        by_type_rows = self.conn.execute(
+            f"SELECT action, COUNT(*) as count FROM agent_usage{where} GROUP BY action ORDER BY count DESC",
+            params,
+        ).fetchall()
+        actions_by_type: dict[str, int] = {}
+        for r in by_type_rows:
+            actions_by_type[r["action"]] = r["count"]
+
+        top_rows = self.conn.execute(
+            f"""SELECT 
+                  agent_name,
+                  COUNT(*) as actions,
+                  COALESCE(SUM(tokens_used), 0) as tokens,
+                  COALESCE(SUM(cost_usd), 0) as cost
+                 FROM agent_usage{where} 
+                 GROUP BY agent_name 
+                 ORDER BY actions DESC, cost DESC 
+                 LIMIT 10""",
+            params,
+        ).fetchall()
+        top_agents: list[dict[str, Any]] = [
+            {
+                "agentName": r["agent_name"],
+                "actions": r["actions"],
+                "tokens": r["tokens"],
+                "costUsd": r["cost"],
+            }
+            for r in top_rows
+        ]
+
+        return UsageStats(
+            total_agents=total_agents or 0,
+            total_actions=total_actions or 0,
+            total_tokens=total_tokens or 0,
+            total_cost_usd=total_cost_usd or 0.0,
+            avg_duration_ms=avg_duration_ms or 0.0,
+            actions_by_type=actions_by_type,
+            top_agents=top_agents,
+        )
+
+    def get_active_agents(self) -> list[dict[str, Any]]:
+        """Return list of agents with last active time (ISO) and total actions, most recent first."""
+        rows = self.conn.execute(
+            """
+            SELECT agent_name, MAX(created_at) as last_ts, COUNT(*) as total
+            FROM agent_usage
+            GROUP BY agent_name
+            ORDER BY last_ts DESC
+            """
+        ).fetchall()
+        result: list[dict[str, Any]] = []
+        import datetime
+        for r in rows:
+            last_ts = r["last_ts"] or int(time.time() * 1000)
+            dt = datetime.datetime.fromtimestamp(last_ts / 1000, tz=datetime.timezone.utc)
+            iso = dt.isoformat()
+            if iso.endswith("+00:00"):
+                iso = iso[:-6] + "Z"
+            result.append(
+                {
+                    "agentName": r["agent_name"],
+                    "lastActive": iso,
+                    "totalActions": r["total"],
+                }
+            )
+        return result
+
     # ---- Helpers ----
 
     def _safe_json(self, obj: Any) -> str | None:
@@ -609,6 +843,22 @@ class TraceStorage:
             metadata=json.loads(row["metadata"] or "{}"),
             created_at=row["created_at"],
             updated_at=row["updated_at"],
+        )
+
+    def _row_to_agent_usage(self, row: sqlite3.Row) -> AgentUsageRecord:
+        return AgentUsageRecord(
+            id=row["id"],
+            agent_name=row["agent_name"],
+            agent_type=row["agent_type"],
+            session_id=row["session_id"],
+            action=row["action"],
+            target=row["target"],
+            tokens_used=row["tokens_used"] or 0,
+            cost_usd=row["cost_usd"] or 0.0,
+            duration_ms=row["duration_ms"] or 0,
+            status=row["status"] or "success",
+            metadata=json.loads(row["metadata"] or "{}"),
+            created_at=row["created_at"],
         )
 
     def close(self) -> None:

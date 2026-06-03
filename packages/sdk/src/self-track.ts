@@ -45,7 +45,11 @@ export class SelfTracker {
 
   private appendLog(entry: Record<string, unknown>): void {
     this.ensureLogDir();
-    appendFileSync(this.logPath, JSON.stringify({ ...entry, timestamp: entry.timestamp || Date.now() }) + '\n', 'utf8');
+    appendFileSync(
+      this.logPath,
+      JSON.stringify({ ...entry, timestamp: entry.timestamp || Date.now() }) + '\n',
+      'utf8',
+    );
   }
 
   private ensureSession(): string {
@@ -284,7 +288,13 @@ export class SelfTracker {
     }
   }
 
-  getSessionStats(): { sessionId: string; actions: number; duration: number; tokens: number; cost: number } {
+  getSessionStats(): {
+    sessionId: string;
+    actions: number;
+    duration: number;
+    tokens: number;
+    cost: number;
+  } {
     if (!this.currentSessionId) {
       return { sessionId: '', actions: 0, duration: 0, tokens: 0, cost: 0 };
     }

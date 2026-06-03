@@ -4,6 +4,7 @@
  */
 
 import { randomUUID, createHash } from 'node:crypto';
+import { EventEmitter } from 'node:events';
 import { TraceStorage } from './storage.js';
 import {
   Trace,
@@ -23,6 +24,11 @@ import {
   TraceContext,
   TraceTreeNode,
   HealthReport,
+  AgentUsageRecord,
+  AgentUsageFilter,
+  UsageStats,
+  AgentWho,
+  AgentSession,
 } from './types.js';
 
 export const VERSION = '0.1.0';
@@ -51,6 +57,8 @@ export type {
   AgentUsageRecord,
   AgentUsageFilter,
   UsageStats,
+  AgentWho,
+  AgentSession,
 } from './types.js';
 
 export { TraceContext } from './types.js';
@@ -386,6 +394,46 @@ export class AgentTrace {
    */
   getCostBreakdown(filter: { runId?: string } = {}): CostBreakdown {
     return this.storage.getCostBreakdown(filter.runId);
+  }
+
+  // ---- Agent usage tracking (for self-observability by agents) ----
+
+  /**
+   * Record a usage/action event from an agent (for agent self-tracking of its own operations/costs).
+   * Agents can call this to log high-level actions beyond LLM traces.
+   */
+  recordAgentUsage(
+    record: Omit<AgentUsageRecord, 'id' | 'createdAt'> & { id?: string; createdAt?: number },
+  ): void {
+    const full: AgentUsageRecord = {
+      id: record.id || randomUUID(),
+      createdAt: record.createdAt || Date.now(),
+      agentName: record.agentName,
+      agentType: record.agentType,
+      sessionId: record.sessionId,
+      action: record.action,
+      target: record.target,
+      tokensUsed: record.tokensUsed ?? 0,
+      costUsd: record.costUsd ?? 0,
+      durationMs: record.durationMs ?? 0,
+      status: record.status || 'success',
+      metadata: record.metadata || {},
+    };
+    this.storage.recordAgentUsage(full);
+  }
+
+  /**
+   * Query recorded agent usage records.
+   */
+  getAgentUsage(filter: AgentUsageFilter = {}): AgentUsageRecord[] {
+    return this.storage.getAgentUsage(filter);
+  }
+
+  /**
+   * Get aggregated usage statistics across agent actions.
+   */
+  getUsageStats(agentName?: string, fromDate?: number, toDate?: number): UsageStats {
+    return this.storage.getUsageStats(agentName, fromDate, toDate);
   }
 
   // ---- Multi-agent tracing (v0.2) ----

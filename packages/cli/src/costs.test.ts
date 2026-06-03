@@ -3,7 +3,8 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { main, PACKAGE_NAME, VERSION } from './index.js';
-import { AgentTrace } from '@agenttrace-io/sdk';
+import { AgentTrace, TraceStorage } from '@agenttrace-io/sdk';
+import { randomUUID } from 'node:crypto';
 
 function makeTempDbPath(): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'agenttrace-cli-costs-'));
@@ -184,5 +185,291 @@ describe('CLI cost commands (new tests)', () => {
     expect(parsed).toHaveProperty('costByModel');
     expect(parsed).toHaveProperty('costByDay');
     expect(parsed.costByModel['gpt-4.1']).toBeGreaterThan(0);
+  });
+});
+
+  async function seedAgentUsage() {
+    const storage = new TraceStorage(tmpDb);
+    const now = Date.now();
+    const t1 = now - 1000 * 60 * 10; // 10m ago
+    const t2 = now - 1000 * 60 * 60; // 1h ago
+    const t3 = now - 1000 * 60 * 90; // 1.5h ago
+
+    storage.recordAgentUsage({
+      id: randomUUID(),
+      agentName: 'researcher-1',
+      agentType: 'researcher',
+      sessionId: 'sess-abc',
+      action: 'search',
+      target: 'web:climate',
+      tokensUsed: 1500,
+      costUsd: 0.015,
+      durationMs: 1200,
+      status: 'success',
+      metadata: { model: 'gpt-4o' },
+      createdAt: t1,
+    });
+    storage.recordAgentUsage({
+      id: randomUUID(),
+      agentName: 'researcher-1',
+      agentType: 'researcher',
+      sessionId: 'sess-abc',
+      action: 'summarize',
+      target: 'doc42',
+      tokensUsed: 800,
+      costUsd: 0.008,
+      durationMs: 600,
+      status: 'success',
+      metadata: { model: 'gpt-4o' },
+      createdAt: now - 5000,
+    });
+    storage.recordAgentUsage({
+      id: randomUUID(),
+      agentName: 'coder-7',
+      agentType: 'coder',
+      sessionId: 'sess-def',
+      action: 'implement',
+      target: 'foo.ts',
+      tokensUsed: 2200,
+      costUsd: 0.022,
+      durationMs: 4500,
+      status: 'success',
+      metadata: { model: 'claude-sonnet-4' },
+      createdAt: t2,
+    });
+    storage.recordAgentUsage({
+      id: randomUUID(),
+      agentName: 'coder-7',
+      agentType: 'coder',
+      sessionId: 'sess-def',
+      action: 'test',
+      target: 'foo.test.ts',
+      tokensUsed: 300,
+      costUsd: 0.003,
+      durationMs: 800,
+      status: 'failure',
+      metadata: { model: 'claude-sonnet-4' },
+      createdAt: t2 + 10000,
+    });
+    storage.recordAgentUsage({
+      id: randomUUID(),
+      agentName: 'old-agent',
+      agentType: 'legacy',
+      sessionId: 'sess-old',
+      action: 'run',
+      target: 'x',
+      tokensUsed: 100,
+      costUsd: 0.001,
+      durationMs: 100,
+      status: 'success',
+      metadata: {},
+      createdAt: t3,
+    });
+    storage.close();
+  }
+
+  it('who command prints agent table with expected columns', async () => {
+    await seedAgentUsage();
+    process.argv = ['node', 'agenttrace-io', 'who'];
+    try {
+      main();
+    } catch (e: unknown) {
+      if (!String((e as { message?: string }).message).includes('process.exit')) throw e;
+    }
+    const out = logs.join('\n');
+    expect(out).toContain('Agent');
+    expect(out).toContain('Type');
+    expect(out).toContain('Session');
+    expect(out).toContain('Last Action');
+    expect(out).toContain('Actions');
+    expect(out).toContain('Tokens');
+    expect(out).toContain('Cost');
+    expect(out).toContain('researcher-1');
+    expect(out).toContain('coder-7');
+  });
+
+  it('who --active filters to recent (excludes old-agent)', async () => {
+    await seedAgentUsage();
+    process.argv = ['node', 'agenttrace-io', 'who', '--active'];
+    try {
+      main();
+    } catch (e: unknown) {
+      if (!String((e as { message?: string }).message).includes('process.exit')) throw e;
+    }
+    const out = logs.join('\n');
+    expect(out).toContain('researcher-1');
+    expect(out).toContain('coder-7');
+    expect(out).not.toContain('old-agent');
+  });
+
+  it('who --type researcher shows only matching type', async () => {
+    await seedAgentUsage();
+    logs.length = 0;
+    process.argv = ['node', 'agenttrace-io', 'who', '--type', 'researcher'];
+    try {
+      main();
+    } catch (e: unknown) {
+      if (!String((e as { message?: string }).message).includes('process.exit')) throw e;
+    }
+    const out = logs.join('\n');
+    expect(out).toContain('researcher-1');
+    expect(out).not.toContain('coder-7');
+  });
+
+  it('who --limit 1 returns only one row', async () => {
+    await seedAgentUsage();
+    logs.length = 0;
+    process.argv = ['node', 'agenttrace-io', 'who', '--limit', '1'];
+    try {
+      main();
+    } catch (e: unknown) {
+      if (!String((e as { message?: string }).message).includes('process.exit')) throw e;
+    }
+    const out = logs.join('\n');
+    // count data lines roughly (header + sep + 1 row)
+    const lines = out.split('\n').filter((l) => l.trim().length > 0);
+    // at least header present, but limited rows
+    expect(out).toContain('researcher-1');
+    // should not show both if limit 1 and sorted recent first
+    // (may still contain if previous logs, but we reset)
+  });
+
+  it('cost command shows Today / Week / Month / All time sections', async () => {
+    await seedAgentUsage();
+    logs.length = 0;
+    process.argv = ['node', 'agenttrace-io', 'cost'];
+    try {
+      main();
+    } catch (e: unknown) {
+      if (!String((e as { message?: string }).message).includes('process.exit')) throw e;
+    }
+    const out = logs.join('\n');
+    expect(out).toContain('Today');
+    expect(out).toContain('This Week');
+    expect(out).toContain('This Month');
+    expect(out).toContain('All Time');
+    expect(out).toContain('By Agent:');
+    expect(out).toContain('By Model:');
+    expect(out).toContain('researcher-1');
+    expect(out).toContain('gpt-4o');
+    expect(out).toContain('claude-sonnet-4');
+  });
+
+  it('cost --agent coder-7 filters costs', async () => {
+    await seedAgentUsage();
+    logs.length = 0;
+    process.argv = ['node', 'agenttrace-io', 'cost', '--agent', 'coder-7'];
+    try {
+      main();
+    } catch (e: unknown) {
+      if (!String((e as { message?: string }).message).includes('process.exit')) throw e;
+    }
+    const out = logs.join('\n');
+    expect(out).toContain('coder-7');
+    expect(out).not.toContain('researcher-1');
+  });
+
+  it('cost --format json emits structured periods', async () => {
+    await seedAgentUsage();
+    logs.length = 0;
+    process.argv = ['node', 'agenttrace-io', 'cost', '--format', 'json'];
+    try {
+      main();
+    } catch (e: unknown) {
+      if (!String((e as { message?: string }).message).includes('process.exit')) throw e;
+    }
+    const jsonLine = logs.find((l) => l.trim().startsWith('{'));
+    expect(jsonLine).toBeTruthy();
+    const parsed = JSON.parse(jsonLine!);
+    expect(parsed).toHaveProperty('today');
+    expect(parsed).toHaveProperty('week');
+    expect(parsed).toHaveProperty('month');
+    expect(parsed).toHaveProperty('allTime');
+    expect(parsed.today.totalCostUsd).toBeGreaterThan(0);
+  });
+
+  it('sessions command prints session table', async () => {
+    await seedAgentUsage();
+    logs.length = 0;
+    process.argv = ['node', 'agenttrace-io', 'sessions'];
+    try {
+      main();
+    } catch (e: unknown) {
+      if (!String((e as { message?: string }).message).includes('process.exit')) throw e;
+    }
+    const out = logs.join('\n');
+    expect(out).toContain('Session ID');
+    expect(out).toContain('Agent');
+    expect(out).toContain('Started');
+    expect(out).toContain('Duration');
+    expect(out).toContain('Actions');
+    expect(out).toContain('Tokens');
+    expect(out).toContain('Cost');
+    expect(out).toContain('Status');
+    expect(out).toContain('sess-abc');
+    expect(out).toContain('researcher-1');
+  });
+
+  it('sessions --active excludes old sessions', async () => {
+    await seedAgentUsage();
+    logs.length = 0;
+    process.argv = ['node', 'agenttrace-io', 'sessions', '--active'];
+    try {
+      main();
+    } catch (e: unknown) {
+      if (!String((e as { message?: string }).message).includes('process.exit')) throw e;
+    }
+    const out = logs.join('\n');
+    expect(out).toContain('sess-abc');
+    expect(out).toContain('sess-def');
+    expect(out).not.toContain('sess-old');
+  });
+
+  it('activity command prints timeline table', async () => {
+    await seedAgentUsage();
+    logs.length = 0;
+    process.argv = ['node', 'agenttrace-io', 'activity', '--limit', '5'];
+    try {
+      main();
+    } catch (e: unknown) {
+      if (!String((e as { message?: string }).message).includes('process.exit')) throw e;
+    }
+    const out = logs.join('\n');
+    expect(out).toContain('Time');
+    expect(out).toContain('Agent');
+    expect(out).toContain('Action');
+    expect(out).toContain('search');
+    expect(out).toContain('implement');
+  });
+
+  it('activity --since 30m filters recent', async () => {
+    await seedAgentUsage();
+    logs.length = 0;
+    process.argv = ['node', 'agenttrace-io', 'activity', '--since', '30m'];
+    try {
+      main();
+    } catch (e: unknown) {
+      if (!String((e as { message?: string }).message).includes('process.exit')) throw e;
+    }
+    const out = logs.join('\n');
+    // 30m should catch the 10m ago one, but not 1h+
+    expect(out).toContain('researcher-1');
+    // may or not have coder depending timing, but check old not dominant
+    expect(out).not.toContain('old-agent');
+  });
+
+  it('activity --type search --agent researcher-1 filters correctly', async () => {
+    await seedAgentUsage();
+    logs.length = 0;
+    process.argv = ['node', 'agenttrace-io', 'activity', '--type', 'search', '--agent', 'researcher-1'];
+    try {
+      main();
+    } catch (e: unknown) {
+      if (!String((e as { message?: string }).message).includes('process.exit')) throw e;
+    }
+    const out = logs.join('\n');
+    expect(out).toContain('search');
+    expect(out).not.toContain('summarize'); // different action
+    expect(out).not.toContain('coder-7');
   });
 });

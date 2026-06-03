@@ -112,7 +112,15 @@ describe('SelfTracker', () => {
     expect(traces.length).toBe(5);
 
     const names = traces.map((t) => t.name).sort();
-    expect(names).toEqual(['self:action:code-edit', 'self:delegation', 'self:implementation', 'self:research', 'self:review'].sort());
+    expect(names).toEqual(
+      [
+        'self:action:code-edit',
+        'self:delegation',
+        'self:implementation',
+        'self:research',
+        'self:review',
+      ].sort(),
+    );
 
     // metadata tagging
     const actionTrace = traces.find((t) => t.name.includes('code-edit'))!;

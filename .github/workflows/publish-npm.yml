@@ -1,0 +1,40 @@
+name: Publish NPM
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  publish-npm:
+    runs-on: ubuntu-latest
+    if: startsWith(github.event.release.tag_name, 'v')
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          registry-url: 'https://registry.npmjs.org'
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Install and build all TS packages
+        run: |
+          set -euo pipefail
+          echo "=== Installing dependencies ==="
+          pnpm install --frozen-lockfile
+          echo "=== Building all TS packages ==="
+          pnpm build
+          echo "=== TS build complete ==="
+
+      - name: Publish @agenttrace-io/sdk to npm
+        run: |
+          set -euo pipefail
+          echo "=== Publishing @agenttrace-io/sdk to npm ==="
+          cd packages/sdk
+          npm publish --access public
+          echo "=== Successfully published @agenttrace-io/sdk ==="
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

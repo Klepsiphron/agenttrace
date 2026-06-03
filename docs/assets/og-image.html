@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AgentTrace — OG / Social Preview</title>
+    <!--
+      GitHub Social Preview (1280x640)
+      This file renders docs/assets/social-preview.svg at the exact GitHub OG dimensions.
+
+      HOW TO CAPTURE FOR GITHUB:
+      1. Open this file in Chrome / Edge / Firefox (best font rendering)
+      2. Press Ctrl+Shift+M (Cmd+Shift+M on macOS) to open device toolbar
+      3. In the dimensions dropdown choose "Responsive" and set exactly 1280 × 640
+      4. Click the "Capture screenshot" camera icon in the toolbar (or right-click the preview area → "Capture node screenshot")
+      5. Save as PNG (recommended) or JPG
+      6. Upload the exported image in GitHub repo Settings → Social preview
+
+      The SVG is self-contained (embedded logo, no external assets).
+      You can also open social-preview.svg directly in a browser and screenshot it.
+    -->
+    <style>
+      :root {
+        --bg: #0d1117;
+        --frame-bg: #090b10;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        background: #11151c;
+        color: #c9d1d9;
+        font-family:
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          'Segoe UI',
+          Roboto,
+          sans-serif;
+        min-height: 100vh;
+      }
+      .page {
+        padding: 40px 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      .header {
+        margin-bottom: 16px;
+        text-align: center;
+      }
+      .header h1 {
+        margin: 0 0 4px;
+        font-size: 18px;
+        font-weight: 600;
+        letter-spacing: -0.2px;
+      }
+      .header p {
+        margin: 0;
+        font-size: 13px;
+        color: #8b949e;
+      }
+      .frame {
+        width: 1280px;
+        height: 640px;
+        background: var(--frame-bg);
+        border: 1px solid #30363d;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 20px 60px -15px rgba(0, 0, 0, 0.6),
+          0 0 0 1px rgba(255, 255, 255, 0.03) inset;
+        /* Ensure crisp rendering of the SVG at native size */
+        image-rendering: -webkit-optimize-contrast;
+      }
+      .frame svg,
+      .frame img {
+        display: block;
+        width: 1280px;
+        height: 640px;
+      }
+      .instructions {
+        margin-top: 20px;
+        max-width: 720px;
+        font-size: 12px;
+        line-height: 1.5;
+        color: #8b949e;
+        background: #161b22;
+        border: 1px solid #30363d;
+        border-radius: 6px;
+        padding: 14px 18px;
+      }
+      .instructions code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        background: #0d1117;
+        padding: 1px 5px;
+        border-radius: 3px;
+        color: #c9d1d9;
+      }
+      .actions {
+        margin-top: 14px;
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      .btn {
+        font: inherit;
+        font-size: 12px;
+        padding: 8px 14px;
+        border-radius: 6px;
+        border: 1px solid #30363d;
+        background: #21262d;
+        color: #c9d1d9;
+        text-decoration: none;
+        cursor: pointer;
+      }
+      .btn:hover {
+        border-color: #38bdf8;
+        color: #fff;
+      }
+      .note {
+        margin-top: 8px;
+        font-size: 11px;
+        color: #8b949e;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <div class="header">
+        <h1>AgentTrace — Social Preview (1280×640)</h1>
+        <p>GitHub OG image preview • Dark theme matching the dashboard</p>
+      </div>
+
+      <div class="frame" id="preview-frame">
+        <!-- Renders the canonical SVG at native resolution -->
+        <img
+          src="social-preview.svg"
+          alt="AgentTrace social preview: Open-source AI agent observability. Features: Trace, Cost, Alert, Dashboard."
+          width="1280"
+          height="640"
+        />
+      </div>
+
+      <div class="instructions">
+        <strong>Export steps:</strong><br />
+        • Best results: Use the device toolbar method described in the HTML comment above.<br />
+        • Alternative: Open <code>social-preview.svg</code> directly in a browser tab, press F11 for fullscreen, then use OS screenshot tool (or browser devtools capture) at 100% zoom.<br />
+        • Recommended export format for GitHub: <strong>PNG</strong> (lossless). JPG is also accepted.<br />
+        • After export, go to your repo → <strong>Settings → General → Social preview</strong> and upload the image.
+      </div>
+
+      <div class="actions">
+        <a class="btn" href="social-preview.svg" target="_blank" rel="noopener">Open SVG directly</a>
+        <button class="btn" onclick="copySvgToClipboard()" title="Copies the SVG markup for inline use">Copy SVG source</button>
+        <a class="btn" href="logo.svg" target="_blank" rel="noopener">View logo.svg</a>
+      </div>
+
+      <div class="note">
+        The SVG is fully self-contained. No external fonts, images, or scripts.
+      </div>
+    </div>
+
+    <script>
+      async function copySvgToClipboard() {
+        try {
+          const res = await fetch('social-preview.svg', { cache: 'no-store' });
+          const text = await res.text();
+          await navigator.clipboard.writeText(text);
+          const btns = document.querySelectorAll('.btn');
+          btns.forEach((b) => {
+            if (b.textContent.includes('Copy SVG')) {
+              const old = b.textContent;
+              b.textContent = 'Copied!';
+              setTimeout(() => (b.textContent = old), 1400);
+            }
+          });
+        } catch (e) {
+          alert('Could not copy automatically. Open social-preview.svg and copy manually.');
+        }
+      }
+    </script>
+  </body>
+</html>

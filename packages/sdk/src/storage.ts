@@ -18,6 +18,8 @@ import {
   AgentUsageRecord,
   AgentUsageFilter,
   UsageStats,
+  AgentWho,
+  AgentSession,
 } from './types.js';
 
 export class TraceStorage {
@@ -724,7 +726,9 @@ export class TraceStorage {
     const avgDurationMs = totals ? Number(totals.avgDur) : 0;
 
     const byTypeRows = this.db
-      .prepare(`SELECT action, COUNT(*) as count FROM agent_usage${where} GROUP BY action ORDER BY count DESC`)
+      .prepare(
+        `SELECT action, COUNT(*) as count FROM agent_usage${where} GROUP BY action ORDER BY count DESC`,
+      )
       .all(...params) as unknown[];
     const actionsByType: Record<string, number> = {};
     for (const row of byTypeRows) {
@@ -786,6 +790,169 @@ export class TraceStorage {
         totalActions: Number(rec.total),
       };
     });
+  }
+
+  // ---- Agent usage query helpers for CLI (who / sessions / cost) ----
+
+  getAgentWho(filter: { activeOnly?: boolean; agentType?: string; limit?: number } = {}): AgentWho[] {
+    const f: AgentUsageFilter = {};
+    if (filter.agentType) f.agentType = filter.agentType;
+    if (filter.activeOnly) {
+      f.fromDate = Date.now() - 30 * 60 * 1000;
+    }
+    const recs = this.getAgentUsage({ ...f, limit: 20000 });
+    const map = new Map<
+      string,
+      {
+        type?: string;
+        lastSession?: string;
+        lastAction: string;
+        lastTs: number;
+        actions: number;
+        tokens: number;
+        cost: number;
+      }
+    >();
+    for (const r of recs) {
+      let g = map.get(r.agentName);
+      if (!g) {
+        g = {
+          type: r.agentType,
+          lastAction: r.action,
+          lastTs: r.createdAt,
+          actions: 0,
+          tokens: 0,
+          cost: 0,
+        };
+        map.set(r.agentName, g);
+      }
+      if (r.agentType && !g.type) g.type = r.agentType;
+      if (r.createdAt >= g.lastTs) {
+        g.lastTs = r.createdAt;
+        g.lastAction = r.action;
+        if (r.sessionId) g.lastSession = r.sessionId;
+      }
+      g.actions += 1;
+      g.tokens += r.tokensUsed || 0;
+      g.cost += r.costUsd || 0;
+    }
+    const list: Array<AgentWho & { lastActive: number }> = Array.from(map.entries()).map(([name, g]) => ({
+      agentName: name,
+      agentType: g.type,
+      sessionId: g.lastSession,
+      lastAction: g.lastAction,
+      actions: g.actions,
+      tokens: g.tokens,
+      costUsd: g.cost,
+      lastActive: g.lastTs,
+    }));
+    list.sort((a, b) => b.lastActive - a.lastActive);
+    const lim = filter.limit && filter.limit > 0 ? filter.limit : 100;
+    return list.slice(0, lim).map(({ lastActive, ...rest }) => rest as AgentWho);
+  }
+
+  getAgentSessions(filter: { agentName?: string; activeOnly?: boolean; limit?: number } = {}): AgentSession[] {
+    const f: AgentUsageFilter = {};
+    if (filter.agentName) f.agentName = filter.agentName;
+    if (filter.activeOnly) {
+      f.fromDate = Date.now() - 30 * 60 * 1000;
+    }
+    const recs = this.getAgentUsage({ ...f, limit: 20000 });
+    // group by agent + sessionId (synthetic for missing sessionId)
+    type SessGroup = {
+      agentName: string;
+      ts: number[];
+      actions: number;
+      tokens: number;
+      cost: number;
+      statuses: AgentSession['status'][];
+      lastStatus: AgentSession['status'];
+      lastTs: number;
+    };
+    const groups = new Map<string, SessGroup>();
+    for (const r of recs) {
+      const sid = r.sessionId || '';
+      const key = `${r.agentName}::${sid}`;
+      let g = groups.get(key);
+      if (!g) {
+        g = {
+          agentName: r.agentName,
+          ts: [],
+          actions: 0,
+          tokens: 0,
+          cost: 0,
+          statuses: [],
+          lastStatus: r.status,
+          lastTs: r.createdAt,
+        };
+        groups.set(key, g);
+      }
+      g.ts.push(r.createdAt);
+      g.actions += 1;
+      g.tokens += r.tokensUsed || 0;
+      g.cost += r.costUsd || 0;
+      g.statuses.push(r.status);
+      if (r.createdAt >= g.lastTs) {
+        g.lastTs = r.createdAt;
+        g.lastStatus = r.status;
+      }
+    }
+    let list: AgentSession[] = Array.from(groups.entries()).map(([key, g]) => {
+      const sorted = [...g.ts].sort((a, b) => a - b);
+      const startedAt = sorted[0] ?? g.lastTs;
+      const last = sorted[sorted.length - 1] ?? g.lastTs;
+      const dur = Math.max(0, last - startedAt);
+      // session status: use last action's status, or 'failure' if any bad
+      let status = g.lastStatus;
+      if (g.statuses.some((s) => s === 'failure' || s === 'timeout')) {
+        status = g.statuses.includes('failure') ? 'failure' : 'timeout';
+      }
+      const sid = key.split('::')[1] || 'n/a';
+      return {
+        sessionId: sid,
+        agentName: g.agentName,
+        startedAt,
+        durationMs: dur,
+        actions: g.actions,
+        tokens: g.tokens,
+        costUsd: g.cost,
+        status,
+      };
+    });
+    if (filter.activeOnly) {
+      const cutoff = Date.now() - 30 * 60 * 1000;
+      list = list.filter((s) => s.startedAt + s.durationMs >= cutoff || s.startedAt >= cutoff);
+    }
+    list.sort((a, b) => b.startedAt - a.startedAt);
+    const lim = filter.limit && filter.limit > 0 ? filter.limit : 100;
+    return list.slice(0, lim);
+  }
+
+  getAgentCostSummary(filter: { agentName?: string; fromDate?: number; toDate?: number } = {}): {
+    totalCostUsd: number;
+    costByAgent: Record<string, number>;
+    costByModel: Record<string, number>;
+  } {
+    const recs = this.getAgentUsage({
+      agentName: filter.agentName,
+      fromDate: filter.fromDate,
+      toDate: filter.toDate,
+      limit: 100000,
+    });
+    let totalCostUsd = 0;
+    const costByAgent: Record<string, number> = {};
+    const costByModel: Record<string, number> = {};
+    for (const r of recs) {
+      const c = r.costUsd || 0;
+      totalCostUsd += c;
+      costByAgent[r.agentName] = (costByAgent[r.agentName] || 0) + c;
+      const meta = r.metadata || {};
+      const model = typeof (meta as Record<string, unknown>).model === 'string'
+        ? ((meta as Record<string, unknown>).model as string)
+        : 'unknown';
+      costByModel[model] = (costByModel[model] || 0) + c;
+    }
+    return { totalCostUsd, costByAgent, costByModel };
   }
 
   // ---- Stats ----
@@ -938,9 +1105,9 @@ export class TraceStorage {
     dbSize: number;
     integrity: { tablesExist: boolean; noOrphans: boolean; details?: string };
   } {
-    const traceCountRow = this.db
-      .prepare('SELECT COUNT(*) as c FROM traces')
-      .get() as unknown as { c: number };
+    const traceCountRow = this.db.prepare('SELECT COUNT(*) as c FROM traces').get() as unknown as {
+      c: number;
+    };
     const traceCount = traceCountRow ? traceCountRow.c : 0;
     const dbSize = this.getDbSize();
 
@@ -1010,7 +1177,9 @@ export class TraceStorage {
       }
 
       const otc = this.db
-        .prepare('SELECT COUNT(*) as c FROM tool_calls WHERE trace_id NOT IN (SELECT id FROM traces)')
+        .prepare(
+          'SELECT COUNT(*) as c FROM tool_calls WHERE trace_id NOT IN (SELECT id FROM traces)',
+        )
         .get() as unknown as { c: number };
       if (otc && otc.c > 0) {
         orphanCount += otc.c;
@@ -1131,7 +1300,7 @@ export class TraceStorage {
       tokensUsed: Number(r.tokens_used) || 0,
       costUsd: Number(r.cost_usd) || 0,
       durationMs: Number(r.duration_ms) || 0,
-      status: ((r.status as string) as AgentUsageRecord['status']) || 'success',
+      status: (r.status as string as AgentUsageRecord['status']) || 'success',
       metadata: JSON.parse((r.metadata as string) || '{}'),
       createdAt: Number(r.created_at),
     };

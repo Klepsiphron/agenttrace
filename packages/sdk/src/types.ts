@@ -176,6 +176,18 @@ export interface AlertHistory {
   error?: string;
 }
 
+/** Webhook configuration for event-driven notifications */
+export interface WebhookConfig {
+  id: string;
+  url: string;
+  secret?: string;
+  events: string[];
+  enabled: boolean;
+  createdAt: number;
+  lastTriggeredAt?: number;
+  failureCount: number;
+}
+
 /**
  * TraceContext can be passed between collaborating agents to link their traces
  * into a parent/child hierarchy.
@@ -250,4 +262,27 @@ export interface UsageStats {
   avgDurationMs: number;
   actionsByType: Record<string, number>;
   topAgents: Array<{ agentName: string; actions: number; tokens: number; costUsd: number }>;
+}
+
+/** Row returned for agent 'who' summary (active agents overview) */
+export interface AgentWho {
+  agentName: string;
+  agentType?: string;
+  sessionId?: string;
+  lastAction: string;
+  actions: number;
+  tokens: number;
+  costUsd: number;
+}
+
+/** Summary row for an agent session (for 'sessions' command) */
+export interface AgentSession {
+  sessionId: string;
+  agentName: string;
+  startedAt: number;
+  durationMs: number;
+  actions: number;
+  tokens: number;
+  costUsd: number;
+  status: AgentUsageRecord['status'];
 }

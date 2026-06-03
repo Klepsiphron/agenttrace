@@ -14,6 +14,8 @@ from typing import Any, Optional, TypeVar, cast
 
 from .storage import TraceStorage
 from .types import (
+    AgentUsageFilter,
+    AgentUsageRecord,
     EvaluateOptions,
     ExportFormat,
     HallucinationDetector,
@@ -28,6 +30,7 @@ from .types import (
     TraceConfig,
     TraceFilter,
     TraceStats,
+    UsageStats,
 )
 
 T = TypeVar("T")
@@ -382,6 +385,29 @@ class AgentTrace:
     def get_stats(self) -> TraceStats:
         return self.storage.get_stats()
 
+    # ---- Agent usage tracking (for self-observability) ----
+
+    def record_agent_usage(
+        self, record: AgentUsageRecord | dict[str, Any]
+    ) -> None:
+        """Record an agent action/usage event for self-tracking (costs, actions, tokens etc)."""
+        self.storage.record_agent_usage(record)
+
+    def get_agent_usage(
+        self, filter: AgentUsageFilter | dict[str, Any] = {}
+    ) -> list[AgentUsageRecord]:
+        """Query agent usage records with filters."""
+        return self.storage.get_agent_usage(filter)
+
+    def get_usage_stats(
+        self,
+        agent_name: Optional[str] = None,
+        from_date: Optional[int] = None,
+        to_date: Optional[int] = None,
+    ) -> UsageStats:
+        """Aggregated stats for agent actions."""
+        return self.storage.get_usage_stats(agent_name, from_date, to_date)
+
     # ---- Export ----
 
     def export(self, format: ExportFormat = "json", filter: TraceFilter | dict[str, Any] = {}) -> str:
@@ -567,6 +593,174 @@ class AgentTrace:
 
     def close(self) -> None:
         """Close the underlying DB connection."""
+        self.storage.close()
+
+
+class AgentUsageTracker:
+    """Thin tracker for agent usage / actions.
+
+    Mirrors SelfTracker from TS SDK but records into the dedicated agent_usage table
+    (instead of traces/runs) for usage analytics. Supports session grouping.
+    No JSONL side-log (Python SDK keeps it storage-focused unless requested).
+    """
+
+    def __init__(
+        self, agent_name: str, agent_type: str = "custom", db_path: Optional[str] = None
+    ) -> None:
+        self.agent_name = agent_name
+        self.agent_type = agent_type
+        self.db_path = db_path or "./agenttrace.db"
+        self.storage = TraceStorage(self.db_path)
+        self.current_session_id: Optional[str] = None
+        self.session_start_time: int = 0
+
+    def start_session(self) -> str:
+        """Start a new tracking session. Returns session id (uuid)."""
+        session_id = str(uuid.uuid4())
+        started_at = int(time.time() * 1000)
+        self.current_session_id = session_id
+        self.session_start_time = started_at
+        return session_id
+
+    def _ensure_session(self) -> str:
+        if not self.current_session_id:
+            self.start_session()
+        return self.current_session_id  # type: ignore[return-value]
+
+    def track_action(
+        self, action: str, target: str, metadata: Optional[dict[str, Any]] = None
+    ) -> None:
+        """Track a generic action by this agent."""
+        if metadata is None:
+            metadata = {}
+        session_id = self._ensure_session()
+        now = int(time.time() * 1000)
+        rec = AgentUsageRecord(
+            id=str(uuid.uuid4()),
+            agent_name=self.agent_name,
+            agent_type=self.agent_type,
+            session_id=session_id,
+            action=action,
+            target=target,
+            tokens_used=0,
+            cost_usd=0.0,
+            duration_ms=0,
+            status="success",
+            metadata={
+                "selfTracked": True,
+                "actionType": "action",
+                "action": action,
+                "target": target,
+                **metadata,
+            },
+            created_at=now,
+        )
+        self.storage.record_agent_usage(rec)
+
+    def track_delegation(self, target_agent: str, task: str) -> None:
+        """Track delegation to another agent."""
+        session_id = self._ensure_session()
+        now = int(time.time() * 1000)
+        rec = AgentUsageRecord(
+            id=str(uuid.uuid4()),
+            agent_name=self.agent_name,
+            agent_type=self.agent_type,
+            session_id=session_id,
+            action="delegation",
+            target=target_agent,
+            tokens_used=0,
+            cost_usd=0.0,
+            duration_ms=0,
+            status="success",
+            metadata={
+                "selfTracked": True,
+                "actionType": "delegation",
+                "targetAgent": target_agent,
+                "task": task,
+            },
+            created_at=now,
+        )
+        self.storage.record_agent_usage(rec)
+
+    def track_research(self, query: str, results: int) -> None:
+        """Track a research step (query + result count)."""
+        session_id = self._ensure_session()
+        now = int(time.time() * 1000)
+        rec = AgentUsageRecord(
+            id=str(uuid.uuid4()),
+            agent_name=self.agent_name,
+            agent_type=self.agent_type,
+            session_id=session_id,
+            action="research",
+            target=query,
+            tokens_used=0,
+            cost_usd=0.0,
+            duration_ms=0,
+            status="success",
+            metadata={
+                "selfTracked": True,
+                "actionType": "research",
+                "query": query,
+                "results": results,
+            },
+            created_at=now,
+        )
+        self.storage.record_agent_usage(rec)
+
+    def track_implementation(self, files: list[str], lines_of_code: int) -> None:
+        """Track an implementation step (files touched + loc)."""
+        session_id = self._ensure_session()
+        now = int(time.time() * 1000)
+        rec = AgentUsageRecord(
+            id=str(uuid.uuid4()),
+            agent_name=self.agent_name,
+            agent_type=self.agent_type,
+            session_id=session_id,
+            action="implementation",
+            target=",".join(files) if files else None,
+            tokens_used=0,
+            cost_usd=0.0,
+            duration_ms=0,
+            status="success",
+            metadata={
+                "selfTracked": True,
+                "actionType": "implementation",
+                "files": files,
+                "linesOfCode": lines_of_code,
+            },
+            created_at=now,
+        )
+        self.storage.record_agent_usage(rec)
+
+    def end_session(self) -> None:
+        """End current session (clears active session id; no run to complete since usage table)."""
+        if self.current_session_id:
+            self.current_session_id = None
+            self.session_start_time = 0
+
+    def get_session_stats(self) -> dict[str, Any]:
+        """Return stats for the current session (mirrors TS SelfTracker.getSessionStats shape)."""
+        if not self.current_session_id:
+            return {"sessionId": "", "actions": 0, "duration": 0, "tokens": 0, "cost": 0}
+
+        # Use our filter support for session
+        records = self.storage.get_agent_usage({"session_id": self.current_session_id})
+        actions_count = len(records)
+        total_tokens = sum(r.tokens_used for r in records)
+        total_cost = sum(r.cost_usd for r in records)
+        now = int(time.time() * 1000)
+        start = self.session_start_time or now
+        duration_sec = max(0, (now - start) // 1000)
+        return {
+            "sessionId": self.current_session_id,
+            "actions": actions_count,
+            "duration": duration_sec,
+            "tokens": total_tokens,
+            "cost": total_cost,
+        }
+
+    def close(self) -> None:
+        """Close underlying storage."""
         self.storage.close()
 
 

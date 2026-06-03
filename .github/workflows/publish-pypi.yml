@@ -1,0 +1,55 @@
+name: Publish PyPI
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  publish-pypi:
+    runs-on: ubuntu-latest
+    if: startsWith(github.event.release.tag_name, 'v')
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies and build tools
+        run: |
+          set -euo pipefail
+          echo "=== Installing pnpm dependencies ==="
+          pnpm install --frozen-lockfile
+          echo "=== Running pnpm build (for TS dependencies) ==="
+          pnpm build
+          echo "=== Installing Python build tools ==="
+          pip install --upgrade pip build twine
+
+      - name: Build Python package
+        run: |
+          set -euo pipefail
+          echo "=== Building Python package ==="
+          cd packages/sdk-python
+          python -m build
+          echo "=== Build artifacts ==="
+          ls -la dist/
+          echo "=== Python package build complete ==="
+
+      - name: Publish to PyPI
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          echo "=== Publishing to PyPI using twine ==="
+          cd packages/sdk-python
+          twine upload --verbose dist/*
+          echo "=== Successfully published to PyPI ==="
