@@ -11,7 +11,8 @@ import * as mig002 from './migrations/002-scores.js';
 import * as mig003 from './migrations/003-alerts.js';
 import * as mig004 from './migrations/004-trace-context.js';
 import * as mig005 from './migrations/005-agent-usage.js';
-import * as mig006 from './migrations/006-api-keys.js';
+import * as mig006 from './migrations/005-webhooks.js';
+import * as mig007 from './migrations/006-api-keys.js';
 
 export interface Migration {
   version: number;
@@ -26,6 +27,7 @@ const rawMigrations: Migration[] = [
   mig004 as unknown as Migration,
   mig005 as unknown as Migration,
   mig006 as unknown as Migration,
+  mig007 as unknown as Migration,
 ];
 
 const migrations: Migration[] = rawMigrations.sort((a, b) => a.version - b.version);
