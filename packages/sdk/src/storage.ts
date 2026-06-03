@@ -2,7 +2,6 @@
  * AgentTrace -- SQLite Storage Layer
  * Local storage for agent traces with zero cloud dependency
  */
-/* eslint-disable @typescript-eslint/no-explicit-any -- SQLite row mapping uses loose any (pre-existing pattern in file) */
 
 import Database from 'better-sqlite3';
 import { randomUUID } from 'node:crypto';
@@ -177,7 +176,7 @@ export class TraceStorage {
   }
 
   getRun(id: string): Run | null {
-    const row = this.db.prepare('SELECT * FROM runs WHERE id = ?').get(id) as any;
+    const row = this.db.prepare('SELECT * FROM runs WHERE id = ?').get(id) as unknown;
     if (!row) return null;
     return this.rowToRun(row);
   }
@@ -185,8 +184,8 @@ export class TraceStorage {
   getRuns(limit: number = 100): Run[] {
     const rows = this.db
       .prepare('SELECT * FROM runs ORDER BY started_at DESC LIMIT ?')
-      .all(limit) as any[];
-    return rows.map((r: any) => this.rowToRun(r));
+      .all(limit) as unknown[];
+    return rows.map((r) => this.rowToRun(r));
   }
 
   completeRun(id: string, status: Run['status']): void {
@@ -239,8 +238,8 @@ export class TraceStorage {
   createTrace(trace: Omit<Trace, 'createdAt' | 'updatedAt'>): Trace {
     const now = Date.now();
     const stmt = this.db.prepare(`
-      INSERT INTO traces (id, run_id, name, status, input, output, prompt_tokens, completion_tokens, total_tokens, model, provider, latency_ms, cost_usd, error, metadata, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO traces (id, run_id, name, status, input, output, prompt_tokens, completion_tokens, total_tokens, model, provider, latency_ms, cost_usd, error, metadata, parent_id, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     stmt.run(
       trace.id,
@@ -258,6 +257,7 @@ export class TraceStorage {
       trace.costUsd,
       trace.error || null,
       JSON.stringify(trace.metadata),
+      trace.parentId || null,
       now,
       now,
     );
@@ -294,14 +294,14 @@ export class TraceStorage {
   }
 
   getTrace(id: string): Trace | null {
-    const row = this.db.prepare('SELECT * FROM traces WHERE id = ?').get(id) as any;
+    const row = this.db.prepare('SELECT * FROM traces WHERE id = ?').get(id) as unknown;
     if (!row) return null;
     return this.rowToTrace(row);
   }
 
   getTraces(filter: TraceFilter = {}): Trace[] {
     let sql = 'SELECT * FROM traces WHERE 1=1';
-    const params: any[] = [];
+    const params: unknown[] = [];
 
     if (filter.runId) {
       sql += ' AND run_id = ?';
@@ -351,7 +351,7 @@ export class TraceStorage {
       params.push(filter.offset);
     }
 
-    const rows = this.db.prepare(sql).all(...params) as any[];
+    const rows = this.db.prepare(sql).all(...params) as unknown[];
     return rows.map((r) => this.rowToTrace(r));
   }
 
@@ -373,20 +373,23 @@ export class TraceStorage {
     traceId?: string,
   ): Array<{ id: string; traceId: string; name: string; value: number; createdAt: number }> {
     let sql = 'SELECT * FROM scores';
-    const params: any[] = [];
+    const params: unknown[] = [];
     if (traceId) {
       sql += ' WHERE trace_id = ?';
       params.push(traceId);
     }
     sql += ' ORDER BY created_at DESC';
-    const rows = this.db.prepare(sql).all(...params) as any[];
-    return rows.map((r: any) => ({
-      id: r.id,
-      traceId: r.trace_id,
-      name: r.name,
-      value: r.value,
-      createdAt: r.created_at,
-    }));
+    const rows = this.db.prepare(sql).all(...params) as unknown[];
+    return rows.map((r) => {
+      const rec = r as Record<string, unknown>;
+      return {
+        id: rec.id as string,
+        traceId: rec.trace_id as string,
+        name: rec.name as string,
+        value: Number(rec.value),
+        createdAt: Number(rec.created_at),
+      };
+    });
   }
 
   // ---- Alert operations (v0.2 alerting & webhooks) ----
@@ -410,12 +413,15 @@ export class TraceStorage {
     config: { webhook?: string; email?: string; cooldown: number; lastTriggered?: number };
     createdAt: number;
   }> {
-    const rows = this.db.prepare('SELECT * FROM alerts ORDER BY created_at DESC').all() as any[];
-    return rows.map((r: any) => ({
-      name: r.name,
-      config: JSON.parse(r.config || '{}'),
-      createdAt: r.created_at,
-    }));
+    const rows = this.db.prepare('SELECT * FROM alerts ORDER BY created_at DESC').all() as unknown[];
+    return rows.map((r) => {
+      const rec = r as Record<string, unknown>;
+      return {
+        name: rec.name as string,
+        config: JSON.parse((rec.config as string) || '{}'),
+        createdAt: Number(rec.created_at),
+      };
+    });
   }
 
   insertAlertHistory(entry: AlertHistory): void {
@@ -448,6 +454,96 @@ export class TraceStorage {
       delivered: r.delivered === 1,
       error: r.error || undefined,
     }));
+  }
+
+  // ---- Multi-agent tracing (parent/child + links) v0.2 ----
+
+  setTraceParent(traceId: string, parentId: string): void {
+    this.db
+      .prepare('UPDATE traces SET parent_id = ?, updated_at = ? WHERE id = ?')
+      .run(parentId, Date.now(), traceId);
+  }
+
+  getTraceParentId(traceId: string): string | null {
+    const row = this.db.prepare('SELECT parent_id FROM traces WHERE id = ?').get(traceId) as any;
+    return row && row.parent_id ? String(row.parent_id) : null;
+  }
+
+  getChildTraceIds(parentId: string): string[] {
+    const rows = this.db
+      .prepare('SELECT id FROM traces WHERE parent_id = ? ORDER BY created_at ASC')
+      .all(parentId) as any[];
+    return rows.map((r: any) => String(r.id));
+  }
+
+  getLinkedTraceIds(traceId: string): string[] {
+    const rows = this.db
+      .prepare(
+        `
+        SELECT DISTINCT target_trace_id AS id FROM trace_links WHERE source_trace_id = ? AND relation = 'related'
+        UNION
+        SELECT DISTINCT source_trace_id AS id FROM trace_links WHERE target_trace_id = ? AND relation = 'related'
+      `,
+      )
+      .all(traceId, traceId) as any[];
+    return rows.map((r: any) => String(r.id)).filter((id) => id !== traceId);
+  }
+
+  linkTraces(traceIds: string[]): void {
+    if (!traceIds || traceIds.length < 2) return;
+    const now = Date.now();
+    const stmt = this.db.prepare(`
+      INSERT OR IGNORE INTO trace_links (id, source_trace_id, target_trace_id, relation, created_at)
+      VALUES (?, ?, ?, 'related', ?)
+    `);
+    for (let i = 0; i < traceIds.length; i++) {
+      for (let j = i + 1; j < traceIds.length; j++) {
+        stmt.run(randomUUID(), traceIds[i], traceIds[j], now);
+      }
+    }
+  }
+
+  getTraceTree(traceId: string): TraceTreeNode {
+    // Walk up parent chain to find ultimate root (cycle safe)
+    let rootId = traceId;
+    const upSeen = new Set<string>();
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      if (upSeen.has(rootId)) break;
+      upSeen.add(rootId);
+      const p = this.getTraceParentId(rootId);
+      if (!p) break;
+      rootId = p;
+    }
+
+    const visited = new Set<string>();
+    const build = (id: string): TraceTreeNode | null => {
+      if (visited.has(id)) return null;
+      visited.add(id);
+      const trace = this.getTrace(id);
+      if (!trace) return null;
+      const childIdSet = new Set<string>();
+      for (const c of this.getChildTraceIds(id)) childIdSet.add(c);
+      for (const l of this.getLinkedTraceIds(id)) childIdSet.add(l);
+      const children: TraceTreeNode[] = [];
+      // sort for deterministic tree order
+      const sortedChildren = Array.from(childIdSet).sort();
+      for (const cid of sortedChildren) {
+        const node = build(cid);
+        if (node) children.push(node);
+      }
+      return { trace, children };
+    };
+
+    const rootNode = build(rootId);
+    if (rootNode) return rootNode;
+
+    // fallback for the requested id itself
+    const t = this.getTrace(traceId);
+    if (!t) {
+      throw new Error(`Trace ${traceId} not found`);
+    }
+    return { trace: t, children: [] };
   }
 
   // ---- Stats ----
@@ -575,61 +671,67 @@ export class TraceStorage {
 
   // ---- Helpers ----
 
-  private rowToRun(row: any): Run {
+  private rowToRun(row: unknown): Run {
+    const r = row as Record<string, unknown>;
     return {
-      id: row.id,
-      name: row.name,
-      status: row.status,
-      traceCount: row.trace_count,
+      id: r.id as string,
+      name: r.name as string,
+      status: r.status as Run['status'],
+      traceCount: Number(r.trace_count),
       totalTokens: {
-        promptTokens: row.total_prompt_tokens,
-        completionTokens: row.total_completion_tokens,
-        totalTokens: row.total_tokens,
+        promptTokens: Number(r.total_prompt_tokens),
+        completionTokens: Number(r.total_completion_tokens),
+        totalTokens: Number(r.total_tokens),
       },
-      totalToolCalls: row.total_tool_calls,
-      totalLatencyMs: row.total_latency_ms,
-      totalCostUsd: row.total_cost_usd,
-      errorCount: row.error_count,
-      startedAt: row.started_at,
-      completedAt: row.completed_at,
-      metadata: JSON.parse(row.metadata || '{}'),
+      totalToolCalls: Number(r.total_tool_calls),
+      totalLatencyMs: Number(r.total_latency_ms),
+      totalCostUsd: Number(r.total_cost_usd),
+      errorCount: Number(r.error_count),
+      startedAt: Number(r.started_at),
+      completedAt: r.completed_at != null ? Number(r.completed_at) : undefined,
+      metadata: JSON.parse((r.metadata as string) || '{}'),
     };
   }
 
-  private rowToTrace(row: any): Trace {
-    const toolCalls = this.db
+  private rowToTrace(row: unknown): Trace {
+    const r = row as Record<string, unknown>;
+    const toolCallsRows = this.db
       .prepare('SELECT * FROM tool_calls WHERE trace_id = ? ORDER BY timestamp')
-      .all(row.id) as any[];
+      .all(r.id) as unknown[];
     return {
-      id: row.id,
-      runId: row.run_id,
-      name: row.name,
-      status: row.status,
-      input: JSON.parse(row.input || 'null'),
-      output: JSON.parse(row.output || 'null'),
+      id: r.id as string,
+      runId: r.run_id as string,
+      name: r.name as string,
+      status: r.status as Trace['status'],
+      input: JSON.parse((r.input as string) || 'null'),
+      output: JSON.parse((r.output as string) || 'null'),
       tokens: {
-        promptTokens: row.prompt_tokens,
-        completionTokens: row.completion_tokens,
-        totalTokens: row.total_tokens,
-        model: row.model,
-        provider: row.provider,
+        promptTokens: Number(r.prompt_tokens),
+        completionTokens: Number(r.completion_tokens),
+        totalTokens: Number(r.total_tokens),
+        model: r.model as string | undefined,
+        provider: r.provider as string | undefined,
       },
-      toolCalls: toolCalls.map((tc) => ({
-        id: tc.id,
-        name: tc.name,
-        input: JSON.parse(tc.input || 'null'),
-        output: JSON.parse(tc.output || 'null'),
-        latencyMs: tc.latency_ms,
-        success: tc.success === 1,
-        error: tc.error,
-        timestamp: tc.timestamp,
-      })),
-      latencyMs: row.latency_ms,
-      costUsd: row.cost_usd,
-      error: row.error,
-      metadata: JSON.parse(row.metadata || '{}'),
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
+      toolCalls: toolCallsRows.map((tc) => {
+        const t = tc as Record<string, unknown>;
+        return {
+          id: t.id as string,
+          name: t.name as string,
+          input: JSON.parse((t.input as string) || 'null'),
+          output: JSON.parse((t.output as string) || 'null'),
+          latencyMs: Number(t.latency_ms),
+          success: t.success === 1,
+          error: t.error as string | undefined,
+          timestamp: Number(t.timestamp),
+        };
+      }),
+      latencyMs: Number(r.latency_ms),
+      costUsd: Number(r.cost_usd),
+      error: r.error as string | undefined,
+      metadata: JSON.parse((r.metadata as string) || '{}'),
+      parentId: (r.parent_id as string) || undefined,
+      createdAt: Number(r.created_at),
+      updatedAt: Number(r.updated_at),
     };
   }
 

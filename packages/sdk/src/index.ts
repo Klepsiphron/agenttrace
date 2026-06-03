@@ -2,7 +2,6 @@
  * AgentTrace -- Core SDK
  * Drop-in tracing for any AI agent
  */
-/* eslint-disable @typescript-eslint/no-explicit-any -- SQLite row mapping uses loose any (pre-existing pattern) */
 
 import { randomUUID, createHash } from 'node:crypto';
 import { TraceStorage } from './storage.js';
@@ -21,6 +20,8 @@ import {
   CostBreakdown,
   AlertCondition,
   AlertHistory,
+  TraceContext,
+  TraceTreeNode,
 } from './types.js';
 
 export const VERSION = '0.1.0';
@@ -44,7 +45,10 @@ export type {
   CostBreakdown,
   AlertCondition,
   AlertHistory,
+  TraceTreeNode,
 } from './types.js';
+
+export { TraceContext } from './types.js';
 
 export { TraceStorage } from './storage.js';
 
@@ -103,7 +107,14 @@ function toUnixNano(timestampMs: number): string {
   return String(BigInt(Math.floor(timestampMs)) * 1000000n);
 }
 
-function toOtelAttrValue(v: unknown): any {
+interface OtelAttrValue {
+  stringValue?: string;
+  intValue?: number;
+  doubleValue?: number;
+  boolValue?: boolean;
+}
+
+function toOtelAttrValue(v: unknown): OtelAttrValue | undefined {
   if (v === null || v === undefined) return undefined;
   const t = typeof v;
   if (t === 'string') return { stringValue: v as string };
@@ -120,8 +131,8 @@ function stringifyForAttr(v: unknown, maxLen = 2048): string {
   return s.slice(0, maxLen - 3) + '...';
 }
 
-function buildOtelAttributes(trace: Trace): Array<{ key: string; value: any }> {
-  const attrs: Array<{ key: string; value: any }> = [];
+function buildOtelAttributes(trace: Trace): Array<{ key: string; value: OtelAttrValue }> {
+  const attrs: Array<{ key: string; value: OtelAttrValue }> = [];
   attrs.push({ key: 'agenttrace.status', value: { stringValue: trace.status } });
   attrs.push({ key: 'agenttrace.latency_ms', value: { intValue: trace.latencyMs } });
   attrs.push({ key: 'agenttrace.cost_usd', value: { doubleValue: trace.costUsd } });
@@ -160,7 +171,7 @@ function buildOtelAttributes(trace: Trace): Array<{ key: string; value: any }> {
   return attrs;
 }
 
-function buildResourceAttributes(): Array<{ key: string; value: any }> {
+function buildResourceAttributes(): Array<{ key: string; value: OtelAttrValue }> {
   return [
     { key: 'service.name', value: { stringValue: 'agenttrace' } },
     { key: 'telemetry.sdk.name', value: { stringValue: 'agenttrace' } },
@@ -168,7 +179,7 @@ function buildResourceAttributes(): Array<{ key: string; value: any }> {
   ];
 }
 
-function traceToOtelSpan(trace: Trace): any {
+function traceToOtelSpan(trace: Trace): Record<string, unknown> {
   const traceId = toOtelId(trace.id, 32);
   const spanId = toOtelId(trace.id, 16);
   const endMs = trace.createdAt || Date.now();
@@ -177,7 +188,7 @@ function traceToOtelSpan(trace: Trace): any {
   const endTimeUnixNano = toUnixNano(endMs);
   const attributes = buildOtelAttributes(trace);
   const isSuccess = trace.status === 'success';
-  const status: any = isSuccess
+  const status: Record<string, unknown> = isSuccess
     ? { code: 1 } // STATUS_CODE_OK
     : { code: 2, message: trace.error || trace.status }; // STATUS_CODE_ERROR
   return {
@@ -247,9 +258,22 @@ export class AgentTrace {
       model?: string;
       provider?: string;
       metadata?: Record<string, unknown>;
+      parentId?: string;
+      context?: TraceContext;
     } = {},
   ): Promise<T> {
-    const traceId = randomUUID();
+    let traceId: string;
+    let parentId: string | undefined;
+    if (options.context && typeof options.context.traceId === 'string') {
+      traceId = options.context.traceId;
+      parentId = options.context.parentSpanId;
+    } else if (options.parentId) {
+      traceId = randomUUID();
+      parentId = options.parentId;
+    } else {
+      traceId = randomUUID();
+      parentId = undefined;
+    }
     const startTime = Date.now();
     const toolCalls: ToolCall[] = [];
     let result: T;
@@ -273,6 +297,10 @@ export class AgentTrace {
       };
       const costUsd = this.config.costCalculator(tokens, options.model);
 
+      const baseMeta = options.metadata || {};
+      const ctxMeta = options.context ? options.context.metadata || {} : {};
+      const mergedMeta = { ...ctxMeta, ...baseMeta };
+
       const trace: Omit<Trace, 'createdAt' | 'updatedAt'> = {
         id: traceId,
         runId: this.currentRunId || randomUUID(),
@@ -285,7 +313,8 @@ export class AgentTrace {
         latencyMs,
         costUsd,
         error,
-        metadata: options.metadata || {},
+        metadata: mergedMeta,
+        parentId,
       };
 
       this.storage.createTrace(trace);
@@ -356,6 +385,41 @@ export class AgentTrace {
     return this.storage.getCostBreakdown(filter.runId);
   }
 
+  // ---- Multi-agent tracing (v0.2) ----
+
+  /**
+   * Create a TraceContext for a child operation linked to the provided parent context.
+   * The child context has a freshly generated traceId (use as the child's trace id)
+   * and parentSpanId pointing to the parent's traceId (span).
+   * Pass the returned context via options.context when calling trace() (on any AgentTrace instance).
+   */
+  createChild(context: TraceContext): TraceContext {
+    if (!context || typeof context.traceId !== 'string' || context.traceId.length === 0) {
+      throw new Error('createChild requires a valid TraceContext with traceId');
+    }
+    const childTraceId = randomUUID();
+    return new TraceContext(childTraceId, context.traceId, { ...context.metadata });
+  }
+
+  /**
+   * Manually link a set of trace IDs as related (for cross-agent collaboration without strict parent/child).
+   * Uses an internal links table; getTraceTree will surface linked traces as children in the tree.
+   */
+  linkTraces(traceIds: string[]): void {
+    if (!Array.isArray(traceIds) || traceIds.length < 2) {
+      return;
+    }
+    this.storage.linkTraces(traceIds);
+  }
+
+  /**
+   * Get the full tree (parent -> children, including manually linked) for the given traceId.
+   * The tree is rooted at the ultimate ancestor (following parentId links).
+   */
+  getTraceTree(traceId: string): TraceTreeNode {
+    return this.storage.getTraceTree(traceId);
+  }
+
   // ---- Alerting (v0.2) ----
 
   /**
@@ -402,7 +466,7 @@ export class AgentTrace {
       let met = false;
       try {
         met = !!alert.condition(stats);
-      } catch (condErr: any) {
+      } catch (condErr: unknown) {
         if (!this.config.silent) {
           console.error(`[AgentTrace] Alert condition error for ${alert.name}:`, condErr);
         }
@@ -446,9 +510,9 @@ export class AgentTrace {
         if (!resp.ok) {
           errMsg = `webhook responded ${resp.status}`;
         }
-      } catch (e: any) {
+      } catch (e: unknown) {
         delivered = false;
-        errMsg = e?.message || String(e);
+        errMsg = (e as Error | undefined)?.message || String(e);
       }
     } else if (alert.email) {
       delivered = false;
@@ -576,14 +640,12 @@ export class AgentTrace {
       return [];
     }
 
-    let traces: Trace[];
-    if (traceIds && traceIds.length > 0) {
-      traces = traceIds.map((id) => this.getTrace(id)).filter((t): t is Trace => t != null);
-    } else if (runId) {
-      traces = this.getTraces({ runId });
-    } else {
-      traces = this.getTraces();
-    }
+    const traces: Trace[] =
+      traceIds && traceIds.length > 0
+        ? traceIds.map((id) => this.getTrace(id)).filter((t): t is Trace => t != null)
+        : runId
+          ? this.getTraces({ runId })
+          : this.getTraces();
 
     return this.scoreLoop(traces, scorers, concurrency);
   }
@@ -637,7 +699,7 @@ export class AgentTrace {
           } else {
             errors[scorer.name] = `Invalid score returned: ${val}`;
           }
-        } catch (e: any) {
+        } catch (e: unknown) {
           errors[scorer.name] = e instanceof Error ? e.message : String(e);
         }
       }),

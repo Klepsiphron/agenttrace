@@ -138,6 +138,20 @@ export function createDashboardApp(dbPath?: string): DashboardApp {
     }
   });
 
+  app.get('/api/traces/:id/tree', (req: Request, res: Response) => {
+    try {
+      const tree = trace.getTraceTree(String(req.params.id || ''));
+      res.json(tree);
+    } catch (err) {
+      const msg = String(err);
+      if (msg.includes('not found') || msg.includes('Trace')) {
+        res.status(404).json({ error: 'Trace not found' });
+        return;
+      }
+      res.status(500).json({ error: msg });
+    }
+  });
+
   app.get('/api/export', (req: Request, res: Response) => {
     try {
       const format = (req.query.format === 'csv' ? 'csv' : 'json') as ExportFormat;

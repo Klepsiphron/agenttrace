@@ -11,6 +11,7 @@ import {
   type Trace,
   type TraceStats,
   type CostBreakdown,
+  type TraceTreeNode,
   AlertCondition,
   ExportFormat,
 } from '@agenttrace/sdk';
@@ -146,6 +147,23 @@ function printCosts(breakdown: CostBreakdown, daily: boolean): void {
   console.log(`\nTotal: $${breakdown.totalCostUsd.toFixed(4)}`);
 }
 
+function printTraceTree(node: TraceTreeNode | null | undefined, prefix = '', isLast = true): void {
+  if (!node || !node.trace) return;
+  const t = node.trace;
+  const branch = prefix + (isLast ? '└── ' : '├── ');
+  const status = colorizeStatus(t.status || '');
+  const shortId = (t.id || '').substring(0, 8);
+  console.log(
+    `${branch}${shortId} ${t.name || ''} ${status} ${t.latencyMs ?? 0}ms $${((t.costUsd ?? 0) as number).toFixed(4)}`,
+  );
+  const childPrefix = prefix + (isLast ? '    ' : '│   ');
+  const children = (node.children || []) as TraceTreeNode[];
+  children.forEach((child, idx) => {
+    const lastChild = idx === children.length - 1;
+    printTraceTree(child, childPrefix, lastChild);
+  });
+}
+
 function printUsage(): void {
   console.log(`Usage: agenttrace <command> [options]
 
@@ -157,6 +175,7 @@ Commands:
   stats                Show summary statistics
   costs                Show cost breakdown by model (or --daily)
   export               Export traces to JSON or CSV
+  tree                 Show parent/child/related trace tree (multi-agent)
   alerts               Manage alerts: list | test --name N | history
   version              Show CLI version
 
@@ -171,6 +190,8 @@ Options (by command):
     --output FILE        Write to file instead of stdout
   costs:
     --daily              Breakdown costs by day instead of by model
+  tree:
+    --trace-id ID        Trace ID to display tree for (required)
   alerts:
     list                 List configured alerts
     test --name NAME     Test delivery for alert (forces condition + ignores cooldown)
@@ -192,6 +213,7 @@ Examples:
   agenttrace alerts list
   agenttrace alerts test --name high-error-rate
   agenttrace alerts history
+  agenttrace tree --trace-id abc123def
   npx agenttrace version
 `);
 }
@@ -240,7 +262,7 @@ function getAgentTrace(requireDb = true): AgentTrace {
   return new AgentTrace({ dbPath: dbp, silent: true });
 }
 
-async function main(): Promise<void> {
+async function runMain(): Promise<void> {
   try {
     const { command, flags } = parseArgs(process.argv);
 
@@ -401,6 +423,34 @@ async function main(): Promise<void> {
           console.log(`Exported ${format.toUpperCase()} to ${outFile}`);
         } else {
           console.log(data);
+        }
+        break;
+      }
+
+      case 'tree': {
+        const traceId = (flags['trace-id'] || flags.traceId || flags['traceId']) as string | undefined;
+        if (!traceId) {
+          console.error('Usage: agenttrace tree --trace-id <id>');
+          process.exit(1);
+        }
+        const tr = getAgentTrace();
+        let tree: TraceTreeNode;
+        try {
+          tree = tr.getTraceTree(String(traceId));
+        } catch (e: unknown) {
+          console.error('Error:', e instanceof Error ? e.message : String(e));
+          tr.close();
+          process.exit(1);
+        }
+        tr.close();
+
+        if (useJson) {
+          console.log(JSON.stringify(tree, null, 2));
+        } else if (!tree || !tree.trace) {
+          console.log('Trace not found.');
+        } else {
+          console.log('Trace Tree:');
+          printTraceTree(tree);
         }
         break;
       }
