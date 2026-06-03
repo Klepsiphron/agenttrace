@@ -153,6 +153,8 @@ export interface TraceStats {
   avgTokensPerTrace: number;
   topTools: { name: string; count: number; avgLatencyMs: number }[];
   topErrors: { error: string; count: number }[];
+  /** Number of traces dropped due to rate limiting */
+  droppedTraces: number;
 }
 
 /** Cost breakdown returned by getCostBreakdown and /api/costs */

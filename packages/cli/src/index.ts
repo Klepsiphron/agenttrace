@@ -189,6 +189,7 @@ Commands:
   cost                 Show agent cost breakdown (periods + by agent/model)
   sessions             List agent sessions with aggregates
   activity             Show recent agent activity timeline
+  retention            Manage data retention: show | set --days N [--interval H] | cleanup [--days N] | stats
   version              Show CLI version
 
 Options (by command):
