@@ -19,6 +19,8 @@ import {
   ScorerResult,
   EvaluateOptions,
   CostBreakdown,
+  AlertCondition,
+  AlertHistory,
 } from './types.js';
 
 export const VERSION = '0.1.0';
@@ -40,6 +42,8 @@ export type {
   ScorerResult,
   EvaluateOptions,
   CostBreakdown,
+  AlertCondition,
+  AlertHistory,
 } from './types.js';
 
 export { TraceStorage } from './storage.js';
@@ -192,6 +196,7 @@ export class AgentTrace {
   private storage: TraceStorage;
   private config: Required<TraceConfig>;
   private currentRunId: string | null = null;
+  private registeredAlerts: AlertCondition[] = [];
 
   constructor(config: TraceConfig = {}) {
     this.config = {
@@ -342,6 +347,156 @@ export class AgentTrace {
    */
   getCostBreakdown(filter: { runId?: string } = {}): CostBreakdown {
     return this.storage.getCostBreakdown(filter.runId);
+  }
+
+  // ---- Alerting (v0.2) ----
+
+  /**
+   * Register an alert condition. Persists config (without function) and enables auto-checks.
+   */
+  registerAlert(alert: AlertCondition): void {
+    if (!alert || !alert.name || typeof alert.condition !== 'function') {
+      throw new Error('Invalid alert: must have name and condition function');
+    }
+    // dedupe by name (last wins)
+    this.registeredAlerts = this.registeredAlerts.filter((a) => a.name !== alert.name);
+    const copy: AlertCondition = {
+      name: alert.name,
+      condition: alert.condition,
+      webhook: alert.webhook,
+      email: alert.email,
+      cooldown: alert.cooldown ?? 0,
+      lastTriggered: alert.lastTriggered,
+    };
+    this.registeredAlerts.push(copy);
+    // persist without the function
+    const { condition: _cond, ...serializable } = copy;
+    this.storage.saveAlert(copy.name, serializable);
+  }
+
+  /**
+   * Check all registered alerts against current stats.
+   * Fires (and records history) for those whose condition is true and cooldown elapsed.
+   * Returns the AlertHistory entries that were triggered this check.
+   */
+  async checkAlerts(): Promise<AlertHistory[]> {
+    const results: AlertHistory[] = [];
+    if (this.registeredAlerts.length === 0) return results;
+
+    const stats = this.getStats();
+    const now = Date.now();
+
+    for (const alert of this.registeredAlerts) {
+      const cooldownMs = Math.max(0, (alert.cooldown || 0)) * 1000;
+      const last = alert.lastTriggered || 0;
+      if (cooldownMs > 0 && now - last < cooldownMs) {
+        continue;
+      }
+      let met = false;
+      try {
+        met = !!alert.condition(stats);
+      } catch (condErr: any) {
+        if (!this.config.silent) {
+          console.error(`[AgentTrace] Alert condition error for ${alert.name}:`, condErr);
+        }
+        continue;
+      }
+      if (met) {
+        const hist = await this.deliverAlert(alert, stats, now);
+        results.push(hist);
+        alert.lastTriggered = now;
+        const { condition: _c, ...toStore } = alert;
+        this.storage.saveAlert(alert.name, toStore);
+      }
+    }
+    return results;
+  }
+
+  private async deliverAlert(alert: AlertCondition, stats: TraceStats, now: number): Promise<AlertHistory> {
+    const numericStats: Record<string, number> = {
+      totalRuns: stats.totalRuns || 0,
+      totalTraces: stats.totalTraces || 0,
+      successRate: stats.successRate || 0,
+      avgLatencyMs: stats.avgLatencyMs || 0,
+      totalCostUsd: stats.totalCostUsd || 0,
+      totalTokens: stats.totalTokens || 0,
+      avgTokensPerTrace: stats.avgTokensPerTrace || 0,
+    };
+
+    let delivered = false;
+    let errMsg: string | undefined;
+
+    const payload = { alertName: alert.name, stats, timestamp: now };
+
+    if (alert.webhook) {
+      try {
+        const resp = await fetch(alert.webhook, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'User-Agent': 'AgentTrace/0.2' },
+          body: JSON.stringify(payload),
+        });
+        delivered = resp.ok;
+        if (!resp.ok) {
+          errMsg = `webhook responded ${resp.status}`;
+        }
+      } catch (e: any) {
+        delivered = false;
+        errMsg = e?.message || String(e);
+      }
+    } else if (alert.email) {
+      delivered = false;
+      errMsg = 'email delivery not supported in this version';
+    } else {
+      delivered = false;
+      errMsg = 'no delivery channel configured';
+    }
+
+    const history: AlertHistory = {
+      id: randomUUID(),
+      alertName: alert.name,
+      triggeredAt: now,
+      stats: numericStats,
+      delivered,
+      ...(errMsg ? { error: errMsg } : {}),
+    };
+    this.storage.insertAlertHistory(history);
+
+    if (!this.config.silent) {
+      const status = delivered ? 'delivered' : `delivery failed${errMsg ? ': ' + errMsg : ''}`;
+      console.log(`[AgentTrace] Alert '${alert.name}' triggered. ${status}`);
+    }
+    return history;
+  }
+
+  /**
+   * Get currently registered (in-memory) alerts. Falls back to persisted configs (with no-op condition) for CLI.
+   */
+  getAlerts(): AlertCondition[] {
+    const map = new Map<string, AlertCondition>();
+    // load persisted (dummy condition)
+    for (const s of this.storage.getStoredAlerts()) {
+      const cfg = s.config || {};
+      map.set(s.name, {
+        name: s.name,
+        condition: () => false,
+        webhook: cfg.webhook,
+        email: cfg.email,
+        cooldown: typeof cfg.cooldown === 'number' ? cfg.cooldown : 0,
+        lastTriggered: cfg.lastTriggered,
+      });
+    }
+    // overlay runtime registered (have real conditions)
+    for (const r of this.registeredAlerts) {
+      map.set(r.name, { ...r });
+    }
+    return Array.from(map.values());
+  }
+
+  /**
+   * Get alert firing history from storage.
+   */
+  getAlertHistory(): AlertHistory[] {
+    return this.storage.getAlertHistory();
   }
 
   /**

@@ -5,7 +5,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- SQLite row mapping uses loose any (pre-existing pattern in file) */
 
 import Database from 'better-sqlite3';
-import { Trace, Run, TraceFilter, TraceStats, TokenUsage, CostBreakdown } from './types.js';
+import { Trace, Run, TraceFilter, TraceStats, TokenUsage, CostBreakdown, AlertHistory } from './types.js';
 
 export class TraceStorage {
   private db: Database;
@@ -89,6 +89,27 @@ export class TraceStorage {
 
       CREATE INDEX IF NOT EXISTS idx_scores_trace_id ON scores(trace_id);
       CREATE INDEX IF NOT EXISTS idx_scores_name ON scores(name);
+
+      CREATE TABLE IF NOT EXISTS alerts (
+        id TEXT PRIMARY KEY,
+        name TEXT UNIQUE NOT NULL,
+        config TEXT NOT NULL,
+        created_at INTEGER NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS alert_history (
+        id TEXT PRIMARY KEY,
+        alert_name TEXT NOT NULL,
+        triggered_at INTEGER NOT NULL,
+        stats TEXT NOT NULL,
+        delivered INTEGER DEFAULT 0,
+        error TEXT,
+        created_at INTEGER NOT NULL
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_alerts_name ON alerts(name);
+      CREATE INDEX IF NOT EXISTS idx_alert_history_alert_name ON alert_history(alert_name);
+      CREATE INDEX IF NOT EXISTS idx_alert_history_triggered_at ON alert_history(triggered_at);
 
       CREATE TABLE IF NOT EXISTS version (
         key TEXT PRIMARY KEY,
@@ -335,6 +356,67 @@ export class TraceStorage {
       name: r.name,
       value: r.value,
       createdAt: r.created_at,
+    }));
+  }
+
+  // ---- Alert operations (v0.2 alerting & webhooks) ----
+
+  saveAlert(name: string, config: Record<string, unknown>): void {
+    const now = Date.now();
+    const id = name;
+    this.db
+      .prepare(
+        `
+      INSERT INTO alerts (id, name, config, created_at)
+      VALUES (?, ?, ?, ?)
+      ON CONFLICT(name) DO UPDATE SET config = excluded.config
+    `,
+      )
+      .run(id, name, JSON.stringify(config), now);
+  }
+
+  getStoredAlerts(): Array<{
+    name: string;
+    config: { webhook?: string; email?: string; cooldown: number; lastTriggered?: number };
+    createdAt: number;
+  }> {
+    const rows = this.db.prepare('SELECT * FROM alerts ORDER BY created_at DESC').all() as any[];
+    return rows.map((r: any) => ({
+      name: r.name,
+      config: JSON.parse(r.config || '{}'),
+      createdAt: r.created_at,
+    }));
+  }
+
+  insertAlertHistory(entry: AlertHistory): void {
+    const now = Date.now();
+    this.db
+      .prepare(
+        `
+      INSERT INTO alert_history (id, alert_name, triggered_at, stats, delivered, error, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `,
+      )
+      .run(
+        entry.id,
+        entry.alertName,
+        entry.triggeredAt,
+        JSON.stringify(entry.stats || {}),
+        entry.delivered ? 1 : 0,
+        entry.error || null,
+        now,
+      );
+  }
+
+  getAlertHistory(): AlertHistory[] {
+    const rows = this.db.prepare('SELECT * FROM alert_history ORDER BY triggered_at DESC').all() as any[];
+    return rows.map((r: any) => ({
+      id: r.id,
+      alertName: r.alert_name,
+      triggeredAt: r.triggered_at,
+      stats: JSON.parse(r.stats || '{}'),
+      delivered: r.delivered === 1,
+      error: r.error || undefined,
     }));
   }
 
