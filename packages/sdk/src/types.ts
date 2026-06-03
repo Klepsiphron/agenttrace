@@ -84,6 +84,12 @@ export interface TraceConfig {
   cleanupIntervalHours?: number;
   /** Optional tenant/project ID to scope this AgentTrace instance (multi-tenant) */
   tenantId?: string;
+  /** Maximum traces per second (rate limit). 0 = disabled. Default: 0 */
+  maxTracesPerSecond?: number;
+  /** Maximum traces per minute (rate limit). 0 = disabled. Default: 0 */
+  maxTracesPerMinute?: number;
+  /** Burst allowance: extra tokens allowed above the sustained rate. Default: 10 */
+  burstAllowance?: number;
 }
 
 /** Webhook configuration */
