@@ -314,6 +314,8 @@ export class TraceStorage {
     }
     sql += ' ORDER BY started_at DESC LIMIT ?';
     params.push(limit);
+    // DEBUG
+    console.error(`[DEBUG getRuns] tenantId='${tenantId}' dbPath='${this.dbPath}' sql='${sql}' params=${JSON.stringify(params)}`);
     const rows = this.db.prepare(sql).all(...params) as unknown[];
     return rows.map((r) => this.rowToRun(r));
   }
