@@ -32,6 +32,8 @@ import {
   AgentSession,
   ApiKey,
   CreatedApiKey,
+  WebhookConfig,
+  WebhookEvent,
 } from './types.js';
 
 export const VERSION = '0.1.0';
@@ -71,6 +73,8 @@ export { TraceContext } from './types.js';
 export { TraceStorage } from './storage.js';
 export { SelfTracker } from './self-track.js';
 export type { SelfTrackerConfig } from './self-track.js';
+export { TokenBucketRateLimiter } from './rate-limiter.js';
+export type { RateLimiterConfig } from './rate-limiter.js';
 
 // Default cost calculator (approximate 2026 pricing)
 // Rates are in USD per 1000 tokens. Extended with additional models for v0.2.0.
@@ -343,6 +347,12 @@ export class AgentTrace {
     let error: string | undefined;
     let status: Trace['status'] = 'success';
 
+    // Rate limit check
+    if (this.rateLimiter && !this.rateLimiter.tryConsume()) {
+      // Rate limited — execute the function but don't record the trace
+      return fn();
+    }
+
     try {
       result = await fn();
     } catch (e) {
@@ -439,6 +449,14 @@ export class AgentTrace {
    */
   getStats(): TraceStats {
     return this.storage.getStats();
+  }
+
+  /**
+   * Get the number of traces dropped due to rate limiting.
+   * Returns 0 if rate limiting is not configured.
+   */
+  getDroppedTraces(): number {
+    return this.rateLimiter?.getDroppedTraces() ?? 0;
   }
 
   /**

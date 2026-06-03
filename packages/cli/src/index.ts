@@ -189,7 +189,8 @@ Commands:
   cost                 Show agent cost breakdown (periods + by agent/model)
   sessions             List agent sessions with aggregates
   activity             Show recent agent activity timeline
-  retention            Manage data retention: show | set --days N [--interval H] | cleanup [--days N] | stats
+  cleanup              Manually run data retention cleanup (deletes expired traces, runs, usage)
+  retention            Manage data retention policy: show | set <days> [--interval H]
   version              Show CLI version
 
 Options (by command):
@@ -227,6 +228,12 @@ Options (by command):
     --type ACTION        Filter by action type
     --limit N            Max entries (default 30)
     --since DURATION     e.g. 1h, 30m, 2d (from now backwards)
+  cleanup:
+    --days N             Override retention days (default: use policy setting)
+    --dry-run            Show what would be deleted without deleting
+  retention:
+    show                 Show current retention policy and storage stats
+    set <days>           Set retention policy (days); optional --interval H
 
 Global:
   --json               Emit machine-readable JSON (for runs, traces, stats, costs, export, self-stats)

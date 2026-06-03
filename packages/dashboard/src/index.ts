@@ -2,11 +2,12 @@
  * AgentTrace Dashboard
  * Local web UI + REST API for viewing agent traces
  */
-import express, { Request, Response, Express } from 'express';
+import express, { Request, Response, Express, NextFunction } from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'node:fs';
 import os from 'node:os';
+import crypto from 'node:crypto';
 import { AgentTrace, DashboardConfig, ExportFormat, AgentUsageRecord } from '@agenttrace-io/sdk';
 
 export const VERSION = '0.0.0';
@@ -17,6 +18,83 @@ const __dirname = path.dirname(__filename);
 
 // Public assets are sibling to dist/ in the published package
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
+
+// ---- API Key authentication ----
+
+export interface ApiKeyRecord {
+  id: string;
+  name: string;
+  hash: string;
+  prefix: string;
+  createdAt: number;
+}
+
+/** In-memory key store. Key = SHA-256 hash, Value = record. */
+const apiKeyStore = new Map<string, ApiKeyRecord>();
+
+function sha256(input: string): string {
+  return crypto.createHash('sha256').update(input).digest('hex');
+}
+
+/** Generate a random API key string. */
+function generateApiKey(): string {
+  return crypto.randomBytes(32).toString('hex');
+}
+
+/**
+ * Create a new API key. Returns { record, plaintextKey }.
+ * The plaintext key is shown once; only the hash is stored.
+ */
+function createApiKey(name: string): { record: ApiKeyRecord; plaintextKey: string } {
+  const plaintextKey = generateApiKey();
+  const hash = sha256(plaintextKey);
+  const id = crypto.randomBytes(8).toString('hex');
+  const prefix = plaintextKey.slice(0, 8);
+  const record: ApiKeyRecord = {
+    id,
+    name,
+    hash,
+    prefix,
+    createdAt: Date.now(),
+  };
+  apiKeyStore.set(hash, record);
+  return { record, plaintextKey };
+}
+
+/** Validate a presented key. Returns the record if valid. */
+function validateApiKey(key: string | undefined): ApiKeyRecord | null {
+  if (!key) return null;
+  const hash = sha256(key);
+  return apiKeyStore.get(hash) || null;
+}
+
+/**
+ * Authentication middleware.
+ * Checks the X-API-Key header on API routes.
+ * Allows /api/health without authentication.
+ */
+function authMiddleware(req: Request, res: Response, next: NextFunction): void {
+  // Allow health check without auth
+  if (req.path === '/api/health') {
+    next();
+    return;
+  }
+
+  // Only protect /api/* routes
+  if (!req.path.startsWith('/api/')) {
+    next();
+    return;
+  }
+
+  const key = req.headers['x-api-key'] as string | undefined;
+  const record = validateApiKey(key);
+  if (!record) {
+    res.status(401).json({ error: 'Invalid or missing API key', code: 'UNAUTHORIZED' });
+    return;
+  }
+
+  next();
+}
 
 // ---- Health check helpers (internal) ----
 
@@ -75,11 +153,55 @@ export function createDashboardApp(dbPath?: string): DashboardApp {
 
   const startTime = Date.now();
 
-  // Parse JSON bodies (for future POST if needed)
+  // Parse JSON bodies
   app.use(express.json());
 
-  // Serve the static frontend (index.html, style.css, app.js)
+  // Serve the static frontend without auth (assets, index.html)
   app.use(express.static(PUBLIC_DIR, { index: 'index.html' }));
+
+  // Authentication middleware — protects /api/* only, skips /api/health
+  app.use(authMiddleware);
+
+  // ---------- API Key Management Routes ----------
+
+  app.get('/api/v1/keys', (_req: Request, res: Response) => {
+    const keys = Array.from(apiKeyStore.values()).map((r) => ({
+      id: r.id,
+      name: r.name,
+      prefix: r.prefix,
+      createdAt: r.createdAt,
+    }));
+    res.json({ keys });
+  });
+
+  app.post('/api/v1/keys', (req: Request, res: Response) => {
+    const name = req.body?.name ? String(req.body.name) : 'default';
+    const { record, plaintextKey } = createApiKey(name);
+    res.status(201).json({
+      id: record.id,
+      name: record.name,
+      prefix: record.prefix,
+      key: plaintextKey,
+      createdAt: record.createdAt,
+    });
+  });
+
+  app.delete('/api/v1/keys/:id', (req: Request, res: Response) => {
+    const id = String(req.params.id || '');
+    let found = false;
+    for (const [hash, record] of apiKeyStore) {
+      if (record.id === id) {
+        apiKeyStore.delete(hash);
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      res.status(404).json({ error: 'Key not found', code: 'NOT_FOUND' });
+      return;
+    }
+    res.status(204).send();
+  });
 
   // ---------- API Routes ----------
 
