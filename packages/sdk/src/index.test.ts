@@ -301,7 +301,7 @@ describe('getTraces()', () => {
 
     const result = agent.getTraces({ runId: 'run-a' });
 
-    expect(mockStorage.getTraces).toHaveBeenCalledWith({ runId: 'run-a' });
+    expect(mockStorage.getTraces).toHaveBeenCalledWith({ runId: 'run-a' }, undefined);
     expect(result).toBe(traces);
     agent.close();
   });
@@ -310,7 +310,7 @@ describe('getTraces()', () => {
     const agent = new AgentTrace({ silent: true });
     agent.getTraces({ limit: 5, offset: 10 });
 
-    expect(mockStorage.getTraces).toHaveBeenCalledWith({ limit: 5, offset: 10 });
+    expect(mockStorage.getTraces).toHaveBeenCalledWith({ limit: 5, offset: 10 }, undefined);
     agent.close();
   });
 });
@@ -364,7 +364,7 @@ describe('export()', () => {
     const json = agent.export('json', { runId: 'run-1' });
     const parsed = JSON.parse(json);
 
-    expect(mockStorage.getTraces).toHaveBeenCalledWith({ runId: 'run-1' });
+    expect(mockStorage.getTraces).toHaveBeenCalledWith({ runId: 'run-1' }, undefined);
     expect(parsed).toEqual(traces);
     agent.close();
   });
@@ -403,7 +403,7 @@ describe('export() otel format', () => {
     const otlpJson = agent.export('otel', { runId: 'run-1' });
     const parsed = JSON.parse(otlpJson);
 
-    expect(mockStorage.getTraces).toHaveBeenCalledWith({ runId: 'run-1' });
+    expect(mockStorage.getTraces).toHaveBeenCalledWith({ runId: 'run-1' }, undefined);
     expect(parsed).toHaveProperty('resourceSpans');
     expect(Array.isArray(parsed.resourceSpans)).toBe(true);
     expect(parsed.resourceSpans.length).toBe(1);
@@ -582,7 +582,7 @@ describe('evaluate() and evaluateTrace()', () => {
 
     const byRun = await agent.evaluate({ scorers: [s], runId: 'r1' });
     expect(byRun).toHaveLength(1);
-    expect(mockStorage.getTraces).toHaveBeenCalledWith({ runId: 'r1' });
+    expect(mockStorage.getTraces).toHaveBeenCalledWith({ runId: 'r1' }, undefined);
 
     mockStorage.getTraces.mockClear();
     const byIds = await agent.evaluate({ scorers: [s], traceIds: ['b'] });
