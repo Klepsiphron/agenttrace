@@ -6,6 +6,23 @@ import * as http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import type { Express } from 'express';
 
+vi.mock('node:os', async (importOriginal) => {
+  const actual = await importOriginal<any>();
+  return {
+    ...actual,
+    totalmem: vi.fn(() => 16 * 1024 * 1024 * 1024),
+    freemem: vi.fn(() => 8 * 1024 * 1024 * 1024),
+  };
+});
+
+vi.mock('node:fs', async (importOriginal) => {
+  const actual = await importOriginal<any>();
+  return {
+    ...actual,
+    statfsSync: vi.fn(() => ({ bsize: 4096, blocks: 1000000, bfree: 500000, bavail: 500000 })),
+  };
+});
+
 function getServerPort(server: http.Server): number {
   const addr = server.address();
   if (addr && typeof addr === 'object' && 'port' in addr) {
@@ -236,10 +253,8 @@ describe('dashboard cost API endpoints (new tests)', () => {
 
     const total = 10000;
     const used = 8600; // 86%
-    const origTotal = (os as any).totalmem;
-    const origFree = (os as any).freemem;
-    (os as any).totalmem = () => total;
-    (os as any).freemem = () => total - used;
+    vi.mocked(os.totalmem).mockReturnValue(total);
+    vi.mocked(os.freemem).mockReturnValue(total - used);
 
     const { base } = await startTemp(app);
     const res = await fetch(`${base}/api/health`);
@@ -248,9 +263,6 @@ describe('dashboard cost API endpoints (new tests)', () => {
     expect(data.status).toBe('degraded');
     expect(data.checks.memory.status).toBe('warning');
     expect(data.checks.memory.usedBytes).toBe(used);
-
-    (os as any).totalmem = origTotal;
-    (os as any).freemem = origFree;
   });
 
   it('returns unhealthy + 503 on critical memory (>=90%)', async () => {
@@ -259,10 +271,8 @@ describe('dashboard cost API endpoints (new tests)', () => {
 
     const total = 10000;
     const used = 9500; // 95% critical
-    const origTotal = (os as any).totalmem;
-    const origFree = (os as any).freemem;
-    (os as any).totalmem = () => total;
-    (os as any).freemem = () => total - used;
+    vi.mocked(os.totalmem).mockReturnValue(total);
+    vi.mocked(os.freemem).mockReturnValue(total - used);
 
     const { base } = await startTemp(app);
     const res = await fetch(`${base}/api/health`);
@@ -270,9 +280,6 @@ describe('dashboard cost API endpoints (new tests)', () => {
     const data = await res.json();
     expect(data.status).toBe('unhealthy');
     expect(data.checks.memory.status).toBe('critical');
-
-    (os as any).totalmem = origTotal;
-    (os as any).freemem = origFree;
   });
 
   it('detects disk critical and reports unhealthy (via fs.statfsSync)', async () => {
@@ -280,8 +287,7 @@ describe('dashboard cost API endpoints (new tests)', () => {
     closes.push(close);
 
     // simulate low disk (95% used)
-    const origStatfs = (fs as any).statfsSync;
-    (fs as any).statfsSync = () => ({
+    vi.mocked(fs.statfsSync).mockReturnValue({
       type: 0,
       bsize: 4096,
       blocks: 10000,
@@ -289,7 +295,7 @@ describe('dashboard cost API endpoints (new tests)', () => {
       bavail: 500,
       files: 1000,
       ffree: 1000,
-    });
+    } as any);
 
     const { base } = await startTemp(app);
     const res = await fetch(`${base}/api/health`);
@@ -298,7 +304,5 @@ describe('dashboard cost API endpoints (new tests)', () => {
     expect(data.status).toBe('unhealthy');
     expect(data.checks.diskSpace.status).toBe('critical');
     expect(data.checks.diskSpace.totalBytes).toBeGreaterThan(0);
-
-    (fs as any).statfsSync = origStatfs;
   });
 });

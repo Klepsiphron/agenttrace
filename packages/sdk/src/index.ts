@@ -244,7 +244,7 @@ export class AgentTrace {
       retentionDays: config.retentionDays !== undefined ? config.retentionDays : persisted.retentionDays,
       cleanupIntervalHours:
         config.cleanupIntervalHours !== undefined ? config.cleanupIntervalHours : persisted.cleanupIntervalHours,
-      tenantId: config.tenantId,
+      tenantId: config.tenantId ?? '',
     };
     this.setupRetentionCleanup();
   }

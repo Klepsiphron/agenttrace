@@ -27,6 +27,10 @@ const { mockStorage, MockTraceStorage } = vi.hoisted(() => {
     close: vi.fn(),
     createScore: vi.fn(),
     getScores: vi.fn(() => []),
+    getRetentionPolicy: vi.fn(() => ({ retentionDays: 30, cleanupIntervalHours: 24 })),
+    setRetentionPolicy: vi.fn(),
+    getSetting: vi.fn(),
+    setSetting: vi.fn(),
   };
 
   return {
