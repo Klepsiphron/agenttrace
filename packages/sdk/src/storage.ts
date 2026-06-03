@@ -1462,15 +1462,16 @@ export class TraceStorage {
 
   // ── API Key Management ──────────────────────────────────────────
 
-  createApiKey(name: string, permissions: string[] = ['read', 'write']): { id: string; key: string } {
+  createApiKey(name: string, permissions: string[] = ['read', 'write']): { id: string; name: string; key: string; preview: string; createdAt: number } {
     const id = randomUUID();
     const key = randomBytes(32).toString('hex');
     const keyHash = createHash('sha256').update(key).digest('hex');
+    const now = Date.now();
     this.db.prepare(`
       INSERT INTO api_keys (id, name, key_hash, permissions, created_at, enabled)
       VALUES (?, ?, ?, ?, ?, 1)
-    `).run(id, name, keyHash, JSON.stringify(permissions), Date.now());
-    return { id, key };
+    `).run(id, name, keyHash, JSON.stringify(permissions), now);
+    return { id, name, key, preview: key.slice(0, 8) + '****', createdAt: now };
   }
 
   getApiKeys(): { id: string; name: string; createdAt: number; lastUsedAt: number | null; enabled: boolean }[] {
