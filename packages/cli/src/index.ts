@@ -14,6 +14,7 @@ import {
   type TraceTreeNode,
   AlertCondition,
   ExportFormat,
+  TraceStorage,
 } from '@agenttrace/sdk';
 import { startDashboard } from '@agenttrace/dashboard';
 import { existsSync, writeFileSync } from 'node:fs';

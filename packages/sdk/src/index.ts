@@ -53,6 +53,8 @@ export type {
 export { TraceContext } from './types.js';
 
 export { TraceStorage } from './storage.js';
+export { SelfTracker } from './self-track.js';
+export type { SelfTrackerConfig } from './self-track.js';
 
 // Default cost calculator (approximate 2026 pricing)
 // Rates are in USD per 1000 tokens. Extended with additional models for v0.2.0.
