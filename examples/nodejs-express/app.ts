@@ -58,7 +58,7 @@ function agentTraceMiddleware(req: Request, res: Response, next: NextFunction): 
       action: `${req.method} ${req.path}`,
       target: req.path,
       durationMs: Date.now() - (res as any).startTime,
-      status: res.statusCode < 400 ? 'success' : 'error',
+      status: res.statusCode < 400 ? 'success' : 'failure',
       metadata: { statusCode: res.statusCode },
     });
     at.completeRun(res.statusCode < 500 ? 'success' : 'error');
@@ -78,7 +78,7 @@ function errorTracingMiddleware(err: Error, req: Request, res: Response, _next: 
     sessionId: (req as any).traceRunId || 'unknown',
     action: 'unhandled-error',
     target: req.path,
-    status: 'error',
+    status: 'failure',
     metadata: {
       errorMessage: err.message,
       errorStack: err.stack?.slice(0, 500), // truncate stack

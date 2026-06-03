@@ -238,6 +238,7 @@ export class AgentTrace {
   private currentRunId: string | null = null;
   private registeredAlerts: AlertCondition[] = [];
   private usageEmitter = new EventEmitter();
+  private webhookEmitter = new EventEmitter();
   private _cleanupInterval?: NodeJS.Timeout | ReturnType<typeof setInterval>;
   private rateLimiter: TokenBucketRateLimiter | null = null;
 
@@ -484,7 +485,7 @@ export class AgentTrace {
    * Get cost breakdown (by model, by day, total). Supports optional run filter.
    */
   getCostBreakdown(filter: { runId?: string } = {}): CostBreakdown {
-    return this.storage.getCostBreakdown(filter.runId);
+    return this.storage.getCostBreakdown(filter.runId, this.config.tenantId || undefined);
   }
 
   // ---- Agent usage tracking (for self-observability by agents) ----

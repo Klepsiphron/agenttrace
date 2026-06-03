@@ -208,7 +208,9 @@ describe('Webhook Management', () => {
     it('should trigger trace.complete webhook after successful trace', async () => {
       mockFetch.mockResolvedValue(new Response('ok', { status: 200 }));
       client.registerWebhook('https://example.com/hook', ['trace.complete']);
+      client.startRun('test-run');
       await client.trace('test-op', async () => 'result');
+      client.completeRun();
       // Wait for fire-and-forget webhook
       await new Promise((r) => setTimeout(r, 50));
       expect(mockFetch).toHaveBeenCalled();
@@ -221,11 +223,13 @@ describe('Webhook Management', () => {
     it('should trigger trace.error webhook after failed trace', async () => {
       mockFetch.mockResolvedValue(new Response('ok', { status: 200 }));
       client.registerWebhook('https://example.com/hook', ['trace.error']);
+      client.startRun('test-run');
       try {
         await client.trace('test-op', async () => { throw new Error('fail'); });
       } catch (_) {
         /* expected */
       }
+      client.completeRun();
       // Wait for fire-and-forget webhook
       await new Promise((r) => setTimeout(r, 50));
       expect(mockFetch).toHaveBeenCalled();

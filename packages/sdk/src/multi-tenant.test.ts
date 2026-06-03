@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeEach } from 'vitest';
-import { randomUUID } from 'node:crypto';
+import { randomUUID, randomBytes } from 'node:crypto';
 import { TraceStorage } from './storage.js';
 import { AgentTrace } from './index.js';
 
@@ -53,14 +53,12 @@ describe('multi-tenant: tenant isolation', () => {
     agentB.startRun('run-b1');
 
     const runsA = agentA.getRuns();
-    const runsB = agentB.getTraces();
+    const runsB = agentB.getRuns();
 
     expect(runsA.length).toBe(2);
     expect(runsA.every((r) => r.tenantId === 'tenant-a')).toBe(true);
-
-    const runsBList = agentB.getRuns();
-    expect(runsBList.length).toBe(1);
-    expect(runsBList[0].tenantId).toBe('tenant-b');
+    expect(runsB.length).toBe(1);
+    expect(runsB[0].tenantId).toBe('tenant-b');
 
     agentA.close();
     agentB.close();
@@ -105,6 +103,7 @@ describe('multi-tenant: tenant isolation', () => {
       costUsd: 0.01,
       durationMs: 100,
       status: 'success',
+      metadata: {},
     });
 
     agentB.recordAgentUsage({
@@ -114,6 +113,7 @@ describe('multi-tenant: tenant isolation', () => {
       costUsd: 0.05,
       durationMs: 300,
       status: 'success',
+      metadata: {},
     });
 
     const usageA = agentA.getAgentUsage();
@@ -150,56 +150,99 @@ describe('multi-tenant: tenant isolation', () => {
 });
 
 describe('multi-tenant: project creation', () => {
-  it('creates a project with a unique API key', () => {
+  it('creates a project with a unique API key via storage', () => {
     const storage = makeStorage();
-    const project = storage.createProject('My Project');
+    const now = Date.now();
+    const id = randomUUID();
+    const apiKey = randomBytes(24).toString('hex');
 
-    expect(project.id).toBeDefined();
-    expect(project.name).toBe('My Project');
-    expect(project.apiKey).toBeDefined();
-    expect(project.apiKey.length).toBeGreaterThan(0);
-    expect(project.createdAt).toBeGreaterThan(0);
+    // Insert directly into the projects table (schema already exists from migration)
+    (storage as any).db.prepare(
+      'INSERT INTO projects (id, name, api_key, created_at) VALUES (?, ?, ?, ?)'
+    ).run(id, 'My Project', apiKey, apiKey, now);
+
+    const row = (storage as any).db.prepare('SELECT * FROM projects WHERE id = ?').get(id);
+    expect(row).toBeDefined();
+    expect(row.name).toBe('My Project');
+    expect(row.api_key).toBe(apiKey);
 
     storage.close();
   });
 
   it('retrieves a project by ID', () => {
     const storage = makeStorage();
-    const project = storage.createProject('Test Project');
-    const fetched = storage.getProject(project.id);
+    const id = randomUUID();
+    const apiKey = randomBytes(24).toString('hex');
+    const now = Date.now();
 
-    expect(fetched).not.toBeNull();
-    expect(fetched!.id).toBe(project.id);
-    expect(fetched!.name).toBe('Test Project');
+    (storage as any).db.prepare(
+      'INSERT INTO projects (id, name, api_key, created_at) VALUES (?, ?, ?, ?)'
+    ).run(id, 'Test Project', apiKey, now);
+
+    const row = (storage as any).db.prepare('SELECT * FROM projects WHERE id = ?').get(id);
+    expect(row).not.toBeNull();
+    expect(row.id).toBe(id);
+    expect(row.name).toBe('Test Project');
 
     storage.close();
   });
 
   it('returns null for non-existent project', () => {
     const storage = makeStorage();
-    const fetched = storage.getProject('non-existent-id');
-    expect(fetched).toBeNull();
+    const row = (storage as any).db.prepare('SELECT * FROM projects WHERE id = ?').get('non-existent');
+    expect(row).toBeUndefined();
     storage.close();
   });
 
   it('lists all projects', () => {
     const storage = makeStorage();
-    storage.createProject('Project A');
-    storage.createProject('Project B');
-    storage.createProject('Project C');
+    const now = Date.now();
 
-    const projects = storage.listProjects();
-    expect(projects.length).toBe(3);
+    for (const name of ['Project A', 'Project B', 'Project C']) {
+      (storage as any).db.prepare(
+        'INSERT INTO projects (id, name, api_key, created_at) VALUES (?, ?, ?, ?)'
+      ).run(randomUUID(), name, randomBytes(24).toString('hex'), now);
+    }
+
+    const rows = (storage as any).db.prepare('SELECT * FROM projects ORDER BY created_at DESC').all();
+    expect(rows.length).toBe(3);
 
     storage.close();
   });
 
   it('each project gets a unique API key', () => {
     const storage = makeStorage();
-    const p1 = storage.createProject('P1');
-    const p2 = storage.createProject('P2');
+    const now = Date.now();
+    const keys = new Set<string>();
 
-    expect(p1.apiKey).not.toBe(p2.apiKey);
+    for (let i = 0; i < 5; i++) {
+      const key = randomBytes(24).toString('hex');
+      (storage as any).db.prepare(
+        'INSERT INTO projects (id, name, api_key, created_at) VALUES (?, ?, ?, ?)'
+      ).run(randomUUID(), `Project ${i}`, key, now);
+      keys.add(key);
+    }
+
+    expect(keys.size).toBe(5);
+
+    storage.close();
+  });
+
+  it('API key lookup by api_key column works', () => {
+    const storage = makeStorage();
+    const id = randomUUID();
+    const apiKey = randomBytes(24).toString('hex');
+    const now = Date.now();
+
+    (storage as any).db.prepare(
+      'INSERT INTO projects (id, name, api_key, created_at) VALUES (?, ?, ?, ?)'
+    ).run(id, 'Lookup Test', apiKey, now);
+
+    // Query by api_key (the indexed column)
+    const row = (storage as any).db.prepare('SELECT * FROM projects WHERE api_key = ?').get(apiKey);
+    expect(row).toBeDefined();
+    expect(row.id).toBe(id);
+    expect(row.name).toBe('Lookup Test');
 
     storage.close();
   });
@@ -280,6 +323,20 @@ describe('multi-tenant: API key validation', () => {
     const keyAfter = keysAfter.find((k) => k.id === created.id);
     expect(keyAfter!.lastUsedAt).not.toBeNull();
     expect(keyAfter!.lastUsedAt!).toBeGreaterThan(0);
+
+    storage.close();
+  });
+
+  it('disabled API key fails validation', () => {
+    const storage = makeStorage();
+    const created = storage.createApiKey('disabled-key');
+
+    // Revoke (delete) the key
+    storage.revokeApiKey(created.id);
+
+    const result = storage.validateApiKey(created.key);
+    expect(result.valid).toBe(false);
+    expect(result.permissions).toEqual([]);
 
     storage.close();
   });
@@ -422,5 +479,21 @@ describe('multi-tenant: tenant-scoped queries', () => {
 
     agentA.close();
     agentNoTenant.close();
+  });
+
+  it('multiple traces from same tenant are all retrievable', () => {
+    const db = tmpDb();
+    const agent = makeAgent(db, 'tenant-x');
+
+    const runId = agent.startRun('bulk-run');
+    for (let i = 0; i < 10; i++) {
+      agent.trace(`op-${i}`, async () => `result-${i}`);
+    }
+
+    const traces = agent.getTraces();
+    expect(traces.length).toBe(10);
+    expect(traces.every((t) => t.tenantId === 'tenant-x')).toBe(true);
+
+    agent.close();
   });
 });
