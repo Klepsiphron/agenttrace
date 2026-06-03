@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AgentTrace • Usage</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="topbar-inner">
+        <div class="brand">
+          <span class="logo">◉</span>
+          <div>
+            <h1>AgentTrace</h1>
+            <span class="subtitle">Live Usage</span>
+          </div>
+        </div>
+        <div class="top-actions">
+          <a href="/" class="btn btn-secondary">← Dashboard</a>
+          <button id="refresh-btn" class="btn btn-secondary" title="Refresh data">⟳ Refresh</button>
+          <span class="version">v0.0.0</span>
+        </div>
+      </div>
+    </header>
+
+    <main class="container">
+      <div class="nav-back"><a href="/">← Back to runs</a></div>
+
+      <!-- Summary Cards -->
+      <section class="stats-grid usage-grid" id="summary-cards">
+        <div class="stat-card">
+          <div class="stat-value" id="active-agents">0</div>
+          <div class="stat-label">Active Agents (30m)</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="actions-today">0</div>
+          <div class="stat-label">Actions Today</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="cost-today">$0.0000</div>
+          <div class="stat-label">Cost Today (USD)</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="tokens-today">0</div>
+          <div class="stat-label">Tokens Today</div>
+        </div>
+      </section>
+
+      <!-- Charts -->
+      <div class="split">
+        <section class="panel">
+          <div class="panel-header">
+            <h2>Actions by Type (today)</h2>
+          </div>
+          <div class="chart-panel">
+            <div id="bar-chart" class="chart-container">
+              <!-- populated by JS as CSS bars -->
+              <div class="empty small">Loading…</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-header">
+            <h2>Cost Over Time (last 7 days)</h2>
+          </div>
+          <div class="chart-panel">
+            <div id="line-chart" class="chart-container">
+              <!-- SVG populated by JS -->
+              <div class="empty small">Loading…</div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- Tables -->
+      <div class="split">
+        <section class="panel">
+          <div class="panel-header">
+            <h2>Top Agents by Cost</h2>
+            <span id="top-agents-count" class="count-badge">0</span>
+          </div>
+          <div class="panel-body" style="padding: 0">
+            <table class="data-table" id="top-agents-table">
+              <thead>
+                <tr>
+                  <th>Agent</th>
+                  <th class="num">Actions</th>
+                  <th class="num">Tokens</th>
+                  <th class="num">Cost</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td colspan="4" class="empty small">Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-header">
+            <h2>Recent Actions (last 50)</h2>
+            <span id="recent-count" class="count-badge">0</span>
+          </div>
+          <div class="panel-body" style="padding: 0">
+            <table class="data-table" id="recent-actions-table">
+              <thead>
+                <tr>
+                  <th>Time</th>
+                  <th>Agent</th>
+                  <th>Action</th>
+                  <th class="num">Cost</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td colspan="4" class="empty small">Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+
+      <!-- Live Activity Feed -->
+      <section class="panel">
+        <div class="panel-header">
+          <h2>
+            <span class="live-dot" id="live-dot"></span>
+            Live Agent Activity Feed
+          </h2>
+          <span id="feed-count" class="count-badge">0 events</span>
+        </div>
+        <div id="activity-feed" class="activity-feed" aria-live="polite">
+          <div class="empty">Connecting to live stream…</div>
+        </div>
+        <div class="panel-header" style="border-top:1px solid var(--border); font-size:11px; color:var(--text-muted);">
+          Auto-updates via SSE • last 50 shown
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <span
+        >AgentTrace — real-time usage •
+        <a href="https://github.com/your-org/agenttrace" target="_blank" rel="noopener">GitHub</a>
+      </span>
+    </footer>
+
+    <script src="usage.js"></script>
+  </body>
+</html>

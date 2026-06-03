@@ -139,34 +139,66 @@ describe('dashboard cost API endpoints (new tests)', () => {
     expect(d2.totalCostUsd).toBeCloseTo(0.00004, 6);
   });
 
-  it('GET /api/health returns {status, version, uptime, dbPath, traceCount, dbSize}', async () => {
+  it('GET /api/health returns the full structured payload with checks', async () => {
     const { app, trace, close } = createDashboardApp(':memory:');
     closes.push(close);
 
-    // seed a trace so traceCount > 0
-    trace.startRun('health-run');
+    // seed a trace so totalTraces > 0, and some agent usage for activeAgents
+    const runId = trace.startRun('health-run');
     await trace.trace('health-op', async () => 'ok', {
       tokens: { promptTokens: 10, completionTokens: 5, totalTokens: 15 },
     });
+    trace.recordAgentUsage({
+      agentName: 'test-agent',
+      action: 'test',
+      status: 'success',
+      tokensUsed: 15,
+      costUsd: 0,
+      durationMs: 10,
+    });
+    trace.completeRun();
 
     const { base } = await startTemp(app);
+    const t0 = Date.now();
     const res = await fetch(`${base}/api/health`);
+    const dur = Date.now() - t0;
     expect(res.status).toBe(200);
     const data = await res.json();
-    expect(data.status).toBe('ok');
+
+    expect(data.status).toBe('healthy');
     expect(typeof data.version).toBe('string');
     expect(data.version.length).toBeGreaterThan(0);
     expect(typeof data.uptime).toBe('number');
     expect(data.uptime).toBeGreaterThanOrEqual(0);
-    expect(typeof data.dbPath).toBe('string');
-    expect(data.dbPath).toBe(':memory:');
-    expect(typeof data.traceCount).toBe('number');
-    expect(data.traceCount).toBe(1);
-    expect(typeof data.dbSize).toBe('number');
-    expect(data.dbSize).toBe(0); // memory
+    expect(typeof data.timestamp).toBe('string');
+    expect(data.timestamp).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+
+    expect(data.checks).toBeTruthy();
+    expect(data.checks.database.status).toBe('ok');
+    expect(typeof data.checks.database.responseTime).toBe('number');
+    expect(data.checks.database.responseTime).toBeGreaterThanOrEqual(0);
+    expect(data.checks.database.responseTime).toBeLessThan(100);
+
+    expect(data.checks.diskSpace).toBeTruthy();
+    expect(['ok', 'warning', 'critical']).toContain(data.checks.diskSpace.status);
+    expect(typeof data.checks.diskSpace.freeBytes).toBe('number');
+    expect(typeof data.checks.diskSpace.totalBytes).toBe('number');
+
+    expect(data.checks.memory).toBeTruthy();
+    expect(['ok', 'warning', 'critical']).toContain(data.checks.memory.status);
+    expect(typeof data.checks.memory.usedBytes).toBe('number');
+    expect(typeof data.checks.memory.totalBytes).toBe('number');
+
+    expect(typeof data.checks.activeAgents).toBe('number');
+    expect(data.checks.activeAgents).toBeGreaterThanOrEqual(0);
+    expect(typeof data.checks.totalTraces).toBe('number');
+    expect(data.checks.totalTraces).toBeGreaterThanOrEqual(1);
+
+    // endpoint fast
+    expect(dur).toBeLessThan(100);
   });
 
-  it('GET /api/health triggers database integrity check internally (tables exist, no orphans for fresh db)', async () => {
+  it('GET /api/health returns 200/healthy on fresh in-memory DB (simple query succeeds)', async () => {
     const { app, close } = createDashboardApp(':memory:');
     closes.push(close);
 
@@ -174,8 +206,9 @@ describe('dashboard cost API endpoints (new tests)', () => {
     const res = await fetch(`${base}/api/health`);
     expect(res.status).toBe(200);
     const data = await res.json();
-    expect(data.status).toBe('ok');
-    // integrity verified inside AgentTrace.getHealth() called by the endpoint impl
-    // (all tables + orphan queries); reaching 200 + ok confirms no throw from check
+    expect(data.status).toBe('healthy');
+    expect(data.checks.database.status).toBe('ok');
+    expect(data.checks.totalTraces).toBe(0);
+    // simple SELECT exercised; tables created by AgentTrace init
   });
 });

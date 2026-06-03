@@ -16,6 +16,7 @@ from .storage import TraceStorage
 from .types import (
     AgentUsageFilter,
     AgentUsageRecord,
+    CostBreakdown,
     EvaluateOptions,
     ExportFormat,
     HallucinationDetector,
@@ -407,6 +408,10 @@ class AgentTrace:
     ) -> UsageStats:
         """Aggregated stats for agent actions."""
         return self.storage.get_usage_stats(agent_name, from_date, to_date)
+
+    def get_cost_breakdown(self, run_id: Optional[str] = None) -> CostBreakdown:
+        """Get cost breakdown by model and by day (supports run filter)."""
+        return self.storage.get_cost_breakdown(run_id)
 
     # ---- Export ----
 

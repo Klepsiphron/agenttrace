@@ -200,3 +200,12 @@ class UsageStats:
     avg_duration_ms: float = 0.0
     actions_by_type: dict[str, int] = field(default_factory=dict)
     top_agents: list[dict[str, Any]] = field(default_factory=list)
+
+
+@dataclass
+class CostBreakdown:
+    """Cost breakdown by model and by day."""
+
+    total_cost_usd: float = 0.0
+    cost_by_model: dict[str, float] = field(default_factory=dict)
+    cost_by_day: dict[str, float] = field(default_factory=dict)

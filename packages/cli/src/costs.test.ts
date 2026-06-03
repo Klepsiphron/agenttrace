@@ -186,14 +186,13 @@ describe('CLI cost commands (new tests)', () => {
     expect(parsed).toHaveProperty('costByDay');
     expect(parsed.costByModel['gpt-4.1']).toBeGreaterThan(0);
   });
-});
 
   async function seedAgentUsage() {
     const storage = new TraceStorage(tmpDb);
     const now = Date.now();
-    const t1 = now - 1000 * 60 * 10; // 10m ago
-    const t2 = now - 1000 * 60 * 60; // 1h ago
-    const t3 = now - 1000 * 60 * 90; // 1.5h ago
+    const t1 = now - 1000 * 60 * 10; // 10m ago (recent)
+    const t2 = now - 1000 * 60 * 5; // 5m ago (recent, within 30m)
+    const t3 = now - 1000 * 60 * 120; // 2h ago (old)
 
     storage.recordAgentUsage({
       id: randomUUID(),
@@ -452,7 +451,7 @@ describe('CLI cost commands (new tests)', () => {
       if (!String((e as { message?: string }).message).includes('process.exit')) throw e;
     }
     const out = logs.join('\n');
-    // 30m should catch the 10m ago one, but not 1h+
+    // 30m should catch the 5-10m ago ones, but not 2h+
     expect(out).toContain('researcher-1');
     // may or not have coder depending timing, but check old not dominant
     expect(out).not.toContain('old-agent');

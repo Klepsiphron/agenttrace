@@ -15,6 +15,7 @@ import {
   type AgentUsageRecord,
   type AgentWho,
   type AgentSession,
+  type AgentUsageFilter,
   AlertCondition,
   ExportFormat,
   TraceStorage,
@@ -407,9 +408,9 @@ function parseSinceDuration(s: string | boolean | undefined): number | undefined
   if (!s || typeof s !== 'string') return undefined;
   const m = s.trim().match(/^(\d+)([smhd])$/i);
   if (!m) return undefined;
-  const n = parseInt(m[1], 10);
+  const n = parseInt(m[1]!, 10);
   if (!Number.isFinite(n) || n <= 0) return undefined;
-  const unit = m[2].toLowerCase();
+  const unit = m[2]!.toLowerCase();
   const mult = unit === 's' ? 1000 : unit === 'm' ? 60000 : unit === 'h' ? 3600000 : 86400000;
   return Date.now() - n * mult;
 }

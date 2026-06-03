@@ -4,7 +4,7 @@
  */
 
 import Database from 'better-sqlite3';
-import { randomUUID } from 'node:crypto';
+import { randomUUID, createHmac } from 'node:crypto';
 import { statSync } from 'node:fs';
 import {
   Trace,
@@ -20,6 +20,7 @@ import {
   UsageStats,
   AgentWho,
   AgentSession,
+  WebhookConfig,
 } from './types.js';
 
 export class TraceStorage {
@@ -162,6 +163,19 @@ export class TraceStorage {
       CREATE INDEX IF NOT EXISTS idx_agent_usage_action ON agent_usage(action);
       CREATE INDEX IF NOT EXISTS idx_agent_usage_status ON agent_usage(status);
       CREATE INDEX IF NOT EXISTS idx_agent_usage_created_at ON agent_usage(created_at);
+
+      CREATE TABLE IF NOT EXISTS webhooks (
+        id TEXT PRIMARY KEY,
+        url TEXT NOT NULL,
+        secret TEXT,
+        events TEXT NOT NULL,
+        enabled INTEGER DEFAULT 1,
+        created_at INTEGER NOT NULL,
+        last_triggered_at INTEGER,
+        failure_count INTEGER DEFAULT 0
+      );
+      CREATE INDEX IF NOT EXISTS idx_webhooks_enabled ON webhooks(enabled);
+      CREATE INDEX IF NOT EXISTS idx_webhooks_created_at ON webhooks(created_at);
 
       CREATE TABLE IF NOT EXISTS version (
         key TEXT PRIMARY KEY,
@@ -1142,6 +1156,7 @@ export class TraceStorage {
       'alert_history',
       'trace_links',
       'agent_usage',
+      'webhooks',
       'version',
     ];
 

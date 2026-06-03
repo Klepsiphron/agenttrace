@@ -5,6 +5,7 @@ Drop-in tracing and observability for AI agents.
 
 from .core import (
     AgentTrace,
+    AgentUsageTracker,
     VERSION,
     PACKAGE_NAME,
     init,
@@ -17,6 +18,7 @@ from .core import (
 from .types import (
     AgentUsageFilter,
     AgentUsageRecord,
+    CostBreakdown,
     EvaluateOptions,
     ExportFormat,
     Run,
@@ -33,6 +35,7 @@ from .types import (
 
 __all__ = [
     "AgentTrace",
+    "AgentUsageTracker",
     "init",
     "trace",
     "get_agent_trace",
@@ -56,4 +59,5 @@ __all__ = [
     "AgentUsageRecord",
     "AgentUsageFilter",
     "UsageStats",
+    "CostBreakdown",
 ]

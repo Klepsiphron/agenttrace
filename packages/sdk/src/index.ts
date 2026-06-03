@@ -223,6 +223,7 @@ export class AgentTrace {
   private config: Required<TraceConfig>;
   private currentRunId: string | null = null;
   private registeredAlerts: AlertCondition[] = [];
+  private usageEmitter = new EventEmitter();
 
   constructor(config: TraceConfig = {}) {
     this.config = {
@@ -420,6 +421,7 @@ export class AgentTrace {
       metadata: record.metadata || {},
     };
     this.storage.recordAgentUsage(full);
+    this.usageEmitter.emit('usage', full);
   }
 
   /**
@@ -434,6 +436,41 @@ export class AgentTrace {
    */
   getUsageStats(agentName?: string, fromDate?: number, toDate?: number): UsageStats {
     return this.storage.getUsageStats(agentName, fromDate, toDate);
+  }
+
+  /**
+   * Get list of agents with their last active time (all time, sorted recent first).
+   */
+  getActiveAgents(): { agentName: string; lastActive: string; totalActions: number }[] {
+    return this.storage.getActiveAgents();
+  }
+
+  /**
+   * Get 'who' summary (active agents overview, supports activeOnly for last 30min).
+   */
+  getAgentWho(filter: { activeOnly?: boolean; agentType?: string; limit?: number } = {}): AgentWho[] {
+    return this.storage.getAgentWho(filter);
+  }
+
+  /**
+   * Get agent sessions summary.
+   */
+  getAgentSessions(filter: { agentName?: string; activeOnly?: boolean; limit?: number } = {}): AgentSession[] {
+    return this.storage.getAgentSessions(filter);
+  }
+
+  /**
+   * Subscribe to new agent usage records (for live dashboards / SSE).
+   */
+  onUsage(listener: (record: AgentUsageRecord) => void): void {
+    this.usageEmitter.on('usage', listener);
+  }
+
+  /**
+   * Unsubscribe from agent usage events.
+   */
+  offUsage(listener: (record: AgentUsageRecord) => void): void {
+    this.usageEmitter.off('usage', listener);
   }
 
   // ---- Multi-agent tracing (v0.2) ----

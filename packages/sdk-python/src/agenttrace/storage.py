@@ -14,6 +14,7 @@ from typing import Any, Optional
 from .types import (
     AgentUsageFilter,
     AgentUsageRecord,
+    CostBreakdown,
     Run,
     RunStatus,
     TokenUsage,
@@ -741,6 +742,40 @@ class TraceStorage:
             avg_duration_ms=avg_duration_ms or 0.0,
             actions_by_type=actions_by_type,
             top_agents=top_agents,
+        )
+
+    def get_cost_breakdown(self, run_id: Optional[str] = None) -> CostBreakdown:
+        """Get total + by-model + by-day cost breakdown (matches TS)."""
+        where = " WHERE run_id = ?" if run_id else ""
+        params: list[Any] = [run_id] if run_id else []
+
+        total_row = self.conn.execute(
+            f"SELECT COALESCE(SUM(cost_usd), 0) as v FROM traces{where}", params
+        ).fetchone()
+        total = float(total_row["v"]) if total_row else 0.0
+
+        model_rows = self.conn.execute(
+            f"SELECT COALESCE(model, 'unknown') as model, COALESCE(SUM(cost_usd), 0) as cost FROM traces{where} GROUP BY model",
+            params,
+        ).fetchall()
+        cost_by_model: dict[str, float] = {}
+        for r in model_rows:
+            cost_by_model[str(r["model"])] = float(r["cost"] or 0)
+
+        day_rows = self.conn.execute(
+            f"""SELECT strftime('%Y-%m-%d', created_at / 1000, 'unixepoch') as day, COALESCE(SUM(cost_usd), 0) as cost
+                FROM traces{where} GROUP BY day ORDER BY day""",
+            params,
+        ).fetchall()
+        cost_by_day: dict[str, float] = {}
+        for r in day_rows:
+            if r["day"]:
+                cost_by_day[str(r["day"])] = float(r["cost"] or 0)
+
+        return CostBreakdown(
+            total_cost_usd=total,
+            cost_by_model=cost_by_model,
+            cost_by_day=cost_by_day,
         )
 
     def get_active_agents(self) -> list[dict[str, Any]]:

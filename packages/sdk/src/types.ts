@@ -286,3 +286,18 @@ export interface AgentSession {
   costUsd: number;
   status: AgentUsageRecord['status'];
 }
+
+/** API key for authenticating to the dashboard API (keys are stored hashed only) */
+export interface ApiKey {
+  id: string;
+  name: string;
+  /** Short preview for display, e.g. 'at_abc123****' (never the full secret) */
+  preview: string;
+  createdAt: number;
+  lastUsedAt?: number;
+}
+
+/** Result of creating an API key: includes the full secret (shown only once) */
+export interface CreatedApiKey extends ApiKey {
+  key: string;
+}
