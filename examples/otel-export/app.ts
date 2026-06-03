@@ -56,16 +56,10 @@ async function exportViaHttp(agent: AgentTrace): Promise<void> {
 
 async function exportViaGrpc(agent: AgentTrace): Promise<void> {
   // Dynamic import so this module still runs when @opentelemetry is not installed.
-  const {
-    NodeSDK,
-  } = await import('@opentelemetry/sdk-node');
-  const {
-    OTLPTraceExporter,
-  } = await import('@opentelemetry/exporter-trace-otlp-grpc');
+  const { NodeSDK } = await import('@opentelemetry/sdk-node');
+  const { OTLPTraceExporter } = await import('@opentelemetry/exporter-trace-otlp-grpc');
   const { Resource } = await import('@opentelemetry/resources');
-  const {
-    SEMRESATTRS_SERVICE_NAME,
-  } = await import('@opentelemetry/semantic-conventions');
+  const { SEMRESATTRS_SERVICE_NAME } = await import('@opentelemetry/semantic-conventions');
   const { SimpleSpanProcessor } = await import('@opentelemetry/sdk-trace-base');
 
   const exporter = new OTLPTraceExporter({
@@ -127,20 +121,28 @@ async function main(): Promise<void> {
   // Simulate some agent work
   agent.startRun('otel-export-demo');
 
-  await agent.trace('research', async () => {
-    // Simulated LLM call
-    return 'Agent observability is the practice of tracing...';
-  }, {
-    tokens: { promptTokens: 150, completionTokens: 200, totalTokens: 350, model: 'gpt-4o' },
-    input: { query: 'What is agent observability?' },
-  });
+  await agent.trace(
+    'research',
+    async () => {
+      // Simulated LLM call
+      return 'Agent observability is the practice of tracing...';
+    },
+    {
+      tokens: { promptTokens: 150, completionTokens: 200, totalTokens: 350, model: 'gpt-4o' },
+      input: { query: 'What is agent observability?' },
+    },
+  );
 
-  await agent.trace('summarize', async () => {
-    return 'Summary: observability = traces + metrics + logs for AI agents.';
-  }, {
-    tokens: { promptTokens: 80, completionTokens: 40, totalTokens: 120, model: 'gpt-4o' },
-    input: { text: 'Agent observability is the practice of tracing...' },
-  });
+  await agent.trace(
+    'summarize',
+    async () => {
+      return 'Summary: observability = traces + metrics + logs for AI agents.';
+    },
+    {
+      tokens: { promptTokens: 80, completionTokens: 40, totalTokens: 120, model: 'gpt-4o' },
+      input: { text: 'Agent observability is the practice of tracing...' },
+    },
+  );
 
   agent.completeRun();
 
@@ -155,8 +157,10 @@ async function main(): Promise<void> {
   try {
     await exportViaGrpc(agent);
   } catch (err: unknown) {
-    console.warn('[gRPC] Skipped (install @opentelemetry/sdk-node @opentelemetry/exporter-trace-otlp-grpc):',
-      err instanceof Error ? err.message : err);
+    console.warn(
+      '[gRPC] Skipped (install @opentelemetry/sdk-node @opentelemetry/exporter-trace-otlp-grpc):',
+      err instanceof Error ? err.message : err,
+    );
   }
 
   agent.close();

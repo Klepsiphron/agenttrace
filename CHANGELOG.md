@@ -55,7 +55,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Full CLI (`@agenttrace-io/cli`): init, dashboard, runs, traces, stats, export, version, costs, benchmark, health, self-stats, alerts
 - Express dashboard: dark theme, runs list, trace details, stats, export
 - GitHub Actions CI with Node 20 + 22 matrix
-- Publish pipeline: PyPI + npm triggered on GitHub release tag (v*)
+- Publish pipeline: PyPI + npm triggered on GitHub release tag (v\*)
 - Issue templates, PR template, CODEOWNERS, branch protection
 - Dependabot for npm and GitHub Actions updates
 - Pre-commit hook for auto-formatting

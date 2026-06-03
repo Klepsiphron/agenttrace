@@ -91,25 +91,25 @@ TracedAgent.invoke_traced()
 
 ## AgentTrace API used
 
-| API | Usage |
-|-----|-------|
-| `init(config)` | Global AgentTrace instance with SQLite backend |
-| `agent.start_run(name, metadata)` | Begin a logical run (groups traces) |
-| `agent.complete_run(status)` | Mark run as success/error |
-| `agent.trace(name, fn, **opts)` | Trace a callable (lambda wrapper) |
-| `agent.trace(name) as ctx` | Context manager for manual output/tokens |
-| `agent.get_stats()` | Aggregate statistics |
-| `agent.get_cost_breakdown()` | Cost by model and by day |
-| `agent.get_traces(filter)` | Query traces with filters |
-| `agent.evaluate(scorers)` | Run scorers against stored traces |
+| API                               | Usage                                          |
+| --------------------------------- | ---------------------------------------------- |
+| `init(config)`                    | Global AgentTrace instance with SQLite backend |
+| `agent.start_run(name, metadata)` | Begin a logical run (groups traces)            |
+| `agent.complete_run(status)`      | Mark run as success/error                      |
+| `agent.trace(name, fn, **opts)`   | Trace a callable (lambda wrapper)              |
+| `agent.trace(name) as ctx`        | Context manager for manual output/tokens       |
+| `agent.get_stats()`               | Aggregate statistics                           |
+| `agent.get_cost_breakdown()`      | Cost by model and by day                       |
+| `agent.get_traces(filter)`        | Query traces with filters                      |
+| `agent.evaluate(scorers)`         | Run scorers against stored traces              |
 
 ## Tools defined
 
-| Tool | Description |
-|------|-------------|
-| `calculator` | Safe math evaluator (uses `math` module, no builtins) |
-| `search_web` | Simulated web search (returns mock results) |
-| `get_weather` | Simulated weather lookup (deterministic per city) |
+| Tool          | Description                                           |
+| ------------- | ----------------------------------------------------- |
+| `calculator`  | Safe math evaluator (uses `math` module, no builtins) |
+| `search_web`  | Simulated web search (returns mock results)           |
+| `get_weather` | Simulated weather lookup (deterministic per city)     |
 
 ## Related examples
 

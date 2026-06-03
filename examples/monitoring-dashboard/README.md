@@ -42,17 +42,17 @@ Reload the page after changing settings.
 
 ## API Endpoints Consumed
 
-| Endpoint | Purpose |
-|---|---|
-| `GET /api/health` | System health (disk, memory, db connectivity) |
-| `GET /api/stats` | Aggregate trace stats (runs, tokens, cost, latency) |
-| `GET /api/costs` | Cost breakdown by model and by day |
-| `GET /api/runs` | Recent runs (supports `?status=` and `?limit=`) |
-| `GET /api/runs/:id` | Single run detail |
-| `GET /api/traces` | Traces (supports `?runId=` filter) |
-| `GET /api/traces/:id` | Single trace detail with tool calls |
-| `GET /api/export` | Export as JSON or CSV (`?format=json|csv`) |
-| `GET /api/usage/active` | Active agents list |
+| Endpoint                | Purpose                                             |
+| ----------------------- | --------------------------------------------------- | ----- |
+| `GET /api/health`       | System health (disk, memory, db connectivity)       |
+| `GET /api/stats`        | Aggregate trace stats (runs, tokens, cost, latency) |
+| `GET /api/costs`        | Cost breakdown by model and by day                  |
+| `GET /api/runs`         | Recent runs (supports `?status=` and `?limit=`)     |
+| `GET /api/runs/:id`     | Single run detail                                   |
+| `GET /api/traces`       | Traces (supports `?runId=` filter)                  |
+| `GET /api/traces/:id`   | Single trace detail with tool calls                 |
+| `GET /api/export`       | Export as JSON or CSV (`?format=json                | csv`) |
+| `GET /api/usage/active` | Active agents list                                  |
 
 ## Features
 
@@ -69,28 +69,28 @@ Reload the page after changing settings.
 
 ## Files
 
-| File | Purpose |
-|---|---|
-| `index.html` | Dashboard markup, panels, charts containers |
-| `style.css` | Dark theme CSS (no frameworks, no build) |
-| `app.js` | Vanilla JS: API calls, rendering, auto-refresh event wiring |
-| `README.md` | This file |
+| File         | Purpose                                                     |
+| ------------ | ----------------------------------------------------------- |
+| `index.html` | Dashboard markup, panels, charts containers                 |
+| `style.css`  | Dark theme CSS (no frameworks, no build)                    |
+| `app.js`     | Vanilla JS: API calls, rendering, auto-refresh event wiring |
+| `README.md`  | This file                                                   |
 
 ## Integrating with Your App
 
 To use this dashboard with your own AgentTrace deployment:
 
-1. Start the AgentTrace dashboard server:
+1.  Start the AgentTrace dashboard server:
 
-       npx agenttrace dashboard --db /path/to/agenttrace.db --port 4317
+    npx agenttrace dashboard --db /path/to/agenttrace.db --port 4317
 
-2. Copy these three files to any static hosting (or open locally)
+2.  Copy these three files to any static hosting (or open locally)
 
-3. If serving from a different origin, set the API base URL:
+3.  If serving from a different origin, set the API base URL:
 
-       localStorage.setItem('agenttrace_api_base', 'http://your-host:4317');
+    localStorage.setItem('agenttrace_api_base', 'http://your-host:4317');
 
-4. If you've configured API key authentication on the dashboard server,
-   store the key:
+4.  If you've configured API key authentication on the dashboard server,
+    store the key:
 
-       localStorage.setItem('agenttrace_api_key', 'your-key-here');
+        localStorage.setItem('agenttrace_api_key', 'your-key-here');

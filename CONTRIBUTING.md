@@ -99,9 +99,11 @@ agenttrace/
 ## Development Workflow
 
 1. **Create a feature branch** from `main`:
+
    ```bash
    git checkout -b feat/my-feature
    ```
+
    Branch naming: `feat/`, `fix/`, `docs/`, `refactor/`, `test/` prefixes.
 
 2. **Write tests first** (TDD) for behavior changes. See [Testing Guidelines](#testing-guidelines).
@@ -109,6 +111,7 @@ agenttrace/
 3. **Implement the change** — keep it focused on a single concern.
 
 4. **Verify everything passes locally** before pushing:
+
    ```bash
    pnpm build    # TypeScript compilation
    pnpm lint     # ESLint (zero warnings)
@@ -145,6 +148,7 @@ npx vitest run packages/sdk/src/index.test.ts
 ```
 
 **Test conventions:**
+
 - Test files are named `*.test.ts` and placed next to the source they test.
 - Unit tests in `*.test.ts`, integration tests in `integration.test.ts`, end-to-end tests in `e2e.test.ts`.
 - Use descriptive test names: `it('should return cost breakdown by model', ...)`.
@@ -164,6 +168,7 @@ pytest tests/test_core.py  # Specific file
 ```
 
 **Test conventions:**
+
 - Test files: `test_*.py`
 - Test classes: `Test*` (optional grouping)
 - Test functions: `test_*`
@@ -173,6 +178,7 @@ pytest tests/test_core.py  # Specific file
 ### Running TypeScript and Python Together
 
 For full coverage:
+
 ```bash
 pnpm test          # All TS tests
 cd packages/sdk-python && pytest && cd ../..  # Python tests
@@ -208,6 +214,7 @@ Zero config drift — the following are enforced by CI:
 ### Cross-Language API Parity
 
 The Python SDK mirrors the TypeScript SDK API:
+
 - TS `getCostBreakdown` → Python `get_cost_breakdown`
 - TS `dbPath` config → Python accepts `db_path` (normalizes camelCase)
 - Keep defaults, cost rates, export formats, and run/trace lifecycle consistent.
@@ -227,6 +234,7 @@ This project follows **Conventional Commits** (enforced):
 ```
 
 **Types:**
+
 - `feat` — new feature
 - `fix` — bug fix
 - `docs` — documentation only
@@ -237,6 +245,7 @@ This project follows **Conventional Commits** (enforced):
 - `ci` — CI/CD changes
 
 **Scopes** (optional but recommended):
+
 - `sdk` — TypeScript SDK
 - `python` — Python SDK
 - `cli` — CLI package
@@ -245,6 +254,7 @@ This project follows **Conventional Commits** (enforced):
 - `all` — Cross-cutting changes
 
 **Examples:**
+
 ```
 feat(sdk): add OpenTelemetry export
 fix(cli): resolve SQLite race condition
@@ -256,9 +266,10 @@ fix(python): correct cost calculation for claude-3
 ```
 
 **Rules:**
+
 - Description in imperative mood ("add" not "added").
 - Keep the first line under 72 characters.
-- Use the body for detailed explanation of *what* and *why* (not *how*).
+- Use the body for detailed explanation of _what_ and _why_ (not _how_).
 - Reference issues in the body or footer: `Closes #123`, `Refs #456`.
 
 ---
@@ -285,6 +296,7 @@ fix(python): correct cost calculation for claude-3
 ### PR Title Convention
 
 PR titles should follow the same convention as commit messages:
+
 ```
 feat(sdk): add batch trace export
 fix(cli): handle missing DB file gracefully

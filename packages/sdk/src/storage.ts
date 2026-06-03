@@ -769,7 +769,12 @@ export class TraceStorage {
     return rows.map((r) => this.rowToAgentUsage(r));
   }
 
-  getUsageStats(agentName?: string, fromDate?: number, toDate?: number, tenantId?: string): UsageStats {
+  getUsageStats(
+    agentName?: string,
+    fromDate?: number,
+    toDate?: number,
+    tenantId?: string,
+  ): UsageStats {
     const whereParts: string[] = [];
     const params: unknown[] = [];
     if (tenantId) {
@@ -883,7 +888,9 @@ export class TraceStorage {
 
   // ---- Agent usage query helpers for CLI (who / sessions / cost) ----
 
-  getAgentWho(filter: { activeOnly?: boolean; agentType?: string; limit?: number } = {}): AgentWho[] {
+  getAgentWho(
+    filter: { activeOnly?: boolean; agentType?: string; limit?: number } = {},
+  ): AgentWho[] {
     const f: AgentUsageFilter = {};
     if (filter.agentType) f.agentType = filter.agentType;
     if (filter.activeOnly) {
@@ -925,22 +932,26 @@ export class TraceStorage {
       g.tokens += r.tokensUsed || 0;
       g.cost += r.costUsd || 0;
     }
-    const list: Array<AgentWho & { lastActive: number }> = Array.from(map.entries()).map(([name, g]) => ({
-      agentName: name,
-      agentType: g.type,
-      sessionId: g.lastSession,
-      lastAction: g.lastAction,
-      actions: g.actions,
-      tokens: g.tokens,
-      costUsd: g.cost,
-      lastActive: g.lastTs,
-    }));
+    const list: Array<AgentWho & { lastActive: number }> = Array.from(map.entries()).map(
+      ([name, g]) => ({
+        agentName: name,
+        agentType: g.type,
+        sessionId: g.lastSession,
+        lastAction: g.lastAction,
+        actions: g.actions,
+        tokens: g.tokens,
+        costUsd: g.cost,
+        lastActive: g.lastTs,
+      }),
+    );
     list.sort((a, b) => b.lastActive - a.lastActive);
     const lim = filter.limit && filter.limit > 0 ? filter.limit : 100;
     return list.slice(0, lim).map(({ lastActive, ...rest }) => rest as AgentWho);
   }
 
-  getAgentSessions(filter: { agentName?: string; activeOnly?: boolean; limit?: number } = {}): AgentSession[] {
+  getAgentSessions(
+    filter: { agentName?: string; activeOnly?: boolean; limit?: number } = {},
+  ): AgentSession[] {
     const f: AgentUsageFilter = {};
     if (filter.agentName) f.agentName = filter.agentName;
     if (filter.activeOnly) {
@@ -1036,9 +1047,10 @@ export class TraceStorage {
       totalCostUsd += c;
       costByAgent[r.agentName] = (costByAgent[r.agentName] || 0) + c;
       const meta = r.metadata || {};
-      const model = typeof (meta as Record<string, unknown>).model === 'string'
-        ? ((meta as Record<string, unknown>).model as string)
-        : 'unknown';
+      const model =
+        typeof (meta as Record<string, unknown>).model === 'string'
+          ? ((meta as Record<string, unknown>).model as string)
+          : 'unknown';
       costByModel[model] = (costByModel[model] || 0) + c;
     }
     return { totalCostUsd, costByAgent, costByModel };
@@ -1053,19 +1065,30 @@ export class TraceStorage {
     const traceWhere = tenantId ? ' WHERE tenant_id = ?' : '';
     const params: unknown[] = tenantId ? [tenantId] : [];
 
-    const totalRuns = this.db.prepare('SELECT COUNT(*) as c FROM runs' + where).get(...params) as unknown as {
+    const totalRuns = this.db
+      .prepare('SELECT COUNT(*) as c FROM runs' + where)
+      .get(...params) as unknown as {
       c: number;
     };
-    const totalTraces = this.db.prepare('SELECT COUNT(*) as c FROM traces' + traceWhere).get(...params) as unknown as {
+    const totalTraces = this.db
+      .prepare('SELECT COUNT(*) as c FROM traces' + traceWhere)
+      .get(...params) as unknown as {
       c: number;
     };
     const successCount = this.db
-      .prepare("SELECT COUNT(*) as c FROM traces" + traceWhere + (tenantId ? ' AND' : ' WHERE') + " status = 'success'")
+      .prepare(
+        'SELECT COUNT(*) as c FROM traces' +
+          traceWhere +
+          (tenantId ? ' AND' : ' WHERE') +
+          " status = 'success'",
+      )
       .get(...params) as unknown as { c: number };
     const avgLatency = this.db
       .prepare('SELECT AVG(latency_ms) as v FROM traces' + traceWhere)
       .get(...params) as unknown as { v: number };
-    const totalCost = this.db.prepare('SELECT SUM(cost_usd) as v FROM traces' + traceWhere).get(...params) as unknown as {
+    const totalCost = this.db
+      .prepare('SELECT SUM(cost_usd) as v FROM traces' + traceWhere)
+      .get(...params) as unknown as {
       v: number;
     };
     const totalTokens = this.db
@@ -1208,9 +1231,7 @@ export class TraceStorage {
     if (!before || before <= 0) return 0;
     // Clean dependents that do not have ON DELETE CASCADE (scores, trace_links)
     this.db
-      .prepare(
-        `DELETE FROM scores WHERE trace_id IN (SELECT id FROM traces WHERE created_at < ?)`,
-      )
+      .prepare(`DELETE FROM scores WHERE trace_id IN (SELECT id FROM traces WHERE created_at < ?)`)
       .run(before);
     this.db
       .prepare(
@@ -1241,9 +1262,9 @@ export class TraceStorage {
   // ---- Retention policy (persisted) ----
 
   getSetting(key: string): string | null {
-    const row = this.db
-      .prepare('SELECT value FROM settings WHERE key = ?')
-      .get(key) as unknown as { value?: string } | undefined;
+    const row = this.db.prepare('SELECT value FROM settings WHERE key = ?').get(key) as unknown as
+      | { value?: string }
+      | undefined;
     return row && typeof row.value === 'string' ? row.value : null;
   }
 
@@ -1487,19 +1508,27 @@ export class TraceStorage {
 
   registerWebhook(url: string, events: string[], secret?: string): string {
     const id = randomUUID();
-    this.db.prepare(`
+    this.db
+      .prepare(
+        `
       INSERT INTO webhooks (id, url, secret, events, enabled, created_at)
       VALUES (?, ?, ?, ?, 1, ?)
-    `).run(id, url, secret || null, JSON.stringify(events), Date.now());
+    `,
+      )
+      .run(id, url, secret || null, JSON.stringify(events), Date.now());
     return id;
   }
 
   getWebhooks(): WebhookConfig[] {
-    const rows = this.db.prepare(`
+    const rows = this.db
+      .prepare(
+        `
       SELECT id, url, secret, events, enabled, created_at, last_triggered_at, failure_count
       FROM webhooks ORDER BY created_at DESC
-    `).all() as Record<string, unknown>[];
-    return rows.map(r => ({
+    `,
+      )
+      .all() as Record<string, unknown>[];
+    return rows.map((r) => ({
       id: r.id as string,
       url: r.url as string,
       secret: (r.secret as string) || undefined,
@@ -1516,30 +1545,46 @@ export class TraceStorage {
   }
 
   updateWebhookLastTriggered(id: string): void {
-    this.db.prepare(`
+    this.db
+      .prepare(
+        `
       UPDATE webhooks SET last_triggered_at = ? WHERE id = ?
-    `).run(Date.now(), id);
+    `,
+      )
+      .run(Date.now(), id);
   }
 
   incrementWebhookFailures(id: string): void {
-    this.db.prepare(`
+    this.db
+      .prepare(
+        `
       UPDATE webhooks SET failure_count = failure_count + 1 WHERE id = ?
-    `).run(id);
+    `,
+      )
+      .run(id);
   }
 
   resetWebhookFailures(id: string): void {
-    this.db.prepare(`
+    this.db
+      .prepare(
+        `
       UPDATE webhooks SET failure_count = 0 WHERE id = ?
-    `).run(id);
+    `,
+      )
+      .run(id);
   }
 
   getEnabledWebhooksForEvent(event: string): WebhookConfig[] {
-    const rows = this.db.prepare(`
+    const rows = this.db
+      .prepare(
+        `
       SELECT id, url, secret, events, enabled, created_at, last_triggered_at, failure_count
       FROM webhooks WHERE enabled = 1
-    `).all() as Record<string, unknown>[];
+    `,
+      )
+      .all() as Record<string, unknown>[];
     return rows
-      .map(r => ({
+      .map((r) => ({
         id: r.id as string,
         url: r.url as string,
         secret: (r.secret as string) || undefined,
@@ -1554,24 +1599,41 @@ export class TraceStorage {
 
   // ── API Key Management ──────────────────────────────────────────
 
-  createApiKey(name: string, permissions: string[] = ['read', 'write']): { id: string; name: string; key: string; preview: string; createdAt: number } {
+  createApiKey(
+    name: string,
+    permissions: string[] = ['read', 'write'],
+  ): { id: string; name: string; key: string; preview: string; createdAt: number } {
     const id = randomUUID();
     const key = randomBytes(32).toString('hex');
     const keyHash = createHash('sha256').update(key).digest('hex');
     const now = Date.now();
-    this.db.prepare(`
+    this.db
+      .prepare(
+        `
       INSERT INTO api_keys (id, name, key_hash, permissions, created_at, enabled)
       VALUES (?, ?, ?, ?, ?, 1)
-    `).run(id, name, keyHash, JSON.stringify(permissions), now);
+    `,
+      )
+      .run(id, name, keyHash, JSON.stringify(permissions), now);
     return { id, name, key, preview: key.slice(0, 8) + '****', createdAt: now };
   }
 
-  getApiKeys(): { id: string; name: string; createdAt: number; lastUsedAt: number | null; enabled: boolean }[] {
-    const rows = this.db.prepare(`
+  getApiKeys(): {
+    id: string;
+    name: string;
+    createdAt: number;
+    lastUsedAt: number | null;
+    enabled: boolean;
+  }[] {
+    const rows = this.db
+      .prepare(
+        `
       SELECT id, name, created_at, last_used_at, enabled
       FROM api_keys ORDER BY created_at DESC
-    `).all() as Record<string, unknown>[];
-    return rows.map(r => ({
+    `,
+      )
+      .all() as Record<string, unknown>[];
+    return rows.map((r) => ({
       id: r.id as string,
       name: r.name as string,
       createdAt: Number(r.created_at),
@@ -1582,11 +1644,17 @@ export class TraceStorage {
 
   validateApiKey(key: string): { valid: boolean; permissions: string[] } {
     const keyHash = createHash('sha256').update(key).digest('hex');
-    const row = this.db.prepare(`
+    const row = this.db
+      .prepare(
+        `
       SELECT id, permissions, enabled FROM api_keys WHERE key_hash = ?
-    `).get(keyHash) as Record<string, unknown> | undefined;
+    `,
+      )
+      .get(keyHash) as Record<string, unknown> | undefined;
     if (!row || !row.enabled) return { valid: false, permissions: [] };
-    this.db.prepare(`UPDATE api_keys SET last_used_at = ? WHERE key_hash = ?`).run(Date.now(), keyHash);
+    this.db
+      .prepare(`UPDATE api_keys SET last_used_at = ? WHERE key_hash = ?`)
+      .run(Date.now(), keyHash);
     return { valid: true, permissions: JSON.parse((row.permissions as string) || '[]') };
   }
 
@@ -1596,7 +1664,13 @@ export class TraceStorage {
 
   // ── Storage Stats ───────────────────────────────────────────────
 
-  getStorageStats(): { totalSizeBytes: number; traceCount: number; runCount: number; oldestTrace: number | null; newestTrace: number | null } {
+  getStorageStats(): {
+    totalSizeBytes: number;
+    traceCount: number;
+    runCount: number;
+    oldestTrace: number | null;
+    newestTrace: number | null;
+  } {
     let totalSizeBytes = 0;
     try {
       totalSizeBytes = statSync(this.dbPath).size;
@@ -1605,8 +1679,12 @@ export class TraceStorage {
     }
     const traceCount = this.db.prepare(`SELECT COUNT(*) as c FROM traces`).get() as { c: number };
     const runCount = this.db.prepare(`SELECT COUNT(*) as c FROM runs`).get() as { c: number };
-    const oldest = this.db.prepare(`SELECT MIN(created_at) as v FROM traces`).get() as { v: number | null };
-    const newest = this.db.prepare(`SELECT MAX(created_at) as v FROM traces`).get() as { v: number | null };
+    const oldest = this.db.prepare(`SELECT MIN(created_at) as v FROM traces`).get() as {
+      v: number | null;
+    };
+    const newest = this.db.prepare(`SELECT MAX(created_at) as v FROM traces`).get() as {
+      v: number | null;
+    };
     return {
       totalSizeBytes,
       traceCount: traceCount.c,
@@ -1622,9 +1700,9 @@ export class TraceStorage {
     const id = randomUUID();
     const apiKey = `at_${randomBytes(24).toString('hex')}`;
     const now = Date.now();
-    this.db.prepare(
-      'INSERT INTO projects (id, name, api_key, created_at) VALUES (?, ?, ?, ?)'
-    ).run(id, name, apiKey, now);
+    this.db
+      .prepare('INSERT INTO projects (id, name, api_key, created_at) VALUES (?, ?, ?, ?)')
+      .run(id, name, apiKey, now);
     return { id, name, apiKey, createdAt: now };
   }
 

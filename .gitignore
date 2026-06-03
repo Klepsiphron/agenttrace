@@ -26,4 +26,4 @@ venv/
 ENV/
 .pytest_cache/
 *.egg
-agenttrace.db
+agenttrace.db*-test-*.db*

@@ -508,7 +508,10 @@ function getPeriodStarts(): { today: number; week: number; month: number; all: n
   return { today, week, month, all: 0 };
 }
 
-function printAgentCostSection(title: string, bd: ReturnType<typeof computeAgentCostBreakdown>): void {
+function printAgentCostSection(
+  title: string,
+  bd: ReturnType<typeof computeAgentCostBreakdown>,
+): void {
   console.log(title);
   console.log('='.repeat(title.length));
   console.log(`Total: $${bd.totalCostUsd.toFixed(4)}`);
@@ -546,7 +549,16 @@ function printWhoTable(who: AgentWho[]): void {
 }
 
 function printSessionsTable(sessions: AgentSession[]): void {
-  const headers = ['Session ID', 'Agent', 'Started', 'Duration', 'Actions', 'Tokens', 'Cost', 'Status'];
+  const headers = [
+    'Session ID',
+    'Agent',
+    'Started',
+    'Duration',
+    'Actions',
+    'Tokens',
+    'Cost',
+    'Status',
+  ];
   const rows = sessions.map((s) => [
     s.sessionId.substring(0, 12),
     s.agentName,
@@ -1165,7 +1177,10 @@ async function runMain(): Promise<void> {
             console.log(
               JSON.stringify(
                 {
-                  range: { from: from ? new Date(from).toISOString() : null, to: to ? new Date(to).toISOString() : null },
+                  range: {
+                    from: from ? new Date(from).toISOString() : null,
+                    to: to ? new Date(to).toISOString() : null,
+                  },
                   agent: agentF || null,
                   ...bd,
                 },
@@ -1308,21 +1323,35 @@ async function runMain(): Promise<void> {
           const url = flags.url ? String(flags.url) : '';
           const eventsRaw = flags.events ? String(flags.events) : '';
           if (!url) {
-            console.error('Usage: agenttrace-io webhook add --url <url> [--events <event1,event2,...>]');
-            console.error('Events: trace.complete, trace.error, run.complete, run.error, cost.threshold, agent.inactive');
+            console.error(
+              'Usage: agenttrace-io webhook add --url <url> [--events <event1,event2,...>]',
+            );
+            console.error(
+              'Events: trace.complete, trace.error, run.complete, run.error, cost.threshold, agent.inactive',
+            );
             process.exit(1);
           }
           const defaultEvents: import('@agenttrace-io/sdk').WebhookEvent[] = [
-            'trace.complete', 'trace.error', 'run.complete', 'run.error', 'cost.threshold', 'agent.inactive',
+            'trace.complete',
+            'trace.error',
+            'run.complete',
+            'run.error',
+            'cost.threshold',
+            'agent.inactive',
           ];
           const events = eventsRaw
-            ? eventsRaw.split(',').map((e) => e.trim()).filter(Boolean)
+            ? eventsRaw
+                .split(',')
+                .map((e) => e.trim())
+                .filter(Boolean)
             : defaultEvents;
           const id = agent.addWebhook(url, events as import('@agenttrace-io/sdk').WebhookEvent[]);
           if (useJson) {
             console.log(JSON.stringify({ id, url, events }, null, 2));
           } else {
-            console.log(`Registered webhook: ${id.substring(0, 8)} -> ${url} (${events.join(',')})`);
+            console.log(
+              `Registered webhook: ${id.substring(0, 8)} -> ${url} (${events.join(',')})`,
+            );
           }
           break;
         }
@@ -1364,7 +1393,9 @@ async function runMain(): Promise<void> {
           } else if (result.ok) {
             console.log(`Webhook ${match.id.substring(0, 8)} delivered (HTTP ${result.status}).`);
           } else {
-            console.log(`Webhook ${match.id.substring(0, 8)} failed: ${result.error || `HTTP ${result.status}`}`);
+            console.log(
+              `Webhook ${match.id.substring(0, 8)} failed: ${result.error || `HTTP ${result.status}`}`,
+            );
           }
           break;
         }
@@ -1416,7 +1447,9 @@ async function runMain(): Promise<void> {
             const last = w.lastTriggeredAt
               ? new Date(w.lastTriggeredAt).toISOString().slice(0, 19)
               : 'never';
-            console.log(`  ${w.id.substring(0, 8)}  ${w.url}  [${status}]  events=${w.events.join(',')}  last=${last}  failures=${w.failureCount}`);
+            console.log(
+              `  ${w.id.substring(0, 8)}  ${w.url}  [${status}]  events=${w.events.join(',')}  last=${last}  failures=${w.failureCount}`,
+            );
           }
         }
         break;
@@ -1432,12 +1465,17 @@ async function runMain(): Promise<void> {
       if (sub === 'add') {
         const url = flags.url ? String(flags.url) : '';
         if (!url) {
-          console.error('Usage: agenttrace-io webhook add --url <url> [--events e1,e2] [--secret s]');
+          console.error(
+            'Usage: agenttrace-io webhook add --url <url> [--events e1,e2] [--secret s]',
+          );
           storage.close();
           process.exit(1);
         }
         const events = flags.events
-          ? String(flags.events).split(',').map((s) => s.trim()).filter(Boolean)
+          ? String(flags.events)
+              .split(',')
+              .map((s) => s.trim())
+              .filter(Boolean)
           : ['trace.complete', 'run.complete'];
         const secret = flags.secret ? String(flags.secret) : undefined;
         const id = storage.registerWebhook(url, events, secret);
@@ -1490,9 +1528,7 @@ async function runMain(): Promise<void> {
       const usageDeleted = storage.cleanupOldAgentUsage(cutoff);
       storage.close();
       if (useJson) {
-        console.log(
-          JSON.stringify({ tracesDeleted, runsDeleted, usageDeleted, days }, null, 2),
-        );
+        console.log(JSON.stringify({ tracesDeleted, runsDeleted, usageDeleted, days }, null, 2));
       } else {
         console.log(`Cleanup complete (older than ${days} days):`);
         console.log(`  Traces deleted:  ${tracesDeleted}`);
@@ -1543,10 +1579,14 @@ async function runMain(): Promise<void> {
           console.log(`  Trace count:  ${stats.traceCount}`);
           console.log(`  Run count:    ${stats.runCount}`);
           if (stats.oldestTrace) {
-            console.log(`  Oldest trace: ${new Date(stats.oldestTrace).toISOString().slice(0, 19)}`);
+            console.log(
+              `  Oldest trace: ${new Date(stats.oldestTrace).toISOString().slice(0, 19)}`,
+            );
           }
           if (stats.newestTrace) {
-            console.log(`  Newest trace: ${new Date(stats.newestTrace).toISOString().slice(0, 19)}`);
+            console.log(
+              `  Newest trace: ${new Date(stats.newestTrace).toISOString().slice(0, 19)}`,
+            );
           }
         }
         break;
@@ -1629,9 +1669,7 @@ async function runMain(): Promise<void> {
           console.log('API Keys:');
           for (const k of keys) {
             const status = k.enabled ? 'enabled' : 'disabled';
-            const last = k.lastUsedAt
-              ? new Date(k.lastUsedAt).toISOString().slice(0, 19)
-              : 'never';
+            const last = k.lastUsedAt ? new Date(k.lastUsedAt).toISOString().slice(0, 19) : 'never';
             console.log(`  ${k.id.substring(0, 8)}  ${k.name}  [${status}]  last_used=${last}`);
           }
         }
@@ -1657,7 +1695,13 @@ async function runMain(): Promise<void> {
         if (useJson) {
           console.log(
             JSON.stringify(
-              { id: created.id, name: created.name, key: created.key, preview: created.preview, createdAt: created.createdAt },
+              {
+                id: created.id,
+                name: created.name,
+                key: created.key,
+                preview: created.preview,
+                createdAt: created.createdAt,
+              },
               null,
               2,
             ),
@@ -1698,7 +1742,8 @@ async function runMain(): Promise<void> {
 
     case 'benchmark': {
       const trace = getAgentTrace();
-      const results: Array<{ name: string; ops: number; durationMs: number; opsPerSec: number }> = [];
+      const results: Array<{ name: string; ops: number; durationMs: number; opsPerSec: number }> =
+        [];
 
       // Write benchmark
       {
@@ -1709,7 +1754,12 @@ async function runMain(): Promise<void> {
           trace.completeRun();
         }
         const durationMs = Date.now() - start;
-        results.push({ name: 'write', ops, durationMs, opsPerSec: Math.round((ops / durationMs) * 1000) });
+        results.push({
+          name: 'write',
+          ops,
+          durationMs,
+          opsPerSec: Math.round((ops / durationMs) * 1000),
+        });
       }
 
       // Read benchmark
@@ -1717,7 +1767,12 @@ async function runMain(): Promise<void> {
         const start = Date.now();
         const runs = trace.getRuns(1000);
         const durationMs = Date.now() - start;
-        results.push({ name: 'read', ops: runs.length, durationMs, opsPerSec: Math.round((runs.length / Math.max(1, durationMs)) * 1000) });
+        results.push({
+          name: 'read',
+          ops: runs.length,
+          durationMs,
+          opsPerSec: Math.round((runs.length / Math.max(1, durationMs)) * 1000),
+        });
       }
 
       // Stats benchmark
@@ -1728,7 +1783,12 @@ async function runMain(): Promise<void> {
           trace.getStats();
         }
         const durationMs = Date.now() - start;
-        results.push({ name: 'stats', ops: iterations, durationMs, opsPerSec: Math.round((iterations / durationMs) * 1000) });
+        results.push({
+          name: 'stats',
+          ops: iterations,
+          durationMs,
+          opsPerSec: Math.round((iterations / durationMs) * 1000),
+        });
       }
 
       trace.close();

@@ -21,7 +21,12 @@ let _diskBfree = 500;
 vi.mock('node:fs', () => ({
   statfsSync: vi.fn(() => ({ bsize: 4096, blocks: 10000, bfree: _diskBfree, bavail: _diskBfree })),
   default: {
-    statfsSync: vi.fn(() => ({ bsize: 4096, blocks: 10000, bfree: _diskBfree, bavail: _diskBfree })),
+    statfsSync: vi.fn(() => ({
+      bsize: 4096,
+      blocks: 10000,
+      bfree: _diskBfree,
+      bavail: _diskBfree,
+    })),
   },
 }));
 

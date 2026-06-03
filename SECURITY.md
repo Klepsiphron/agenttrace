@@ -25,14 +25,14 @@ Security model, configuration reference, and hardening checklist for AgentTrace
 
 AgentTrace is a **local-first** observability tool. The primary threat vectors are:
 
-| Vector | Risk | Mitigation |
-|--------|------|------------|
-| Unauthorized dashboard access | Read traces containing prompts/outputs | API key auth (all `/api/*` except `/api/health`) |
-| Unauthorized trace ingestion | Injection of fake traces | API keys with `write` permission; rate limiting |
-| Database file theft | Exposure of all trace data (prompts, outputs, costs) | FS-level encryption; file permissions; PII redaction |
-| Webhook payload tampering | Man-in-the-middle on webhook delivery | HMAC-SHA256 signatures |
-| Trace flooding / DoS | Memory/CPU exhaustion from high volume | Token bucket rate limiter |
-| Stolen API key replay | Access to dashboard or trace writes | Key rotation; short-lived keys; `lastUsedAt` audit |
+| Vector                        | Risk                                                 | Mitigation                                           |
+| ----------------------------- | ---------------------------------------------------- | ---------------------------------------------------- |
+| Unauthorized dashboard access | Read traces containing prompts/outputs               | API key auth (all `/api/*` except `/api/health`)     |
+| Unauthorized trace ingestion  | Injection of fake traces                             | API keys with `write` permission; rate limiting      |
+| Database file theft           | Exposure of all trace data (prompts, outputs, costs) | FS-level encryption; file permissions; PII redaction |
+| Webhook payload tampering     | Man-in-the-middle on webhook delivery                | HMAC-SHA256 signatures                               |
+| Trace flooding / DoS          | Memory/CPU exhaustion from high volume               | Token bucket rate limiter                            |
+| Stolen API key replay         | Access to dashboard or trace writes                  | Key rotation; short-lived keys; `lastUsedAt` audit   |
 
 What is **not** a threat by default: AgentTrace makes zero external network calls from the SDK. No telemetry. No phone-home. Data leaves the machine only via explicitly configured webhooks or manual export.
 
@@ -172,14 +172,14 @@ if (wh.secret) {
 The `event` and `timestamp` fields are always present. Additional fields depend
 on the event type:
 
-| Event | Extra Fields |
-|-------|-------------|
-| `trace.complete` | trace metadata |
-| `trace.error` | trace metadata, error info |
-| `run.complete` | `runId` |
-| `run.error` | `runId` |
-| `cost.threshold` | cost stats |
-| `agent.inactive` | agent info |
+| Event            | Extra Fields               |
+| ---------------- | -------------------------- |
+| `trace.complete` | trace metadata             |
+| `trace.error`    | trace metadata, error info |
+| `run.complete`   | `runId`                    |
+| `run.error`      | `runId`                    |
+| `cost.threshold` | cost stats                 |
+| `agent.inactive` | agent info                 |
 
 ### Verifying Signatures (Receiver Side)
 
@@ -209,18 +209,15 @@ def verify_agenttrace_signature(request_body: bytes, signature_header: str, secr
 // Node.js receiver
 import { createHash } from 'node:crypto';
 
-function verifySignature(
-  body: string,
-  signatureHeader: string,
-  secret: string
-): boolean {
+function verifySignature(body: string, signatureHeader: string, secret: string): boolean {
   if (!signatureHeader.startsWith('sha256=')) return false;
   const expected = createHash('sha256')
     .update(secret + '.' + body)
     .digest('hex');
   const actual = signatureHeader.slice(7); // strip "sha256="
-  return expected.length === actual.length &&
-    timingSafeEqual(Buffer.from(expected), Buffer.from(actual));
+  return (
+    expected.length === actual.length && timingSafeEqual(Buffer.from(expected), Buffer.from(actual))
+  );
 }
 ```
 
@@ -240,17 +237,17 @@ function verifySignature(
 
 The SQLite database (`agenttrace.db`) contains:
 
-| Table | Sensitive Content |
-|-------|------------------|
-| `traces` | Prompts, outputs, token counts, costs, metadata |
-| `runs` | Run names, metadata |
-| `tool_calls` | Tool inputs/outputs |
-| `scores` | Evaluation scores |
-| `agent_usage` | Agent names, actions, tokens, costs |
-| `webhooks` | URLs, **secrets (plaintext)**, event configs |
-| `api_keys` | Key hashes (SHA-256), names, permissions |
-| `alerts` | Alert conditions, webhook URLs |
-| `alert_history` | Triggered alert snapshots |
+| Table           | Sensitive Content                               |
+| --------------- | ----------------------------------------------- |
+| `traces`        | Prompts, outputs, token counts, costs, metadata |
+| `runs`          | Run names, metadata                             |
+| `tool_calls`    | Tool inputs/outputs                             |
+| `scores`        | Evaluation scores                               |
+| `agent_usage`   | Agent names, actions, tokens, costs             |
+| `webhooks`      | URLs, **secrets (plaintext)**, event configs    |
+| `api_keys`      | Key hashes (SHA-256), names, permissions        |
+| `alerts`        | Alert conditions, webhook URLs                  |
+| `alert_history` | Triggered alert snapshots                       |
 
 ### Encryption
 
@@ -307,12 +304,16 @@ function redactPII(text: string): string {
     .replace(/sk-[a-zA-Z0-9]{20,}/g, '[API_KEY]');
 }
 
-const result = await agent.trace('llm-call', async () => {
-  return await callLLM(userInput);
-}, {
-  input: redactPII(userInput),    // redact before storage
-  // output is captured automatically — redact it too if needed
-});
+const result = await agent.trace(
+  'llm-call',
+  async () => {
+    return await callLLM(userInput);
+  },
+  {
+    input: redactPII(userInput), // redact before storage
+    // output is captured automatically — redact it too if needed
+  },
+);
 ```
 
 ### Post-Hoc Scorer for PII Detection
@@ -326,7 +327,7 @@ const piiScorer = {
     const text = JSON.stringify(trace.output || '');
     const hasEmail = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/.test(text);
     const hasKey = /sk-[a-zA-Z0-9]{20,}/.test(text);
-    return (hasEmail || hasKey) ? 0 : 1; // 0 = PII found, 1 = clean
+    return hasEmail || hasKey ? 0 : 1; // 0 = PII found, 1 = clean
   },
 };
 
@@ -354,9 +355,9 @@ import { init } from '@agenttrace-io/sdk';
 
 const agent = init({
   dbPath: './agenttrace.db',
-  maxTracesPerSecond: 100,   // sustained rate (0 = disabled)
-  maxTracesPerMinute: 3000,  // sustained rate (0 = disabled)
-  burstAllowance: 50,        // extra tokens above sustained rate
+  maxTracesPerSecond: 100, // sustained rate (0 = disabled)
+  maxTracesPerMinute: 3000, // sustained rate (0 = disabled)
+  burstAllowance: 50, // extra tokens above sustained rate
 });
 ```
 
@@ -449,7 +450,7 @@ server {
 services:
   agenttrace:
     ports:
-      - '4317:4317'   # binds to 0.0.0.0 — accessible from network
+      - '4317:4317' # binds to 0.0.0.0 — accessible from network
     volumes:
       - agenttrace-data:/app/data
 ```
@@ -460,11 +461,11 @@ services:
 services:
   agenttrace:
     ports:
-      - '127.0.0.1:4317:4317'  # loopback only
+      - '127.0.0.1:4317:4317' # loopback only
     volumes:
       - agenttrace-data:/app/data
-    read-only: true              # read-only root filesystem
-    user: '1000:1000'            # non-root user
+    read-only: true # read-only root filesystem
+    user: '1000:1000' # non-root user
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -490,6 +491,7 @@ Use this checklist when deploying AgentTrace in any environment beyond local
 development:
 
 ### Data Protection
+
 - [ ] Filesystem encryption enabled on the volume containing `agenttrace.db`
 - [ ] Database file permissions set to `600` (owner read/write only)
 - [ ] PII redaction implemented before calling `agent.trace()`
@@ -497,6 +499,7 @@ development:
 - [ ] Backups encrypted if `agenttrace.db` is backed up
 
 ### Authentication & Access
+
 - [ ] API keys created for each consumer (no shared keys)
 - [ ] API keys stored in environment variables, not source code
 - [ ] Unused/stale API keys revoked
@@ -504,17 +507,20 @@ development:
 - [ ] TLS enabled if dashboard is accessible over a network
 
 ### Webhooks
+
 - [ ] Webhook secrets set for all configured webhooks
 - [ ] Signature verification implemented on the receiver side
 - [ ] HTTPS used for all webhook URLs
 - [ ] Webhook failure counts monitored
 
 ### Rate Limiting
+
 - [ ] Rate limiting enabled (`maxTracesPerSecond > 0` or `maxTracesPerMinute > 0`)
 - [ ] `getDroppedTraces()` monitored for anomalies
 - [ ] Per-tenant `tenantId` set in multi-tenant deployments
 
 ### Docker / Infrastructure
+
 - [ ] Container runs as non-root user
 - [ ] Read-only root filesystem
 - [ ] No unnecessary capabilities
@@ -534,4 +540,4 @@ If you find a security vulnerability in AgentTrace:
 
 ---
 
-*Last updated: 2026-06-02 | AgentTrace v0.1.x*
+_Last updated: 2026-06-02 | AgentTrace v0.1.x_

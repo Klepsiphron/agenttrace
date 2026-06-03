@@ -32,7 +32,11 @@ describe('Webhook Management', () => {
     });
 
     it('should register a webhook with a secret', () => {
-      const id = client.registerWebhook('https://example.com/hook', ['trace.complete', 'run.complete'], 'my-secret');
+      const id = client.registerWebhook(
+        'https://example.com/hook',
+        ['trace.complete', 'run.complete'],
+        'my-secret',
+      );
       expect(id).toBeDefined();
       const webhooks = client.getWebhooks();
       expect(webhooks).toHaveLength(1);
@@ -63,7 +67,11 @@ describe('Webhook Management', () => {
     });
 
     it('should return all registered webhooks with correct shape', () => {
-      client.registerWebhook('https://example.com/hook', ['trace.complete', 'run.complete'], 'secret123');
+      client.registerWebhook(
+        'https://example.com/hook',
+        ['trace.complete', 'run.complete'],
+        'secret123',
+      );
       const webhooks = client.getWebhooks();
       expect(webhooks).toHaveLength(1);
       const wh = webhooks[0];
@@ -225,7 +233,9 @@ describe('Webhook Management', () => {
       client.registerWebhook('https://example.com/hook', ['trace.error']);
       client.startRun('test-run');
       try {
-        await client.trace('test-op', async () => { throw new Error('fail'); });
+        await client.trace('test-op', async () => {
+          throw new Error('fail');
+        });
       } catch (_) {
         /* expected */
       }

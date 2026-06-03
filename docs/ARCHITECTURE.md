@@ -355,29 +355,29 @@ erDiagram
 
 ### Indexes
 
-| Table | Index | Columns | Purpose |
-|-------|-------|---------|---------|
-| traces | idx_traces_run_id | run_id | Run detail lookups |
-| traces | idx_traces_status | status | Filter by status |
-| traces | idx_traces_created_at | created_at | Time-based queries, cleanup |
-| traces | idx_traces_cost | cost_usd | Cost-based filtering |
-| traces | idx_traces_parent_id | parent_id | Tree traversal |
-| tool_calls | idx_tool_calls_trace_id | trace_id | Trace detail |
-| tool_calls | idx_tool_calls_name | name | Top tools query |
-| scores | idx_scores_trace_id | trace_id | Score lookup |
-| scores | idx_scores_name | name | Score grouping |
-| alerts | idx_alerts_name | name | Alert CRUD |
-| alert_history | idx_alert_history_alert_name | alert_name | History per alert |
-| alert_history | idx_alert_history_triggered_at | triggered_at | Recent history |
-| trace_links | idx_trace_links_source | source_trace_id | Link resolution |
-| trace_links | idx_trace_links_target | target_trace_id | Link resolution |
-| agent_usage | idx_agent_usage_agent_name | agent_name | Agent queries |
-| agent_usage | idx_agent_usage_session_id | session_id | Session grouping |
-| agent_usage | idx_agent_usage_action | action | Action type queries |
-| agent_usage | idx_agent_usage_status | status | Status filtering |
-| agent_usage | idx_agent_usage_created_at | created_at | Time-based queries |
-| webhooks | idx_webhooks_enabled | enabled | Active webhook filter |
-| api_keys | idx_api_keys_created_at | created_at | Key listing |
+| Table         | Index                          | Columns         | Purpose                     |
+| ------------- | ------------------------------ | --------------- | --------------------------- |
+| traces        | idx_traces_run_id              | run_id          | Run detail lookups          |
+| traces        | idx_traces_status              | status          | Filter by status            |
+| traces        | idx_traces_created_at          | created_at      | Time-based queries, cleanup |
+| traces        | idx_traces_cost                | cost_usd        | Cost-based filtering        |
+| traces        | idx_traces_parent_id           | parent_id       | Tree traversal              |
+| tool_calls    | idx_tool_calls_trace_id        | trace_id        | Trace detail                |
+| tool_calls    | idx_tool_calls_name            | name            | Top tools query             |
+| scores        | idx_scores_trace_id            | trace_id        | Score lookup                |
+| scores        | idx_scores_name                | name            | Score grouping              |
+| alerts        | idx_alerts_name                | name            | Alert CRUD                  |
+| alert_history | idx_alert_history_alert_name   | alert_name      | History per alert           |
+| alert_history | idx_alert_history_triggered_at | triggered_at    | Recent history              |
+| trace_links   | idx_trace_links_source         | source_trace_id | Link resolution             |
+| trace_links   | idx_trace_links_target         | target_trace_id | Link resolution             |
+| agent_usage   | idx_agent_usage_agent_name     | agent_name      | Agent queries               |
+| agent_usage   | idx_agent_usage_session_id     | session_id      | Session grouping            |
+| agent_usage   | idx_agent_usage_action         | action          | Action type queries         |
+| agent_usage   | idx_agent_usage_status         | status          | Status filtering            |
+| agent_usage   | idx_agent_usage_created_at     | created_at      | Time-based queries          |
+| webhooks      | idx_webhooks_enabled           | enabled         | Active webhook filter       |
+| api_keys      | idx_api_keys_created_at        | created_at      | Key listing                 |
 
 ### Data Retention
 
@@ -461,22 +461,22 @@ AgentTrace
 
 Base URL: `http://localhost:4317`
 
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| GET | `/api/health` | No | Health check (DB, disk, memory) |
-| GET | `/api/stats` | Yes | Summary statistics |
-| GET | `/api/costs` | Yes | Cost breakdown by model/day |
-| GET | `/api/runs` | Yes | List runs |
-| GET | `/api/runs/:id` | Yes | Run detail |
-| GET | `/api/traces` | Yes | List traces (filterable) |
-| GET | `/api/traces/:id` | Yes | Trace detail |
-| GET | `/api/traces/:id/tree` | Yes | Trace tree (multi-agent) |
-| GET | `/api/export` | Yes | Download export (json/csv) |
-| GET | `/api/usage` | Yes | Agent usage records |
-| GET | `/api/usage/stats` | Yes | Aggregated usage stats |
-| GET | `/api/usage/active` | Yes | Active agents list |
-| GET | `/api/usage/stream` | Yes | SSE stream of usage events |
-| GET/POST/DELETE | `/api/v1/keys` | Yes | API key management |
+| Method          | Path                   | Auth | Description                     |
+| --------------- | ---------------------- | ---- | ------------------------------- |
+| GET             | `/api/health`          | No   | Health check (DB, disk, memory) |
+| GET             | `/api/stats`           | Yes  | Summary statistics              |
+| GET             | `/api/costs`           | Yes  | Cost breakdown by model/day     |
+| GET             | `/api/runs`            | Yes  | List runs                       |
+| GET             | `/api/runs/:id`        | Yes  | Run detail                      |
+| GET             | `/api/traces`          | Yes  | List traces (filterable)        |
+| GET             | `/api/traces/:id`      | Yes  | Trace detail                    |
+| GET             | `/api/traces/:id/tree` | Yes  | Trace tree (multi-agent)        |
+| GET             | `/api/export`          | Yes  | Download export (json/csv)      |
+| GET             | `/api/usage`           | Yes  | Agent usage records             |
+| GET             | `/api/usage/stats`     | Yes  | Aggregated usage stats          |
+| GET             | `/api/usage/active`    | Yes  | Active agents list              |
+| GET             | `/api/usage/stream`    | Yes  | SSE stream of usage events      |
+| GET/POST/DELETE | `/api/v1/keys`         | Yes  | API key management              |
 
 Authentication: `X-API-Key` header. The dashboard ships with an in-memory key
 store by default. The first key can be created via `POST /api/v1/keys`.
@@ -534,7 +534,7 @@ Tables with `tenant_id`:
 ```typescript
 // Each AgentTrace instance is scoped to one tenant
 const agent = new AgentTrace({
-  tenantId: 'team-alpha'
+  tenantId: 'team-alpha',
 });
 
 // SDK methods automatically filter by tenantId internally
@@ -613,14 +613,14 @@ graph TB
 
 ### Event Types
 
-| Event | When Triggered |
-|-------|---------------|
-| `trace.complete` | After every successful trace |
-| `trace.error` | After every trace with error status |
-| `run.complete` | When `completeRun()` is called with success |
-| `run.error` | When `completeRun()` is called with failure/error |
-| `cost.threshold` | When cost exceeds a registered alert condition |
-| `agent.inactive` | When an agent has no activity within a threshold |
+| Event            | When Triggered                                    |
+| ---------------- | ------------------------------------------------- |
+| `trace.complete` | After every successful trace                      |
+| `trace.error`    | After every trace with error status               |
+| `run.complete`   | When `completeRun()` is called with success       |
+| `run.error`      | When `completeRun()` is called with failure/error |
+| `cost.threshold` | When cost exceeds a registered alert condition    |
+| `agent.inactive` | When an agent has no activity within a threshold  |
 
 ### Webhook Payload
 
@@ -664,7 +664,7 @@ Receivers should verify this signature before processing.
 const webhookId = agent.addWebhook(
   'https://hooks.slack.com/services/...',
   ['trace.error', 'run.error', 'cost.threshold'],
-  'my-signing-secret'
+  'my-signing-secret',
 );
 
 // Via CLI
@@ -760,11 +760,11 @@ The `migrations.ts` module provides a sequential migration runner.
 
 ### Migration History
 
-| Version | Name | Changes |
-|---------|------|---------|
-| 1 | initial | Base schema: runs, traces, tool_calls, scores, alerts, alert_history, trace_links, agent_usage, webhooks, api_keys, settings, version |
-| 2 | multi-agent | Added `parent_id` to traces, `trace_links` table for cross-agent linking |
-| 3 | multi-tenant | Added `projects` table, `tenant_id` column to runs/traces/agent_usage |
+| Version | Name         | Changes                                                                                                                               |
+| ------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
+| 1       | initial      | Base schema: runs, traces, tool_calls, scores, alerts, alert_history, trace_links, agent_usage, webhooks, api_keys, settings, version |
+| 2       | multi-agent  | Added `parent_id` to traces, `trace_links` table for cross-agent linking                                                              |
+| 3       | multi-tenant | Added `projects` table, `tenant_id` column to runs/traces/agent_usage                                                                 |
 
 ### Migration Strategy
 

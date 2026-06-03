@@ -157,9 +157,9 @@ describe('multi-tenant: project creation', () => {
     const apiKey = randomBytes(24).toString('hex');
 
     // Insert directly into the projects table (schema already exists from migration)
-    (storage as any).db.prepare(
-      'INSERT INTO projects (id, name, api_key, created_at) VALUES (?, ?, ?, ?)'
-    ).run(id, 'My Project', apiKey, apiKey, now);
+    (storage as any).db
+      .prepare('INSERT INTO projects (id, name, api_key, created_at) VALUES (?, ?, ?, ?)')
+      .run(id, 'My Project', apiKey, apiKey, now);
 
     const row = (storage as any).db.prepare('SELECT * FROM projects WHERE id = ?').get(id);
     expect(row).toBeDefined();
@@ -175,9 +175,9 @@ describe('multi-tenant: project creation', () => {
     const apiKey = randomBytes(24).toString('hex');
     const now = Date.now();
 
-    (storage as any).db.prepare(
-      'INSERT INTO projects (id, name, api_key, created_at) VALUES (?, ?, ?, ?)'
-    ).run(id, 'Test Project', apiKey, now);
+    (storage as any).db
+      .prepare('INSERT INTO projects (id, name, api_key, created_at) VALUES (?, ?, ?, ?)')
+      .run(id, 'Test Project', apiKey, now);
 
     const row = (storage as any).db.prepare('SELECT * FROM projects WHERE id = ?').get(id);
     expect(row).not.toBeNull();
@@ -189,7 +189,9 @@ describe('multi-tenant: project creation', () => {
 
   it('returns null for non-existent project', () => {
     const storage = makeStorage();
-    const row = (storage as any).db.prepare('SELECT * FROM projects WHERE id = ?').get('non-existent');
+    const row = (storage as any).db
+      .prepare('SELECT * FROM projects WHERE id = ?')
+      .get('non-existent');
     expect(row).toBeUndefined();
     storage.close();
   });
@@ -199,12 +201,14 @@ describe('multi-tenant: project creation', () => {
     const now = Date.now();
 
     for (const name of ['Project A', 'Project B', 'Project C']) {
-      (storage as any).db.prepare(
-        'INSERT INTO projects (id, name, api_key, created_at) VALUES (?, ?, ?, ?)'
-      ).run(randomUUID(), name, randomBytes(24).toString('hex'), now);
+      (storage as any).db
+        .prepare('INSERT INTO projects (id, name, api_key, created_at) VALUES (?, ?, ?, ?)')
+        .run(randomUUID(), name, randomBytes(24).toString('hex'), now);
     }
 
-    const rows = (storage as any).db.prepare('SELECT * FROM projects ORDER BY created_at DESC').all();
+    const rows = (storage as any).db
+      .prepare('SELECT * FROM projects ORDER BY created_at DESC')
+      .all();
     expect(rows.length).toBe(3);
 
     storage.close();
@@ -217,9 +221,9 @@ describe('multi-tenant: project creation', () => {
 
     for (let i = 0; i < 5; i++) {
       const key = randomBytes(24).toString('hex');
-      (storage as any).db.prepare(
-        'INSERT INTO projects (id, name, api_key, created_at) VALUES (?, ?, ?, ?)'
-      ).run(randomUUID(), `Project ${i}`, key, now);
+      (storage as any).db
+        .prepare('INSERT INTO projects (id, name, api_key, created_at) VALUES (?, ?, ?, ?)')
+        .run(randomUUID(), `Project ${i}`, key, now);
       keys.add(key);
     }
 
@@ -234,9 +238,9 @@ describe('multi-tenant: project creation', () => {
     const apiKey = randomBytes(24).toString('hex');
     const now = Date.now();
 
-    (storage as any).db.prepare(
-      'INSERT INTO projects (id, name, api_key, created_at) VALUES (?, ?, ?, ?)'
-    ).run(id, 'Lookup Test', apiKey, now);
+    (storage as any).db
+      .prepare('INSERT INTO projects (id, name, api_key, created_at) VALUES (?, ?, ?, ?)')
+      .run(id, 'Lookup Test', apiKey, now);
 
     // Query by api_key (the indexed column)
     const row = (storage as any).db.prepare('SELECT * FROM projects WHERE api_key = ?').get(apiKey);

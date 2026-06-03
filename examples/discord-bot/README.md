@@ -21,16 +21,17 @@ DISCORD_TOKEN=*** python bot.py
 
 ## Commands
 
-| Command | Tracing pattern | What it does |
-|---|---|---|
-| `!ask <question>` | Async context manager | Sends a question to an LLM, attaches tokens + metadata |
-| `!ping` | Decorator (`@trace`) | Wraps the entire command in a trace automatically |
-| `!stats` | Inline lambda | Queries and displays AgentTrace stats |
+| Command             | Tracing pattern         | What it does                                                 |
+| ------------------- | ----------------------- | ------------------------------------------------------------ |
+| `!ask <question>`   | Async context manager   | Sends a question to an LLM, attaches tokens + metadata       |
+| `!ping`             | Decorator (`@trace`)    | Wraps the entire command in a trace automatically            |
+| `!stats`            | Inline lambda           | Queries and displays AgentTrace stats                        |
 | `!research <topic>` | Nested context managers | Multi-step workflow with inner traces for search + summarise |
 
 ## Tracing Patterns Shown
 
 **Pattern A — Async context manager** (`!ask`):
+
 ```python
 async with trace("ask-command", input={"question": q}, model="gpt-4o-mini") as t:
     answer = await call_llm(q)
@@ -39,9 +40,10 @@ async with trace("ask-command", input={"question": q}, model="gpt-4o-mini") as t
     t.set_output(answer)
 ```
 
-Best when you need to attach tokens/metadata *after* an async call completes.
+Best when you need to attach tokens/metadata _after_ an async call completes.
 
 **Pattern B — Decorator** (`!ping`):
+
 ```python
 @trace("ping-decorator")
 @bot.command(name="ping")
@@ -52,6 +54,7 @@ async def ping_command(ctx):
 Cleanest for simple commands where you don't need runtime token data.
 
 **Pattern C — Inline lambda** (`!stats`):
+
 ```python
 stats = agent.trace("stats-query", lambda: agent.get_stats(), input={...})
 ```
@@ -59,6 +62,7 @@ stats = agent.trace("stats-query", lambda: agent.get_stats(), input={...})
 Good for synchronous one-liners where the return value is the trace output.
 
 **Pattern D — Nested workflows** (`!research`):
+
 ```python
 async with trace("research-workflow") as outer:
     async with trace("research-search") as step1:
@@ -95,9 +99,9 @@ npx agenttrace export json --db ./agenttrace.db
 
 ## Config
 
-| Env var | Default | Description |
-|---|---|---|
-| `DISCORD_TOKEN` | *(required)* | Discord bot token |
+| Env var              | Default           | Description          |
+| -------------------- | ----------------- | -------------------- |
+| `DISCORD_TOKEN`      | _(required)_      | Discord bot token    |
 | `AGENTTRACE_DB_PATH` | `./agenttrace.db` | SQLite database file |
 
 ## Dependencies

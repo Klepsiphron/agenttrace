@@ -118,4 +118,4 @@ That's why AgentTrace is open-source. Not as a marketing strategy. As a design r
 
 ---
 
-*AgentTrace is MIT-licensed and available at [github.com/Klepsiphron/agenttrace](https://github.com/Klepsiphron/agenttrace). No account required.*
+_AgentTrace is MIT-licensed and available at [github.com/Klepsiphron/agenttrace](https://github.com/Klepsiphron/agenttrace). No account required._

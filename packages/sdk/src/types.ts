@@ -125,7 +125,6 @@ export interface WebhookDelivery {
   createdAt: number;
 }
 
-
 /** Filter options for querying traces */
 export interface TraceFilter {
   runId?: string;

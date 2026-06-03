@@ -123,7 +123,7 @@ describe('@agenttrace-io/billing stripe integration (mocked)', () => {
     expect(mockSubscriptionsCreate).toHaveBeenCalledWith(
       expect.objectContaining({
         items: [{ price: 'price_custom_999' }],
-      })
+      }),
     );
   });
 
@@ -150,7 +150,7 @@ describe('@agenttrace-io/billing stripe integration (mocked)', () => {
     await recordUsage('cus_abc', 'traces_recorded', 42);
 
     expect(mockSubscriptionsList).toHaveBeenCalledWith(
-      expect.objectContaining({ customer: 'cus_abc', status: 'active' })
+      expect.objectContaining({ customer: 'cus_abc', status: 'active' }),
     );
     expect(mockSubscriptionItemsCreateUsageRecord).toHaveBeenCalledWith('si_999', {
       quantity: 42,
@@ -187,13 +187,18 @@ describe('@agenttrace-io/billing stripe integration (mocked)', () => {
 
     await recordUsage('cus_x', 'traces_recorded', 7);
 
-    expect(mockSubscriptionItemsCreateUsageRecord).toHaveBeenCalledWith('si_traces', expect.any(Object));
+    expect(mockSubscriptionItemsCreateUsageRecord).toHaveBeenCalledWith(
+      'si_traces',
+      expect.any(Object),
+    );
   });
 
   it('recordUsage throws when no active subscription', async () => {
     setStripeEnv();
     mockSubscriptionsList.mockResolvedValueOnce({ data: [] });
-    await expect(recordUsage('cus_no_sub', 'agents_tracked', 1)).rejects.toThrow(/No active subscription/);
+    await expect(recordUsage('cus_no_sub', 'agents_tracked', 1)).rejects.toThrow(
+      /No active subscription/,
+    );
   });
 
   it('getUsage returns a UsageReport structure (uses summaries)', async () => {
@@ -241,7 +246,9 @@ describe('@agenttrace-io/billing stripe integration (mocked)', () => {
 
   it('createCheckoutSession creates a session and returns url', async () => {
     setStripeEnv();
-    mockCheckoutSessionsCreate.mockResolvedValueOnce({ url: 'https://checkout.stripe.com/pay/cs_test_123' });
+    mockCheckoutSessionsCreate.mockResolvedValueOnce({
+      url: 'https://checkout.stripe.com/pay/cs_test_123',
+    });
 
     const url = await createCheckoutSession('cus_check');
 
@@ -251,7 +258,7 @@ describe('@agenttrace-io/billing stripe integration (mocked)', () => {
         customer: 'cus_check',
         mode: 'subscription',
         line_items: [{ price: 'price_test_123', quantity: 1 }],
-      })
+      }),
     );
   });
 
@@ -292,7 +299,9 @@ describe('@agenttrace-io/billing stripe integration (mocked)', () => {
     mockSubscriptionsList.mockResolvedValueOnce({
       data: [{ items: { data: [{ id: 'si_x', price: { id: 'p_x' } }] } }],
     });
-    mockSubscriptionItemsListUsageRecordSummaries.mockResolvedValueOnce({ data: [{ total_usage: 55 }] });
+    mockSubscriptionItemsListUsageRecordSummaries.mockResolvedValueOnce({
+      data: [{ total_usage: 55 }],
+    });
 
     const r = await client.getUsage('cus_g', 0, 1);
     expect(r.tracesRecorded).toBe(55);

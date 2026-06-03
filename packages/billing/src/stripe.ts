@@ -35,7 +35,9 @@ function getStripeClient(): Stripe {
 function getDefaultPriceId(): string {
   const pid = process.env.STRIPE_PRICE_ID;
   if (!pid) {
-    throw new Error('STRIPE_PRICE_ID environment variable is required (or pass priceId explicitly)');
+    throw new Error(
+      'STRIPE_PRICE_ID environment variable is required (or pass priceId explicitly)',
+    );
   }
   return pid;
 }
@@ -64,7 +66,7 @@ function getPriceIdForMetric(metric: BillingMetric): string {
 async function findSubscriptionItemId(
   stripe: Stripe,
   customerId: string,
-  targetPriceId?: string
+  targetPriceId?: string,
 ): Promise<string> {
   const subs = await stripe.subscriptions.list({
     customer: customerId,
@@ -93,7 +95,7 @@ async function findSubscriptionItemId(
 
 export async function createCustomer(
   email: string,
-  metadata: Record<string, string> = {}
+  metadata: Record<string, string> = {},
 ): Promise<string> {
   const stripe = getStripeClient();
   const customer = await stripe.customers.create({
@@ -103,10 +105,7 @@ export async function createCustomer(
   return customer.id;
 }
 
-export async function createSubscription(
-  customerId: string,
-  priceId?: string
-): Promise<string> {
+export async function createSubscription(customerId: string, priceId?: string): Promise<string> {
   const stripe = getStripeClient();
   const pid = priceId || getDefaultPriceId();
   const subscription = await stripe.subscriptions.create({
@@ -121,7 +120,7 @@ export async function createSubscription(
 export async function recordUsage(
   customerId: string,
   metric: BillingMetric,
-  quantity: number
+  quantity: number,
 ): Promise<void> {
   if (quantity <= 0) return; // nothing to report
   const stripe = getStripeClient();
@@ -138,7 +137,7 @@ export async function recordUsage(
 export async function getUsage(
   customerId: string,
   fromDate: number,
-  toDate: number
+  toDate: number,
 ): Promise<UsageReport> {
   const stripe = getStripeClient();
 
@@ -186,7 +185,12 @@ export async function getUsage(
 
       // Try to reverse map from known per-metric envs or default
       let assigned = false;
-      for (const m of ['traces_recorded', 'agents_tracked', 'webhooks_delivered', 'storage_gb'] as BillingMetric[]) {
+      for (const m of [
+        'traces_recorded',
+        'agents_tracked',
+        'webhooks_delivered',
+        'storage_gb',
+      ] as BillingMetric[]) {
         if (getPriceIdForMetric(m) === priceId) {
           if (m === 'traces_recorded') report.tracesRecorded += totalForItem;
           else if (m === 'agents_tracked') report.agentsTracked += totalForItem;
@@ -208,10 +212,7 @@ export async function getUsage(
   return report;
 }
 
-export async function createCheckoutSession(
-  customerId: string,
-  priceId?: string
-): Promise<string> {
+export async function createCheckoutSession(customerId: string, priceId?: string): Promise<string> {
   const stripe = getStripeClient();
   const pid = priceId || getDefaultPriceId();
 
@@ -220,8 +221,7 @@ export async function createCheckoutSession(
   const successUrl =
     process.env.STRIPE_SUCCESS_URL ||
     'https://app.agenttrace.io/billing/success?session_id={CHECKOUT_SESSION_ID}';
-  const cancelUrl =
-    process.env.STRIPE_CANCEL_URL || 'https://app.agenttrace.io/billing/cancel';
+  const cancelUrl = process.env.STRIPE_CANCEL_URL || 'https://app.agenttrace.io/billing/cancel';
 
   const session = await stripe.checkout.sessions.create({
     customer: customerId,
@@ -282,7 +282,11 @@ export class StripeBillingClient {
     // delegate to module fn but using this stripe instance would require refactor;
     // for simplicity re-implement minimal lookup using private stripe
     if (quantity <= 0) return;
-    const subs = await this.stripe.subscriptions.list({ customer: customerId, status: 'active', limit: 1 });
+    const subs = await this.stripe.subscriptions.list({
+      customer: customerId,
+      status: 'active',
+      limit: 1,
+    });
     if (!subs.data.length) throw new Error(`No active subscription for ${customerId}`);
     const sub = subs.data[0]!;
     let itemId = sub.items.data[0]?.id;
@@ -322,7 +326,9 @@ export class StripeBillingClient {
     if (!subs.data.length || !subs.data[0]!.items?.data?.length) return report;
     for (const item of subs.data[0]!.items.data) {
       try {
-        const sums = await this.stripe.subscriptionItems.listUsageRecordSummaries(item.id, { limit: 5 });
+        const sums = await this.stripe.subscriptionItems.listUsageRecordSummaries(item.id, {
+          limit: 5,
+        });
         const tot = sums.data.reduce((a, s) => a + (s.total_usage || 0), 0);
         report.tracesRecorded += tot; // primary bucket
       } catch (_) {

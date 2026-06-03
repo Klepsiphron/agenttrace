@@ -69,17 +69,20 @@ Request → agentTraceMiddleware (starts run, sets res.on('finish')) → routes 
 ```
 
 `agentTraceMiddleware`:
+
 1. Calls `at.startRun()` with method + path
 2. Attaches `traceRunId` to `req` so handlers can enrich the run
 3. On `res.finish()`: records agent usage (latency, status), completes the run
 
 `errorTracingMiddleware`:
+
 1. Records the error via `at.recordAgentUsage()` with error metadata
 2. Responds with 500 + the `traceRunId` for debugging
 
 ### Traced routes
 
 Each AI endpoint wraps its async work in `at.trace(name, fn, { model, tokens, input })`:
+
 - `tokens` enables automatic cost calculation via built-in model rates
 - `model` + `provider` are stored for per-model cost breakdowns
 - Nested `at.trace()` calls create a parent-child trace hierarchy
@@ -87,11 +90,13 @@ Each AI endpoint wraps its async work in `at.trace(name, fn, { model, tokens, in
 ### Cost alerts
 
 ```typescript
-at.registerAlert(alert({
-  name: 'express-cost-guard',
-  condition: (stats) => (stats.totalCostUsd || 0) > 5,
-  cooldown: 300,
-}));
+at.registerAlert(
+  alert({
+    name: 'express-cost-guard',
+    condition: (stats) => (stats.totalCostUsd || 0) > 5,
+    cooldown: 300,
+  }),
+);
 ```
 
 Alerts are auto-checked after each trace. Set `webhook` to receive Slack/Discord notifications.

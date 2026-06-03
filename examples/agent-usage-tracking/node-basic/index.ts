@@ -13,12 +13,7 @@
  *   npx tsx examples/agent-usage-tracking/node-basic/index.ts
  */
 
-import {
-  init,
-  trace,
-  alert,
-  type AgentUsageRecord,
-} from '@agenttrace-io/sdk';
+import { init, trace, alert, type AgentUsageRecord } from '@agenttrace-io/sdk';
 
 async function main() {
   // 1. Initialize (respects AGENTTRACE_DB_PATH if set)
@@ -28,7 +23,10 @@ async function main() {
   console.log('DB:', (at as any).config?.dbPath || './agenttrace.db');
 
   // Optional: group everything under a named run
-  const runId = at.startRun('agent-self-demo', { agentName: 'demo-agent', purpose: 'install-guide' });
+  const runId = at.startRun('agent-self-demo', {
+    agentName: 'demo-agent',
+    purpose: 'install-guide',
+  });
 
   // 2. Trace a simple nested workflow (simulated research + synthesize)
   try {

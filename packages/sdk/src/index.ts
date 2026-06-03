@@ -253,9 +253,12 @@ export class AgentTrace {
       costCalculator: config.costCalculator || defaultCostCalculator,
       hallucinationDetector: config.hallucinationDetector || (() => false),
       silent: !!config.silent,
-      retentionDays: config.retentionDays !== undefined ? config.retentionDays : persisted.retentionDays,
+      retentionDays:
+        config.retentionDays !== undefined ? config.retentionDays : persisted.retentionDays,
       cleanupIntervalHours:
-        config.cleanupIntervalHours !== undefined ? config.cleanupIntervalHours : persisted.cleanupIntervalHours,
+        config.cleanupIntervalHours !== undefined
+          ? config.cleanupIntervalHours
+          : persisted.cleanupIntervalHours,
       tenantId: config.tenantId ?? '',
       maxTracesPerSecond: config.maxTracesPerSecond ?? 0,
       maxTracesPerMinute: config.maxTracesPerMinute ?? 0,
@@ -325,10 +328,18 @@ export class AgentTrace {
       // Fire-and-forget webhook delivery for run complete/error
       if (status === 'success') {
         this.triggerWebhook('run.complete', { runId }).catch(() => {});
-        try { this.webhookEmitter.emit('webhook', 'run.complete', { runId }); } catch (_) { /* handler errors must not break */ }
+        try {
+          this.webhookEmitter.emit('webhook', 'run.complete', { runId });
+        } catch (_) {
+          /* handler errors must not break */
+        }
       } else {
         this.triggerWebhook('run.error', { runId }).catch(() => {});
-        try { this.webhookEmitter.emit('webhook', 'run.error', { runId }); } catch (_) { /* handler errors must not break */ }
+        try {
+          this.webhookEmitter.emit('webhook', 'run.error', { runId });
+        } catch (_) {
+          /* handler errors must not break */
+        }
       }
     }
   }
@@ -422,11 +433,38 @@ export class AgentTrace {
 
       // Fire-and-forget webhook delivery for trace complete/error
       if (status === 'success') {
-        this.triggerWebhook('trace.complete', { traceId, runId: trace.runId, name, latencyMs, costUsd }).catch(() => {});
-        try { this.webhookEmitter.emit('webhook', 'trace.complete', { traceId, runId: trace.runId, name, latencyMs, costUsd }); } catch (_) { /* handler errors must not break */ }
+        this.triggerWebhook('trace.complete', {
+          traceId,
+          runId: trace.runId,
+          name,
+          latencyMs,
+          costUsd,
+        }).catch(() => {});
+        try {
+          this.webhookEmitter.emit('webhook', 'trace.complete', {
+            traceId,
+            runId: trace.runId,
+            name,
+            latencyMs,
+            costUsd,
+          });
+        } catch (_) {
+          /* handler errors must not break */
+        }
       } else {
-        this.triggerWebhook('trace.error', { traceId, runId: trace.runId, name, error }).catch(() => {});
-        try { this.webhookEmitter.emit('webhook', 'trace.error', { traceId, runId: trace.runId, name, error }); } catch (_) { /* handler errors must not break */ }
+        this.triggerWebhook('trace.error', { traceId, runId: trace.runId, name, error }).catch(
+          () => {},
+        );
+        try {
+          this.webhookEmitter.emit('webhook', 'trace.error', {
+            traceId,
+            runId: trace.runId,
+            name,
+            error,
+          });
+        } catch (_) {
+          /* handler errors must not break */
+        }
       }
     }
 
@@ -531,7 +569,12 @@ export class AgentTrace {
    * Get aggregated usage statistics across agent actions.
    */
   getUsageStats(agentName?: string, fromDate?: number, toDate?: number): UsageStats {
-    return this.storage.getUsageStats(agentName, fromDate, toDate, this.config.tenantId || undefined);
+    return this.storage.getUsageStats(
+      agentName,
+      fromDate,
+      toDate,
+      this.config.tenantId || undefined,
+    );
   }
 
   /**
@@ -544,14 +587,18 @@ export class AgentTrace {
   /**
    * Get 'who' summary (active agents overview, supports activeOnly for last 30min).
    */
-  getAgentWho(filter: { activeOnly?: boolean; agentType?: string; limit?: number } = {}): AgentWho[] {
+  getAgentWho(
+    filter: { activeOnly?: boolean; agentType?: string; limit?: number } = {},
+  ): AgentWho[] {
     return this.storage.getAgentWho(filter);
   }
 
   /**
    * Get agent sessions summary.
    */
-  getAgentSessions(filter: { agentName?: string; activeOnly?: boolean; limit?: number } = {}): AgentSession[] {
+  getAgentSessions(
+    filter: { agentName?: string; activeOnly?: boolean; limit?: number } = {},
+  ): AgentSession[] {
     return this.storage.getAgentSessions(filter);
   }
 
@@ -575,7 +622,13 @@ export class AgentTrace {
   /**
    * List API keys (masked/previewed, no secrets).
    */
-  listApiKeys(): { id: string; name: string; createdAt: number; lastUsedAt: number | null; enabled: boolean }[] {
+  listApiKeys(): {
+    id: string;
+    name: string;
+    createdAt: number;
+    lastUsedAt: number | null;
+    enabled: boolean;
+  }[] {
     return this.storage.getApiKeys();
   }
 
@@ -681,7 +734,10 @@ export class AgentTrace {
    * the event, builds the payload, signs it if a secret is configured, and POSTs
    * to each URL. Returns delivery results.
    */
-  async triggerWebhook(event: WebhookEvent, payload: Record<string, unknown>): Promise<WebhookDelivery[]> {
+  async triggerWebhook(
+    event: WebhookEvent,
+    payload: Record<string, unknown>,
+  ): Promise<WebhookDelivery[]> {
     const webhooks = this.storage.getEnabledWebhooksForEvent(event);
     const results: WebhookDelivery[] = [];
     const timestamp = Date.now();
@@ -695,7 +751,9 @@ export class AgentTrace {
       };
 
       if (wh.secret) {
-        const sig = createHash('sha256').update(wh.secret + '.' + bodyStr).digest('hex');
+        const sig = createHash('sha256')
+          .update(wh.secret + '.' + bodyStr)
+          .digest('hex');
         headers['X-AgentTrace-Signature'] = `sha256=${sig}`;
       }
 
@@ -1069,7 +1127,13 @@ export class AgentTrace {
   /**
    * Return basic storage stats for the backing DB.
    */
-  getStorageStats(): { totalSizeBytes: number; traceCount: number; runCount: number; oldestTrace: number | null; newestTrace: number | null } {
+  getStorageStats(): {
+    totalSizeBytes: number;
+    traceCount: number;
+    runCount: number;
+    oldestTrace: number | null;
+    newestTrace: number | null;
+  } {
     return this.storage.getStorageStats();
   }
 
@@ -1090,7 +1154,10 @@ export class AgentTrace {
     this.storage.setRetentionPolicy(retentionDays, cleanupIntervalHours);
     this.config.retentionDays = Math.max(0, Math.floor(Number(retentionDays) || 0));
     if (cleanupIntervalHours !== undefined) {
-      this.config.cleanupIntervalHours = Math.max(1, Math.floor(Number(cleanupIntervalHours) || 24));
+      this.config.cleanupIntervalHours = Math.max(
+        1,
+        Math.floor(Number(cleanupIntervalHours) || 24),
+      );
     }
     this.setupRetentionCleanup();
   }

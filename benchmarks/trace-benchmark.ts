@@ -84,7 +84,11 @@ function makeTempDb(prefix = 'agenttrace-bench'): { dbPath: string; cleanup: () 
   };
 }
 
-function makeTraceData(i: number, runId: string, baseTime: number): Omit<Trace, 'createdAt' | 'updatedAt'> {
+function makeTraceData(
+  i: number,
+  runId: string,
+  baseTime: number,
+): Omit<Trace, 'createdAt' | 'updatedAt'> {
   const models = ['gpt-4o', 'gpt-4o-mini', 'claude-sonnet-4', 'gemini-2.0-flash'] as const;
   const model = models[i % models.length];
   const isError = i % 20 === 0;
@@ -173,7 +177,12 @@ async function benchTraceInsertion(count = 5000): Promise<{
   const { dbPath: db2, cleanup: c2 } = makeTempDb('trace-storage');
   const storage = new TraceStorage(db2);
   const runId2 = randomUUID();
-  storage.createRun({ id: runId2, name: 'bench-insert-storage', startedAt: Date.now(), metadata: {} });
+  storage.createRun({
+    id: runId2,
+    name: 'bench-insert-storage',
+    startedAt: Date.now(),
+    metadata: {},
+  });
   const baseTime = Date.now() - count * 10;
   const t1 = performance.now();
   for (let i = 0; i < count; i++) {
@@ -197,7 +206,12 @@ async function benchTraceInsertion(count = 5000): Promise<{
   };
 }
 
-function populateForQueries(size: number): { agent: AgentTrace; storage: TraceStorage; runId: string; cleanup: () => void } {
+function populateForQueries(size: number): {
+  agent: AgentTrace;
+  storage: TraceStorage;
+  runId: string;
+  cleanup: () => void;
+} {
   const { dbPath, cleanup } = makeTempDb('queries');
   const agent = new AgentTrace({ dbPath, silent: true, autoCleanup: false });
   const runId = agent.startRun('bench-queries');
@@ -209,64 +223,113 @@ function populateForQueries(size: number): { agent: AgentTrace; storage: TraceSt
   return { agent, storage, runId, cleanup };
 }
 
-async function benchQueries(datasetSize = 10000): Promise<Array<{ name: string; filter: TraceFilter; count: number; timeMs: number }>> {
+async function benchQueries(
+  datasetSize = 10000,
+): Promise<Array<{ name: string; filter: TraceFilter; count: number; timeMs: number }>> {
   const { agent, cleanup } = populateForQueries(datasetSize);
   const queries: Array<{ name: string; filter: TraceFilter; count: number; timeMs: number }> = [];
 
   // 1. no filter
   let t0 = performance.now();
   let res = agent.getTraces();
-  queries.push({ name: 'noFilter', filter: {}, count: res.length, timeMs: Math.round((performance.now() - t0) * 100) / 100 });
+  queries.push({
+    name: 'noFilter',
+    filter: {},
+    count: res.length,
+    timeMs: Math.round((performance.now() - t0) * 100) / 100,
+  });
 
   // 2. by status success
   t0 = performance.now();
   res = agent.getTraces({ status: ['success'] });
-  queries.push({ name: 'byStatusSuccess', filter: { status: ['success'] }, count: res.length, timeMs: Math.round((performance.now() - t0) * 100) / 100 });
+  queries.push({
+    name: 'byStatusSuccess',
+    filter: { status: ['success'] },
+    count: res.length,
+    timeMs: Math.round((performance.now() - t0) * 100) / 100,
+  });
 
   // 3. by status error
   t0 = performance.now();
   res = agent.getTraces({ status: ['error'] });
-  queries.push({ name: 'byStatusError', filter: { status: ['error'] }, count: res.length, timeMs: Math.round((performance.now() - t0) * 100) / 100 });
+  queries.push({
+    name: 'byStatusError',
+    filter: { status: ['error'] },
+    count: res.length,
+    timeMs: Math.round((performance.now() - t0) * 100) / 100,
+  });
 
   // 4. name LIKE
   t0 = performance.now();
   res = agent.getTraces({ name: 'op-1' });
-  queries.push({ name: 'byNameLike', filter: { name: 'op-1' }, count: res.length, timeMs: Math.round((performance.now() - t0) * 100) / 100 });
+  queries.push({
+    name: 'byNameLike',
+    filter: { name: 'op-1' },
+    count: res.length,
+    timeMs: Math.round((performance.now() - t0) * 100) / 100,
+  });
 
   // 5. cost range
   t0 = performance.now();
   res = agent.getTraces({ minCost: 0.0002, maxCost: 0.0006 });
-  queries.push({ name: 'byCostRange', filter: { minCost: 0.0002, maxCost: 0.0006 }, count: res.length, timeMs: Math.round((performance.now() - t0) * 100) / 100 });
+  queries.push({
+    name: 'byCostRange',
+    filter: { minCost: 0.0002, maxCost: 0.0006 },
+    count: res.length,
+    timeMs: Math.round((performance.now() - t0) * 100) / 100,
+  });
 
   // 6. latency range
   t0 = performance.now();
   res = agent.getTraces({ minLatency: 100, maxLatency: 300 });
-  queries.push({ name: 'byLatencyRange', filter: { minLatency: 100, maxLatency: 300 }, count: res.length, timeMs: Math.round((performance.now() - t0) * 100) / 100 });
+  queries.push({
+    name: 'byLatencyRange',
+    filter: { minLatency: 100, maxLatency: 300 },
+    count: res.length,
+    timeMs: Math.round((performance.now() - t0) * 100) / 100,
+  });
 
   // 7. pagination limit/offset
   t0 = performance.now();
   res = agent.getTraces({ limit: 100, offset: 3000 });
-  queries.push({ name: 'limitOffset', filter: { limit: 100, offset: 3000 }, count: res.length, timeMs: Math.round((performance.now() - t0) * 100) / 100 });
+  queries.push({
+    name: 'limitOffset',
+    filter: { limit: 100, offset: 3000 },
+    count: res.length,
+    timeMs: Math.round((performance.now() - t0) * 100) / 100,
+  });
 
   // 8. by runId
   const runs = agent.getRuns(1);
   if (runs[0]) {
     t0 = performance.now();
     res = agent.getTraces({ runId: runs[0].id });
-    queries.push({ name: 'byRunId', filter: { runId: runs[0].id }, count: res.length, timeMs: Math.round((performance.now() - t0) * 100) / 100 });
+    queries.push({
+      name: 'byRunId',
+      filter: { runId: runs[0].id },
+      count: res.length,
+      timeMs: Math.round((performance.now() - t0) * 100) / 100,
+    });
   }
 
   // 9. combined filter
   t0 = performance.now();
   res = agent.getTraces({ status: ['success'], minLatency: 50, limit: 500 });
-  queries.push({ name: 'combined', filter: { status: ['success'], minLatency: 50, limit: 500 }, count: res.length, timeMs: Math.round((performance.now() - t0) * 100) / 100 });
+  queries.push({
+    name: 'combined',
+    filter: { status: ['success'], minLatency: 50, limit: 500 },
+    count: res.length,
+    timeMs: Math.round((performance.now() - t0) * 100) / 100,
+  });
 
   agent.close();
   cleanup();
   return queries;
 }
 
-async function benchStats(datasetSize = 10000): Promise<{ timeMs: number; result: { totalTraces: number; totalCostUsd: number } }> {
+async function benchStats(
+  datasetSize = 10000,
+): Promise<{ timeMs: number; result: { totalTraces: number; totalCostUsd: number } }> {
   const { agent, cleanup } = populateForQueries(datasetSize);
   const t0 = performance.now();
   const stats = agent.getStats();
@@ -279,7 +342,9 @@ async function benchStats(datasetSize = 10000): Promise<{ timeMs: number; result
   };
 }
 
-async function benchAgentUsage(count = 10000): Promise<{ count: number; timeMs: number; recordsPerSecond: number }> {
+async function benchAgentUsage(
+  count = 10000,
+): Promise<{ count: number; timeMs: number; recordsPerSecond: number }> {
   const { dbPath, cleanup } = makeTempDb('usage');
   const storage = new TraceStorage(dbPath);
   const baseTime = Date.now() - count * 3;
@@ -331,8 +396,14 @@ async function benchMemory(size = 10000): Promise<{
 
   return {
     datasetSize: size,
-    before: { rssMB: Math.round((before.rss / 1024 / 1024) * 100) / 100, heapUsedMB: Math.round((before.heapUsed / 1024 / 1024) * 100) / 100 },
-    after10k: { rssMB: Math.round((after.rss / 1024 / 1024) * 100) / 100, heapUsedMB: Math.round((after.heapUsed / 1024 / 1024) * 100) / 100 },
+    before: {
+      rssMB: Math.round((before.rss / 1024 / 1024) * 100) / 100,
+      heapUsedMB: Math.round((before.heapUsed / 1024 / 1024) * 100) / 100,
+    },
+    after10k: {
+      rssMB: Math.round((after.rss / 1024 / 1024) * 100) / 100,
+      heapUsedMB: Math.round((after.heapUsed / 1024 / 1024) * 100) / 100,
+    },
     deltaMB: { rss: Math.round(deltaRss * 100) / 100, heap: Math.round(deltaHeap * 100) / 100 },
     mbPerTrace: Math.round(perTrace * 10000) / 10000,
   };
@@ -360,7 +431,13 @@ async function benchDbSize(size = 10000): Promise<{
   storage.close();
 
   const stat = fs.statSync(dbPath);
-  const walStat = (() => { try { return fs.statSync(dbPath + '-wal').size; } catch { return 0; } })();
+  const walStat = (() => {
+    try {
+      return fs.statSync(dbPath + '-wal').size;
+    } catch {
+      return 0;
+    }
+  })();
   const totalBytes = stat.size + walStat;
 
   cleanup(); // we still report the size measured before delete
@@ -401,7 +478,9 @@ export async function runTraceBenchmarks(): Promise<TraceBenchmarkResult> {
   console.log(`  Memory delta for ${MEM_DB_N} traces: ~${memory.deltaMB.heap}MB heap`);
 
   const dbSize = await benchDbSize(MEM_DB_N);
-  console.log(`  DB size for ${MEM_DB_N} traces + usage: ${dbSize.sizeKB}KB (~${dbSize.kbPerTrace}KB/trace)`);
+  console.log(
+    `  DB size for ${MEM_DB_N} traces + usage: ${dbSize.sizeKB}KB (~${dbSize.kbPerTrace}KB/trace)`,
+  );
 
   const result: TraceBenchmarkResult = {
     timestamp: new Date().toISOString(),

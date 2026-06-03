@@ -13,13 +13,13 @@ environment.
 
 ### Write Throughput
 
-| Operation                              | Rate        | Time for N    |
-|----------------------------------------|-------------|---------------|
-| `trace()` API (5,000 traces)           | 7,032/s     | 711 ms        |
-| `storage.createTrace()` direct (5,000) | 6,910/s     | 724 ms        |
-| `recordAgentUsage()` (10,000 records)  | 25,002/s    | 400 ms        |
-| `console.log` + JSON (10,000)          | 370,686/s   | 27 ms         |
-| JSONL `appendFileSync` (10,000)        | 173,687/s   | 58 ms         |
+| Operation                              | Rate      | Time for N |
+| -------------------------------------- | --------- | ---------- |
+| `trace()` API (5,000 traces)           | 7,032/s   | 711 ms     |
+| `storage.createTrace()` direct (5,000) | 6,910/s   | 724 ms     |
+| `recordAgentUsage()` (10,000 records)  | 25,002/s  | 400 ms     |
+| `console.log` + JSON (10,000)          | 370,686/s | 27 ms      |
+| JSONL `appendFileSync` (10,000)        | 173,687/s | 58 ms      |
 
 Takeaway: raw logging (JSONL/console) is ~25x faster than structured SQLite
 writes. AgentTrace trades write speed for queryability, durability, and
@@ -28,17 +28,17 @@ enough -- a single agent rarely fires thousands of LLM calls per second.
 
 ### Query Performance (10,000 trace dataset)
 
-| Filter                          | Matches | Time (ms) |
-|---------------------------------|---------|-----------|
-| noFilter (full scan)            | 10,000  | 262       |
-| status: ['success']             | 9,500   | 232       |
-| status: ['error']               | 500     | 15        |
-| name LIKE '%op-1%'              | 3,928   | 115       |
-| cost 0.0002-0.0006              | 9,224   | 234       |
-| latency 100-300 ms              | 4,221   | 116       |
-| limit 100 offset 3000           | 100     | 2         |
-| by runId (single run)           | 10,000  | 242       |
-| combined (success + latency)    | 500     | 56        |
+| Filter                       | Matches | Time (ms) |
+| ---------------------------- | ------- | --------- |
+| noFilter (full scan)         | 10,000  | 262       |
+| status: ['success']          | 9,500   | 232       |
+| status: ['error']            | 500     | 15        |
+| name LIKE '%op-1%'           | 3,928   | 115       |
+| cost 0.0002-0.0006           | 9,224   | 234       |
+| latency 100-300 ms           | 4,221   | 116       |
+| limit 100 offset 3000        | 100     | 2         |
+| by runId (single run)        | 10,000  | 242       |
+| combined (success + latency) | 500     | 56        |
 
 Key observations:
 
@@ -59,20 +59,20 @@ single-row aggregate queries).
 
 ### Memory
 
-| Metric                        | Value      |
-|-------------------------------|------------|
-| Heap delta for 10k traces     | +14.48 MB  |
-| Approx heap per loaded trace  | 0.9 KB     |
-| RSS delta                     | +0.13 MB   |
+| Metric                       | Value     |
+| ---------------------------- | --------- |
+| Heap delta for 10k traces    | +14.48 MB |
+| Approx heap per loaded trace | 0.9 KB    |
+| RSS delta                    | +0.13 MB  |
 
 10k traces adds less than 15 MB of heap. RSS barely moves because SQLite
 manages its own page cache in the WAL.
 
 ### Disk Usage
 
-| Dataset                             | Size    | Per record |
-|-------------------------------------|---------|------------|
-| 10k traces + ~3,333 usage records   | 4,916 KB| 0.492 KB   |
+| Dataset                           | Size     | Per record |
+| --------------------------------- | -------- | ---------- |
+| 10k traces + ~3,333 usage records | 4,916 KB | 0.492 KB   |
 
 ~500 bytes per trace on disk, including indexes and WAL. JSONL is ~25% smaller
 at 10k scale because it carries no index overhead.
@@ -153,37 +153,37 @@ AgentTrace creates the following indexes automatically on schema init:
 
 ### traces table
 
-| Index                    | Column(s)    | Use case                              |
-|--------------------------|--------------|---------------------------------------|
-| `idx_traces_run_id`      | `run_id`     | Filter traces by run                  |
-| `idx_traces_status`      | `status`     | Filter by success/error/failure       |
-| `idx_traces_created_at`  | `created_at` | Time-range queries, ORDER BY          |
-| `idx_traces_cost`        | `cost_usd`   | Cost threshold alerts, range filters  |
-| `idx_traces_parent_id`   | `parent_id`  | Multi-agent child trace lookups       |
+| Index                   | Column(s)    | Use case                             |
+| ----------------------- | ------------ | ------------------------------------ |
+| `idx_traces_run_id`     | `run_id`     | Filter traces by run                 |
+| `idx_traces_status`     | `status`     | Filter by success/error/failure      |
+| `idx_traces_created_at` | `created_at` | Time-range queries, ORDER BY         |
+| `idx_traces_cost`       | `cost_usd`   | Cost threshold alerts, range filters |
+| `idx_traces_parent_id`  | `parent_id`  | Multi-agent child trace lookups      |
 
 ### tool_calls table
 
-| Index                      | Column(s)  | Use case                          |
-|----------------------------|------------|-----------------------------------|
-| `idx_tool_calls_trace_id`  | `trace_id` | Join tool calls to traces         |
-| `idx_tool_calls_name`      | `name`     | Aggregate stats by tool name      |
+| Index                     | Column(s)  | Use case                     |
+| ------------------------- | ---------- | ---------------------------- |
+| `idx_tool_calls_trace_id` | `trace_id` | Join tool calls to traces    |
+| `idx_tool_calls_name`     | `name`     | Aggregate stats by tool name |
 
 ### agent_usage table
 
-| Index                          | Column(s)    | Use case                          |
-|--------------------------------|--------------|-----------------------------------|
-| `idx_agent_usage_agent_name`   | `agent_name` | Filter by agent                   |
-| `idx_agent_usage_session_id`   | `session_id` | Filter by session                 |
-| `idx_agent_usage_action`       | `action`     | Filter by action type             |
-| `idx_agent_usage_status`       | `status`     | Filter by status                  |
-| `idx_agent_usage_created_at`   | `created_at` | Time-range queries                |
+| Index                        | Column(s)    | Use case              |
+| ---------------------------- | ------------ | --------------------- |
+| `idx_agent_usage_agent_name` | `agent_name` | Filter by agent       |
+| `idx_agent_usage_session_id` | `session_id` | Filter by session     |
+| `idx_agent_usage_action`     | `action`     | Filter by action type |
+| `idx_agent_usage_status`     | `status`     | Filter by status      |
+| `idx_agent_usage_created_at` | `created_at` | Time-range queries    |
 
 ### scores table
 
-| Index                  | Column(s)  | Use case                          |
-|------------------------|------------|-----------------------------------|
-| `idx_scores_trace_id`  | `trace_id` | Join scores to traces             |
-| `idx_scores_name`      | `name`     | Filter by scorer name             |
+| Index                 | Column(s)  | Use case              |
+| --------------------- | ---------- | --------------------- |
+| `idx_scores_trace_id` | `trace_id` | Join scores to traces |
+| `idx_scores_name`     | `name`     | Filter by scorer name |
 
 ### Other tables
 
@@ -263,12 +263,12 @@ const agent = new AgentTrace({
 
 ### Recommended Settings
 
-| Workload                     | perSecond | perMinute | burst |
-|------------------------------|-----------|-----------|-------|
-| Single agent, dev/debug      | 0 (off)   | 0 (off)   | --    |
-| Production, moderate volume  | 100       | 1,000     | 20    |
-| High-volume multi-agent      | 500       | 5,000     | 50    |
-| Aggressive cost control      | 10        | 500       | 5     |
+| Workload                    | perSecond | perMinute | burst |
+| --------------------------- | --------- | --------- | ----- |
+| Single agent, dev/debug     | 0 (off)   | 0 (off)   | --    |
+| Production, moderate volume | 100       | 1,000     | 20    |
+| High-volume multi-agent     | 500       | 5,000     | 50    |
+| Aggressive cost control     | 10        | 500       | 5     |
 
 Start with rate limiting disabled. Enable it only if you observe runaway trace
 volume or excessive disk growth.
@@ -354,12 +354,12 @@ operation that doesn't load all traces into memory.
 
 ## Scaling Guidelines
 
-| Scale                    | Traces   | DB Size  | Recommendation                    |
-|--------------------------|----------|----------|-----------------------------------|
-| Dev / debugging          | < 1k     | < 1 MB   | Default config, no rate limiting  |
-| Single agent, production | 1k-50k   | 1-25 MB  | Enable retention (30 days)        |
-| Multi-agent, moderate    | 50k-200k | 25-100 MB| Rate limiting + retention         |
-| High-volume / long-lived | 200k+    | 100+ MB  | Aggressive retention (7-14 days), consider periodic export + reset |
+| Scale                    | Traces   | DB Size   | Recommendation                                                     |
+| ------------------------ | -------- | --------- | ------------------------------------------------------------------ |
+| Dev / debugging          | < 1k     | < 1 MB    | Default config, no rate limiting                                   |
+| Single agent, production | 1k-50k   | 1-25 MB   | Enable retention (30 days)                                         |
+| Multi-agent, moderate    | 50k-200k | 25-100 MB | Rate limiting + retention                                          |
+| High-volume / long-lived | 200k+    | 100+ MB   | Aggressive retention (7-14 days), consider periodic export + reset |
 
 SQLite handles millions of rows, but query performance degrades as the dataset
 grows. For workloads exceeding 200k traces, use retention policies to keep the

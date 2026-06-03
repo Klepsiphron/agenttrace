@@ -460,7 +460,15 @@ describe('CLI cost commands (new tests)', () => {
   it('activity --type search --agent researcher-1 filters correctly', async () => {
     await seedAgentUsage();
     logs.length = 0;
-    process.argv = ['node', 'agenttrace-io', 'activity', '--type', 'search', '--agent', 'researcher-1'];
+    process.argv = [
+      'node',
+      'agenttrace-io',
+      'activity',
+      '--type',
+      'search',
+      '--agent',
+      'researcher-1',
+    ];
     try {
       main();
     } catch (e: unknown) {

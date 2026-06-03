@@ -34,16 +34,16 @@ PYTHONPATH=packages/sdk-python/src python app.py
 
 ## Endpoints
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/` | Health check |
-| POST | `/chat` | Traced chat endpoint (LLM simulation) |
-| POST | `/search` | Traced search endpoint (tool-call style) |
-| GET | `/stats` | Aggregate trace statistics |
-| GET | `/runs` | List recent agent runs |
-| GET | `/traces` | List traces (filter by `?run_id=...`) |
-| GET | `/usage` | Agent usage stats from usage tracker |
-| POST | `/evaluate` | Run quality scorers against traces |
+| Method | Path        | Description                              |
+| ------ | ----------- | ---------------------------------------- |
+| GET    | `/`         | Health check                             |
+| POST   | `/chat`     | Traced chat endpoint (LLM simulation)    |
+| POST   | `/search`   | Traced search endpoint (tool-call style) |
+| GET    | `/stats`    | Aggregate trace statistics               |
+| GET    | `/runs`     | List recent agent runs                   |
+| GET    | `/traces`   | List traces (filter by `?run_id=...`)    |
+| GET    | `/usage`    | Agent usage stats from usage tracker     |
+| POST   | `/evaluate` | Run quality scorers against traces       |
 
 Interactive API docs are available at `http://localhost:8000/docs` (Swagger UI).
 
@@ -86,6 +86,7 @@ Request  -->  /chat
 ```
 
 Each `trace()` call writes a row to the SQLite DB (`./agenttrace.db`) with:
+
 - input / output
 - status (success / error)
 - latency_ms

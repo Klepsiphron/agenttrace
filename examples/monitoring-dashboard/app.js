@@ -20,7 +20,9 @@
 
   // ---- Configuration ----
   var API_BASE = '';
-  try { API_BASE = localStorage.getItem('agenttrace_api_base') || ''; } catch (_) {}
+  try {
+    API_BASE = localStorage.getItem('agenttrace_api_base') || '';
+  } catch (_) {}
   var REFRESH_MS = 5000;
   var RUNS_LIMIT = 200;
   var DEFAULT_DB_PATH = '';
@@ -80,7 +82,10 @@
     var units = ['B', 'KB', 'MB', 'GB', 'TB'];
     var i = 0;
     var b = Number(bytes);
-    while (b >= 1024 && i < units.length - 1) { b /= 1024; i++; }
+    while (b >= 1024 && i < units.length - 1) {
+      b /= 1024;
+      i++;
+    }
     return b.toFixed(1) + ' ' + units[i];
   }
 
@@ -102,12 +107,15 @@
     return fetch(url, opts).then(function (res) {
       if (!res.ok) {
         var msg = ' ' + res.status;
-        return res.json().then(function (j) {
-          throw new Error((j && j.error ? j.error : 'Request failed') + msg);
-        }).catch(function (e) {
-          if (e instanceof SyntaxError) throw new Error('Request failed ' + res.status);
-          throw e;
-        });
+        return res
+          .json()
+          .then(function (j) {
+            throw new Error((j && j.error ? j.error : 'Request failed') + msg);
+          })
+          .catch(function (e) {
+            if (e instanceof SyntaxError) throw new Error('Request failed ' + res.status);
+            throw e;
+          });
       }
       return res.json();
     });
@@ -115,46 +123,68 @@
 
   // ---- Data Loading ----
   function loadHealth() {
-    return apiFetch('/api/health').then(function (data) { state.health = data; }).catch(function () { state.health = null; });
+    return apiFetch('/api/health')
+      .then(function (data) {
+        state.health = data;
+      })
+      .catch(function () {
+        state.health = null;
+      });
   }
   function loadStats() {
-    return apiFetch('/api/stats?db=' + state.dbPath).then(function (data) { state.stats = data; });
+    return apiFetch('/api/stats?db=' + state.dbPath).then(function (data) {
+      state.stats = data;
+    });
   }
   function loadCosts() {
-    return apiFetch('/api/costs?db=' + state.dbPath).then(function (data) { state.costs = data; });
+    return apiFetch('/api/costs?db=' + state.dbPath).then(function (data) {
+      state.costs = data;
+    });
   }
   function loadRuns() {
     var url = '/api/runs?limit=' + RUNS_LIMIT;
-    if (state.statusFilter && state.statusFilter !== 'all') url += '&status=' + encodeURIComponent(state.statusFilter);
-    return apiFetch(url).then(function (data) { state.runs = Array.isArray(data) ? data : []; });
+    if (state.statusFilter && state.statusFilter !== 'all')
+      url += '&status=' + encodeURIComponent(state.statusFilter);
+    return apiFetch(url).then(function (data) {
+      state.runs = Array.isArray(data) ? data : [];
+    });
   }
   function loadTracesForRun(runId) {
-    return apiFetch('/api/traces?runId=' + encodeURIComponent(runId) + '&limit=200')
-      .then(function (data) { state.traces = Array.isArray(data) ? data : []; });
+    return apiFetch('/api/traces?runId=' + encodeURIComponent(runId) + '&limit=200').then(
+      function (data) {
+        state.traces = Array.isArray(data) ? data : [];
+      },
+    );
   }
   function loadTraceDetail(traceId) {
     return apiFetch('/api/traces/' + encodeURIComponent(traceId)).catch(function () {
-      return state.traces.find(function (t) { return t.id === traceId; }) || null;
+      return (
+        state.traces.find(function (t) {
+          return t.id === traceId;
+        }) || null
+      );
     });
   }
   function loadActiveAgents() {
-    return apiFetch('/api/usage/active').then(function (data) {
-      state.activeAgents = Array.isArray(data) ? data : [];
-    }).catch(function () { /* endpoint may not exist on older versions */ state.activeAgents = []; });
+    return apiFetch('/api/usage/active')
+      .then(function (data) {
+        state.activeAgents = Array.isArray(data) ? data : [];
+      })
+      .catch(function () {
+        /* endpoint may not exist on older versions */ state.activeAgents = [];
+      });
   }
   // Refresh
   function refreshAll() {
-    return Promise.all([
-      loadStats(),
-      loadCosts(),
-      loadRuns(),
-      loadActiveAgents(),
-      loadHealth(),
-    ]).then(function () {
-      if (state.selectedRunId) {
-        loadTracesForRun(state.selectedRunId).catch(function () {});
-      }
-    }).catch(function (err) { console.warn('[monitor] refresh error', err); });
+    return Promise.all([loadStats(), loadCosts(), loadRuns(), loadActiveAgents(), loadHealth()])
+      .then(function () {
+        if (state.selectedRunId) {
+          loadTracesForRun(state.selectedRunId).catch(function () {});
+        }
+      })
+      .catch(function (err) {
+        console.warn('[monitor] refresh error', err);
+      });
   }
 
   // ---- Rendering ----
@@ -178,13 +208,38 @@
     var items = [];
     if (h.checks) {
       var db = h.checks.database;
-      if (db) items.push({ label: 'Database status: ' + db.status + ' (' + (db.responseTime || 0) + 'ms)' });
+      if (db)
+        items.push({
+          label: 'Database status: ' + db.status + ' (' + (db.responseTime || 0) + 'ms)',
+        });
       var disk = h.checks.diskSpace;
-      if (disk) items.push({ label: 'Disk: ' + formatBytes(disk.freeBytes) + ' free / ' + formatBytes(disk.totalBytes) + ' total (' + disk.status + ')' });
+      if (disk)
+        items.push({
+          label:
+            'Disk: ' +
+            formatBytes(disk.freeBytes) +
+            ' free / ' +
+            formatBytes(disk.totalBytes) +
+            ' total (' +
+            disk.status +
+            ')',
+        });
       var mem = h.checks.memory;
-      if (mem) items.push({ label: 'Memory: ' + formatBytes(mem.usedBytes) + ' / ' + formatBytes(mem.totalBytes) + ' (' + mem.status + ')' });
-      if (h.checks.activeAgents != null) items.push({ label: 'Active agents: ' + h.checks.activeAgents });
-      if (h.checks.totalTraces != null) items.push({ label: 'Total traces: ' + formatNumber(h.checks.totalTraces) });
+      if (mem)
+        items.push({
+          label:
+            'Memory: ' +
+            formatBytes(mem.usedBytes) +
+            ' / ' +
+            formatBytes(mem.totalBytes) +
+            ' (' +
+            mem.status +
+            ')',
+        });
+      if (h.checks.activeAgents != null)
+        items.push({ label: 'Active agents: ' + h.checks.activeAgents });
+      if (h.checks.totalTraces != null)
+        items.push({ label: 'Total traces: ' + formatNumber(h.checks.totalTraces) });
     }
     if (h.uptime != null) items.push({ label: 'Uptime: ' + formatLatency(h.uptime) });
     if (h.version) items.push({ label: 'Version: ' + h.version });
@@ -229,8 +284,15 @@
       if (!modelKeys.length) {
         modelContainer.appendChild(el('div', 'empty', 'No cost data yet'));
       } else {
-        var maxModelCost = Math.max.apply(null, modelKeys.map(function (k) { return modelData[k]; }));
-        modelKeys.sort(function (a, b) { return modelData[b] - modelData[a]; });
+        var maxModelCost = Math.max.apply(
+          null,
+          modelKeys.map(function (k) {
+            return modelData[k];
+          }),
+        );
+        modelKeys.sort(function (a, b) {
+          return modelData[b] - modelData[a];
+        });
         modelKeys.forEach(function (model) {
           var cost = modelData[model];
           var pct = maxModelCost > 0 ? (cost / maxModelCost) * 100 : 0;
@@ -256,7 +318,12 @@
       if (!dayKeys.length) {
         dayContainer.appendChild(el('div', 'empty', 'No daily cost data yet'));
       } else {
-        var maxDayCost = Math.max.apply(null, dayKeys.map(function (k) { return dayData[k]; }));
+        var maxDayCost = Math.max.apply(
+          null,
+          dayKeys.map(function (k) {
+            return dayData[k];
+          }),
+        );
         dayKeys.sort();
         dayKeys.forEach(function (day) {
           var cost = dayData[day];
@@ -280,12 +347,17 @@
     var container = $('top-tools-list');
     if (!container) return;
     container.innerHTML = '';
-    var tools = (state.stats && state.stats.topTools) ? state.stats.topTools : [];
+    var tools = state.stats && state.stats.topTools ? state.stats.topTools : [];
     if (!tools.length) {
       container.appendChild(el('div', 'empty', 'No tool calls yet'));
       return;
     }
-    var maxCount = Math.max.apply(null, tools.map(function (t) { return t.count; }));
+    var maxCount = Math.max.apply(
+      null,
+      tools.map(function (t) {
+        return t.count;
+      }),
+    );
     tools.forEach(function (t) {
       var pct = maxCount > 0 ? (t.count / maxCount) * 100 : 0;
       var row = el('div', 'bar-row');
@@ -305,16 +377,23 @@
     var container = $('top-errors-list');
     if (!container) return;
     container.innerHTML = '';
-    var errors = (state.stats && state.stats.topErrors) ? state.stats.topErrors : [];
+    var errors = state.stats && state.stats.topErrors ? state.stats.topErrors : [];
     if (!errors.length) {
       container.appendChild(el('div', 'empty', 'No errors yet'));
       return;
     }
-    var maxCount = Math.max.apply(null, errors.map(function (e) { return e.count; }));
+    var maxCount = Math.max.apply(
+      null,
+      errors.map(function (e) {
+        return e.count;
+      }),
+    );
     errors.forEach(function (e) {
       var pct = maxCount > 0 ? (e.count / maxCount) * 100 : 0;
       var row = el('div', 'bar-row');
-      row.appendChild(el('span', 'bar-label', e.error.length > 40 ? e.error.slice(0, 40) + '...' : e.error));
+      row.appendChild(
+        el('span', 'bar-label', e.error.length > 40 ? e.error.slice(0, 40) + '...' : e.error),
+      );
       var barWrap = el('div', 'bar-track');
       var bar = el('div', 'bar-fill errors');
       bar.style.width = pct.toFixed(1) + '%';
@@ -332,7 +411,9 @@
     var dotEl = $('agents-live-dot');
     if (!container) return;
     container.innerHTML = '';
-    if (countEl) countEl.textContent = state.activeAgents.length + ' agent' + (state.activeAgents.length !== 1 ? 's' : '');
+    if (countEl)
+      countEl.textContent =
+        state.activeAgents.length + ' agent' + (state.activeAgents.length !== 1 ? 's' : '');
     if (dotEl) {
       dotEl.className = 'live-dot' + (state.activeAgents.length ? '' : ' off');
     }
@@ -349,9 +430,12 @@
       var meta = el('div', 'run-meta');
       if (agent.agentType) meta.appendChild(el('span', 'meta-item', agent.agentType));
       if (agent.lastAction) meta.appendChild(el('span', 'meta-item', 'last: ' + agent.lastAction));
-      if (agent.actions != null) meta.appendChild(el('span', 'meta-item', agent.actions + ' actions'));
-      if (agent.tokens != null) meta.appendChild(el('span', 'meta-item', formatNumber(agent.tokens) + ' tokens'));
-      if (agent.costUsd != null) meta.appendChild(el('span', 'meta-item', formatCost(agent.costUsd)));
+      if (agent.actions != null)
+        meta.appendChild(el('span', 'meta-item', agent.actions + ' actions'));
+      if (agent.tokens != null)
+        meta.appendChild(el('span', 'meta-item', formatNumber(agent.tokens) + ' tokens'));
+      if (agent.costUsd != null)
+        meta.appendChild(el('span', 'meta-item', formatCost(agent.costUsd)));
       item.appendChild(meta);
       container.appendChild(item);
     });
@@ -364,12 +448,21 @@
     container.innerHTML = '';
     var filtered = state.runs;
     if (state.statusFilter && state.statusFilter !== 'all') {
-      filtered = state.runs.filter(function (r) { return r.status === state.statusFilter; });
+      filtered = state.runs.filter(function (r) {
+        return r.status === state.statusFilter;
+      });
     }
     var countEl = $('runs-count');
-    if (countEl) countEl.textContent = filtered.length + ' run' + (filtered.length !== 1 ? 's' : '');
+    if (countEl)
+      countEl.textContent = filtered.length + ' run' + (filtered.length !== 1 ? 's' : '');
     if (!filtered.length) {
-      container.appendChild(el('div', 'empty', state.runs.length ? 'No runs match filter' : 'No runs yet. Start tracing!'));
+      container.appendChild(
+        el(
+          'div',
+          'empty',
+          state.runs.length ? 'No runs match filter' : 'No runs yet. Start tracing!',
+        ),
+      );
       return;
     }
     filtered.forEach(function (run) {
@@ -387,9 +480,12 @@
       meta.appendChild(el('span', 'meta-item', formatLatency(run.totalLatencyMs || 0)));
       meta.appendChild(el('span', 'meta-item', formatCost(run.totalCostUsd || 0)));
       meta.appendChild(el('span', 'meta-item', timeStr));
-      if (run.errorCount > 0) meta.appendChild(el('span', 'meta-item errors-text', run.errorCount + ' errors'));
+      if (run.errorCount > 0)
+        meta.appendChild(el('span', 'meta-item errors-text', run.errorCount + ' errors'));
       item.appendChild(meta);
-      item.addEventListener('click', function () { selectRun(run.id, item); });
+      item.addEventListener('click', function () {
+        selectRun(run.id, item);
+      });
       container.appendChild(item);
     });
   }
@@ -401,7 +497,8 @@
     var countEl = $('traces-count');
     if (!container) return;
     container.innerHTML = '';
-    if (countEl) countEl.textContent = state.traces.length + ' trace' + (state.traces.length !== 1 ? 's' : '');
+    if (countEl)
+      countEl.textContent = state.traces.length + ' trace' + (state.traces.length !== 1 ? 's' : '');
     if (!state.traces.length) {
       container.appendChild(el('div', 'empty', 'No traces for this run'));
       return;
@@ -415,13 +512,24 @@
       header.appendChild(el('span', 'trace-name', trace.name || 'trace'));
       item.appendChild(header);
       var meta = el('div', 'trace-meta');
-      meta.textContent = formatLatency(trace.latencyMs || 0) + ' | ' + formatCost(trace.costUsd || 0) + ' | ' + (trace.tokens && trace.tokens.totalTokens ? trace.tokens.totalTokens + ' tokens' : '');
+      meta.textContent =
+        formatLatency(trace.latencyMs || 0) +
+        ' | ' +
+        formatCost(trace.costUsd || 0) +
+        ' | ' +
+        (trace.tokens && trace.tokens.totalTokens ? trace.tokens.totalTokens + ' tokens' : '');
       item.appendChild(meta);
       if (trace.toolCalls && trace.toolCalls.length) {
-        var tools = el('div', 'trace-tools', trace.toolCalls.length + ' tool call' + (trace.toolCalls.length > 1 ? 's' : ''));
+        var tools = el(
+          'div',
+          'trace-tools',
+          trace.toolCalls.length + ' tool call' + (trace.toolCalls.length > 1 ? 's' : ''),
+        );
         item.appendChild(tools);
       }
-      item.addEventListener('click', function () { selectTrace(trace.id, item, trace); });
+      item.addEventListener('click', function () {
+        selectTrace(trace.id, item, trace);
+      });
       container.appendChild(item);
     });
     if (sec) sec.style.display = '';
@@ -440,7 +548,15 @@
     var rows = [
       ['Latency', formatLatency(trace.latencyMs)],
       ['Cost', formatCost(trace.costUsd)],
-      ['Tokens', (trace.tokens ? trace.tokens.totalTokens : 0) + ' (p:' + (trace.tokens ? trace.tokens.promptTokens : 0) + ' c:' + (trace.tokens ? trace.tokens.completionTokens : 0) + ')'],
+      [
+        'Tokens',
+        (trace.tokens ? trace.tokens.totalTokens : 0) +
+          ' (p:' +
+          (trace.tokens ? trace.tokens.promptTokens : 0) +
+          ' c:' +
+          (trace.tokens ? trace.tokens.completionTokens : 0) +
+          ')',
+      ],
       ['Model', (trace.tokens && trace.tokens.model) || '-'],
       ['Created', trace.createdAt ? new Date(trace.createdAt).toLocaleString() : '-'],
     ];
@@ -457,12 +573,23 @@
         var tcEl = el('div', 'tool-call');
         var th = el('div', 'tool-header');
         th.appendChild(el('span', '', tc.name));
-        th.appendChild(el('span', 'badge ' + (tc.success ? 'success' : 'failure'), tc.success ? 'ok' : 'fail'));
+        th.appendChild(
+          el('span', 'badge ' + (tc.success ? 'success' : 'failure'), tc.success ? 'ok' : 'fail'),
+        );
         if (tc.latencyMs != null) th.appendChild(el('span', '', formatLatency(tc.latencyMs)));
         tcEl.appendChild(th);
-        if (tc.input != null) { tcEl.appendChild(el('div', '', 'input:')); tcEl.appendChild(el('pre', 'json-block', JSON.stringify(tc.input, null, 2))); }
-        if (tc.output != null) { tcEl.appendChild(el('div', '', 'output:')); tcEl.appendChild(el('pre', 'json-block', JSON.stringify(tc.output, null, 2))); }
-        if (tc.error) { var err = el('div', 'value', 'Error: ' + tc.error); tcEl.appendChild(err); }
+        if (tc.input != null) {
+          tcEl.appendChild(el('div', '', 'input:'));
+          tcEl.appendChild(el('pre', 'json-block', JSON.stringify(tc.input, null, 2)));
+        }
+        if (tc.output != null) {
+          tcEl.appendChild(el('div', '', 'output:'));
+          tcEl.appendChild(el('pre', 'json-block', JSON.stringify(tc.output, null, 2)));
+        }
+        if (tc.error) {
+          var err = el('div', 'value', 'Error: ' + tc.error);
+          tcEl.appendChild(err);
+        }
         container.appendChild(tcEl);
       });
     }
@@ -487,33 +614,45 @@
   function selectRun(runId, clickedEl) {
     state.selectedRunId = runId;
     state.selectedTraceId = null;
-    document.querySelectorAll('.run-item').forEach(function (el) { el.classList.toggle('selected', el.dataset.runId === runId); });
+    document.querySelectorAll('.run-item').forEach(function (el) {
+      el.classList.toggle('selected', el.dataset.runId === runId);
+    });
     var tracesSec = $('traces-section');
     var tracesList = $('traces-list');
     var nameEl = $('selected-run-name');
     if (tracesSec) tracesSec.style.display = '';
     if (tracesList) tracesList.innerHTML = '<div class="empty">Loading traces...</div>';
-    var run = state.runs.find(function (r) { return r.id === runId; });
+    var run = state.runs.find(function (r) {
+      return r.id === runId;
+    });
     if (nameEl) nameEl.textContent = run && run.name ? run.name : runId;
     var detailsSec = $('details-section');
     if (detailsSec) detailsSec.style.display = 'none';
-    loadTracesForRun(runId).then(renderTraces).catch(function () {
-      if (tracesList) tracesList.innerHTML = '<div class="empty">Failed to load traces</div>';
-    });
+    loadTracesForRun(runId)
+      .then(renderTraces)
+      .catch(function () {
+        if (tracesList) tracesList.innerHTML = '<div class="empty">Failed to load traces</div>';
+      });
   }
 
   function selectTrace(traceId, clickedEl, traceData) {
     state.selectedTraceId = traceId;
-    document.querySelectorAll('.trace-item').forEach(function (el) { el.classList.toggle('selected', el.dataset.traceId === traceId); });
+    document.querySelectorAll('.trace-item').forEach(function (el) {
+      el.classList.toggle('selected', el.dataset.traceId === traceId);
+    });
     var detailsSec = $('details-section');
     if (detailsSec) detailsSec.style.display = '';
     if (traceData) {
       renderTraceDetails(traceData);
     } else {
-      loadTraceDetail(traceId).then(function (t) { if (t) renderTraceDetails(t); }).catch(function () {
-        var det = $('trace-details');
-        if (det) det.innerHTML = '<div class="empty">Failed to load trace details</div>';
-      });
+      loadTraceDetail(traceId)
+        .then(function (t) {
+          if (t) renderTraceDetails(t);
+        })
+        .catch(function () {
+          var det = $('trace-details');
+          if (det) det.innerHTML = '<div class="empty">Failed to load trace details</div>';
+        });
     }
   }
 
@@ -537,9 +676,13 @@
       var btn = ev.target.closest('.filter-btn');
       if (!btn) return;
       var status = btn.getAttribute('data-status') || 'all';
-      group.querySelectorAll('.filter-btn').forEach(function (b) { b.classList.toggle('active', b === btn); });
+      group.querySelectorAll('.filter-btn').forEach(function (b) {
+        b.classList.toggle('active', b === btn);
+      });
       state.statusFilter = status;
-      loadRuns().then(renderRuns).catch(function () {});
+      loadRuns()
+        .then(renderRuns)
+        .catch(function () {});
     });
   }
 
@@ -550,21 +693,34 @@
       var url = API_BASE + '/api/export?format=' + format;
       var opts = { headers: {} };
       if (state.apiKey) opts.headers['X-API-Key'] = state.apiKey;
-      fetch(url, opts).then(function (res) {
-        if (!res.ok) throw new Error('Export failed');
-        return res.blob();
-      }).then(function (blob) {
-        var a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = 'agenttrace-export.' + format;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
-      }).catch(function (e) { alert('Export failed: ' + e.message); });
+      fetch(url, opts)
+        .then(function (res) {
+          if (!res.ok) throw new Error('Export failed');
+          return res.blob();
+        })
+        .then(function (blob) {
+          var a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = 'agenttrace-export.' + format;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          setTimeout(function () {
+            URL.revokeObjectURL(a.href);
+          }, 1000);
+        })
+        .catch(function (e) {
+          alert('Export failed: ' + e.message);
+        });
     }
-    if (jsonBtn) jsonBtn.addEventListener('click', function () { doExport('json'); });
-    if (csvBtn) csvBtn.addEventListener('click', function () { doExport('csv'); });
+    if (jsonBtn)
+      jsonBtn.addEventListener('click', function () {
+        doExport('json');
+      });
+    if (csvBtn)
+      csvBtn.addEventListener('click', function () {
+        doExport('csv');
+      });
   }
 
   function setupRefresh() {
@@ -588,7 +744,9 @@
         var sec = $('details-section');
         if (sec) sec.style.display = 'none';
         state.selectedTraceId = null;
-        document.querySelectorAll('.trace-item').forEach(function (el) { el.classList.remove('selected'); });
+        document.querySelectorAll('.trace-item').forEach(function (el) {
+          el.classList.remove('selected');
+        });
       });
     }
   }
@@ -596,17 +754,23 @@
   // ---- Init ----
   function init() {
     // Read API key from localStorage
-    try { state.apiKey = localStorage.getItem('agenttrace_api_key') || ''; } catch (_) {}
-    try { state.dbPath = localStorage.getItem('agenttrace_db_path') || ''; } catch (_) {}
+    try {
+      state.apiKey = localStorage.getItem('agenttrace_api_key') || '';
+    } catch (_) {}
+    try {
+      state.dbPath = localStorage.getItem('agenttrace_db_path') || '';
+    } catch (_) {}
 
     setupFilters();
     setupExports();
     setupCloseDetails();
     setupRefresh();
 
-    refreshAll().then(renderAll).catch(function () {
-      renderAll();
-    });
+    refreshAll()
+      .then(renderAll)
+      .catch(function () {
+        renderAll();
+      });
   }
 
   // Start when DOM is ready

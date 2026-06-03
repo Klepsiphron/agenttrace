@@ -96,9 +96,9 @@ export const up = (db: Database): void => {
 
 The migration runner (`packages/sdk/src/migrations.ts`) uses two tables:
 
-| Table   | Key              | Purpose                              |
-|---------|------------------|--------------------------------------|
-| `meta`  | `schema_version` | Primary version tracker (preferred)  |
+| Table     | Key              | Purpose                             |
+| --------- | ---------------- | ----------------------------------- |
+| `meta`    | `schema_version` | Primary version tracker (preferred) |
 | `version` | `schema_version` | Legacy compatibility (kept in sync) |
 
 For databases created before the migration system existed (pre-v0.1.0, or
@@ -159,15 +159,15 @@ npx agenttrace-io stats
 
 ### Migration History
 
-| Version | Migration File           | What it adds                                                              |
-|---------|--------------------------|---------------------------------------------------------------------------|
-| 1       | `001-initial.ts`         | `runs`, `traces`, `tool_calls`, `trace_links`, `version` tables + indexes |
-| 2       | `002-scores.ts`          | `scores` table + indexes                                                  |
-| 3       | `003-alerts.ts`          | `alerts`, `alert_history` tables + indexes                                |
-| 4       | `004-trace-context.ts`   | `trace_context` table + index                                             |
-| 5       | `005-agent-usage.ts`     | `agent_usage` table + indexes                                             |
-| 5       | `005-webhooks.ts`        | `webhooks`, `webhook_deliveries` tables + indexes                         |
-| 6       | `006-api-keys.ts`        | `api_keys`, `rate_limit_log` tables + indexes                             |
+| Version | Migration File         | What it adds                                                              |
+| ------- | ---------------------- | ------------------------------------------------------------------------- |
+| 1       | `001-initial.ts`       | `runs`, `traces`, `tool_calls`, `trace_links`, `version` tables + indexes |
+| 2       | `002-scores.ts`        | `scores` table + indexes                                                  |
+| 3       | `003-alerts.ts`        | `alerts`, `alert_history` tables + indexes                                |
+| 4       | `004-trace-context.ts` | `trace_context` table + index                                             |
+| 5       | `005-agent-usage.ts`   | `agent_usage` table + indexes                                             |
+| 5       | `005-webhooks.ts`      | `webhooks`, `webhook_deliveries` tables + indexes                         |
+| 6       | `006-api-keys.ts`      | `api_keys`, `rate_limit_log` tables + indexes                             |
 
 Note: Migrations 005-agent-usage and 005-webhooks both target version 5.
 They are applied in the order they appear in the migration registry. The

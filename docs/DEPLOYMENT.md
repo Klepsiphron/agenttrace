@@ -258,11 +258,11 @@ available at `https://agenttrace.fly.dev`.
 
 ## Environment Variables
 
-| Variable               | Default              | Description                                   |
-|------------------------|----------------------|-----------------------------------------------|
-| `AGENTTRACE_DB_PATH`   | `./agenttrace.db`    | Absolute path to the SQLite database file.    |
-| `NODE_ENV`             | (unset)              | Set to `production` for production deploys.   |
-| `AGENTTRACE_USAGE_LOG` | (unset)              | Optional path for self-tracker usage log.     |
+| Variable               | Default           | Description                                 |
+| ---------------------- | ----------------- | ------------------------------------------- |
+| `AGENTTRACE_DB_PATH`   | `./agenttrace.db` | Absolute path to the SQLite database file.  |
+| `NODE_ENV`             | (unset)           | Set to `production` for production deploys. |
+| `AGENTTRACE_USAGE_LOG` | (unset)           | Optional path for self-tracker usage log.   |
 
 The `--port` and `--host` flags are set via the CLI `dashboard` command (e.g.
 `--host 0.0.0.0`). These are not environment variables. The default port is
@@ -303,6 +303,7 @@ Response (503 -- unhealthy): returned when the database check fails. The
 `checks.database` field will show `"status": "error"`.
 
 The health check validates four subsystems:
+
 - **database**: runs a query against SQLite and measures response time
 - **diskSpace**: checks free space on the volume hosting the database
 - **memory**: reports process heap usage

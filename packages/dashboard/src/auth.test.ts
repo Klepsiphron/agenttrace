@@ -18,10 +18,18 @@ describe('API key authentication', () => {
 
   afterEach(() => {
     servers.forEach((s) => {
-      try { s.close(); } catch (_) { /* ignore */ }
+      try {
+        s.close();
+      } catch (_) {
+        /* ignore */
+      }
     });
     closes.forEach((c) => {
-      try { c(); } catch (_) { /* ignore */ }
+      try {
+        c();
+      } catch (_) {
+        /* ignore */
+      }
     });
     servers = [];
     closes = [];

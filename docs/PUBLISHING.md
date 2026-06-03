@@ -68,8 +68,8 @@ If publishing under an organization, ensure you have appropriate permissions on 
 2. Under "Repository secrets", click **New repository secret**.
 3. Add the following:
 
-   | Secret Name     | Value                          | Used By          |
-   |-----------------|--------------------------------|------------------|
+   | Secret Name      | Value                         | Used By          |
+   | ---------------- | ----------------------------- | ---------------- |
    | `PYPI_API_TOKEN` | The PyPI API token (pypi-...) | publish-pypi.yml |
    | `NPM_TOKEN`      | The npm access token          | publish-npm.yml  |
 
@@ -89,6 +89,7 @@ Follow these steps for a standard release (this will trigger automated publishin
    - Commit the version bumps: `git add -A && git commit -m "chore: release vX.Y.Z"`
 
 2. **Tag the release**:
+
    ```bash
    git tag -a vX.Y.Z -m "AgentTrace vX.Y.Z"
    git push origin vX.Y.Z

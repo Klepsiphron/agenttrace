@@ -20,7 +20,9 @@
 
   // ── DOM helpers ──
 
-  function $(id) { return document.getElementById(id); }
+  function $(id) {
+    return document.getElementById(id);
+  }
 
   function el(tag, cls, text) {
     var e = document.createElement(tag);
@@ -31,7 +33,7 @@
 
   function escapeHtml(s) {
     return String(s).replace(/[&<>\"']/g, function (c) {
-      return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c];
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
     });
   }
 
@@ -148,12 +150,7 @@
 
   async function refreshAll(alsoLine) {
     try {
-      await Promise.all([
-        loadActive(),
-        loadTodayStats(),
-        loadRecent(),
-        loadGlobalTop(),
-      ]);
+      await Promise.all([loadActive(), loadTodayStats(), loadRecent(), loadGlobalTop()]);
       state.lastRefresh = Date.now();
       renderSummaryCards();
       renderBarChart();
@@ -212,7 +209,9 @@
     var entries = Object.keys(byType).map(function (k) {
       return { type: k, count: byType[k] || 0 };
     });
-    entries.sort(function (a, b) { return b.count - a.count; });
+    entries.sort(function (a, b) {
+      return b.count - a.count;
+    });
     entries = entries.slice(0, 8);
 
     if (!entries.length) {
@@ -221,13 +220,24 @@
     }
 
     var max = 0;
-    entries.forEach(function (e) { if (e.count > max) max = e.count; });
+    entries.forEach(function (e) {
+      if (e.count > max) max = e.count;
+    });
     if (max === 0) max = 1;
 
     var wrap = el('div', 'bar-chart');
 
     // Color palette for bars (cycle through)
-    var colors = ['#58a6ff', '#3fb950', '#d29922', '#f0883e', '#bc8cff', '#79c0ff', '#56d364', '#e3b341'];
+    var colors = [
+      '#58a6ff',
+      '#3fb950',
+      '#d29922',
+      '#f0883e',
+      '#bc8cff',
+      '#79c0ff',
+      '#56d364',
+      '#e3b341',
+    ];
 
     entries.forEach(function (e, i) {
       var pct = Math.max(8, Math.round((e.count / max) * 100));
@@ -260,7 +270,12 @@
     var byDay = {};
     (recs7d || []).forEach(function (r) {
       var d = new Date(r.createdAt || Date.now());
-      var key = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+      var key =
+        d.getFullYear() +
+        '-' +
+        String(d.getMonth() + 1).padStart(2, '0') +
+        '-' +
+        String(d.getDate()).padStart(2, '0');
       byDay[key] = (byDay[key] || 0) + (r.costUsd || 0);
     });
 
@@ -271,15 +286,27 @@
     for (var i = 6; i >= 0; i--) {
       var dt = new Date(base);
       dt.setDate(base.getDate() - i);
-      var k = dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0') + '-' + String(dt.getDate()).padStart(2, '0');
+      var k =
+        dt.getFullYear() +
+        '-' +
+        String(dt.getMonth() + 1).padStart(2, '0') +
+        '-' +
+        String(dt.getDate()).padStart(2, '0');
       days.push({ key: k, label: formatDay(dt), cost: byDay[k] || 0, dateStr: formatDate(dt) });
     }
 
     var maxCost = 0;
-    days.forEach(function (d) { if (d.cost > maxCost) maxCost = d.cost; });
+    days.forEach(function (d) {
+      if (d.cost > maxCost) maxCost = d.cost;
+    });
     if (maxCost <= 0) maxCost = 0.0001;
 
-    var W = 520, H = 140, PADL = 36, PADR = 8, PADT = 10, PADB = 20;
+    var W = 520,
+      H = 140,
+      PADL = 36,
+      PADR = 8,
+      PADT = 10,
+      PADB = 20;
     var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svg.setAttribute('class', 'line-chart');
     svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
@@ -290,23 +317,32 @@
     for (var g = 0; g <= 3; g++) {
       var gy = PADT + (g * (H - PADT - PADB)) / 3;
       var grid = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-      grid.setAttribute('x1', PADL); grid.setAttribute('y1', gy);
-      grid.setAttribute('x2', W - PADR); grid.setAttribute('y2', gy);
-      grid.setAttribute('stroke', '#21262d'); grid.setAttribute('stroke-width', '1');
+      grid.setAttribute('x1', PADL);
+      grid.setAttribute('y1', gy);
+      grid.setAttribute('x2', W - PADR);
+      grid.setAttribute('y2', gy);
+      grid.setAttribute('stroke', '#21262d');
+      grid.setAttribute('stroke-width', '1');
       svg.appendChild(grid);
     }
 
     // Axes
     var axis = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-    axis.setAttribute('x1', PADL); axis.setAttribute('y1', H - PADB);
-    axis.setAttribute('x2', W - PADR); axis.setAttribute('y2', H - PADB);
-    axis.setAttribute('stroke', '#30363d'); axis.setAttribute('stroke-width', '1');
+    axis.setAttribute('x1', PADL);
+    axis.setAttribute('y1', H - PADB);
+    axis.setAttribute('x2', W - PADR);
+    axis.setAttribute('y2', H - PADB);
+    axis.setAttribute('stroke', '#30363d');
+    axis.setAttribute('stroke-width', '1');
     svg.appendChild(axis);
 
     var vaxis = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-    vaxis.setAttribute('x1', PADL); vaxis.setAttribute('y1', PADT);
-    vaxis.setAttribute('x2', PADL); vaxis.setAttribute('y2', H - PADB);
-    vaxis.setAttribute('stroke', '#30363d'); vaxis.setAttribute('stroke-width', '1');
+    vaxis.setAttribute('x1', PADL);
+    vaxis.setAttribute('y1', PADT);
+    vaxis.setAttribute('x2', PADL);
+    vaxis.setAttribute('y2', H - PADB);
+    vaxis.setAttribute('stroke', '#30363d');
+    vaxis.setAttribute('stroke-width', '1');
     svg.appendChild(vaxis);
 
     // Plot points
@@ -323,7 +359,9 @@
     // Area fill (gradient under line)
     if (pts.length > 1) {
       var areaPath = 'M ' + pts[0].x + ' ' + (H - PADB);
-      pts.forEach(function (p) { areaPath += ' L ' + p.x + ' ' + p.y; });
+      pts.forEach(function (p) {
+        areaPath += ' L ' + p.x + ' ' + p.y;
+      });
       areaPath += ' L ' + pts[pts.length - 1].x + ' ' + (H - PADB) + ' Z';
       var area = document.createElementNS('http://www.w3.org/2000/svg', 'path');
       area.setAttribute('d', areaPath);
@@ -335,7 +373,11 @@
     // Polyline
     if (pts.length > 1) {
       var poly = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
-      var ptsAttr = pts.map(function (p) { return p.x + ',' + p.y; }).join(' ');
+      var ptsAttr = pts
+        .map(function (p) {
+          return p.x + ',' + p.y;
+        })
+        .join(' ');
       poly.setAttribute('points', ptsAttr);
       poly.setAttribute('fill', 'none');
       poly.setAttribute('stroke', '#58a6ff');
@@ -348,7 +390,8 @@
     // Dots + labels
     pts.forEach(function (p) {
       var c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-      c.setAttribute('cx', p.x); c.setAttribute('cy', p.y);
+      c.setAttribute('cx', p.x);
+      c.setAttribute('cy', p.y);
       c.setAttribute('r', '3');
       c.setAttribute('fill', '#58a6ff');
       c.setAttribute('stroke', '#0d1117');
@@ -377,7 +420,8 @@
 
     // Y-axis max label
     var ylbl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    ylbl.setAttribute('x', 4); ylbl.setAttribute('y', PADT + 10);
+    ylbl.setAttribute('x', 4);
+    ylbl.setAttribute('y', PADT + 10);
     ylbl.setAttribute('fill', '#8b949e');
     ylbl.textContent = '$' + maxCost.toFixed(2);
     svg.appendChild(ylbl);
@@ -408,10 +452,18 @@
     rows.slice(0, 8).forEach(function (a) {
       var tr = el('tr');
       tr.innerHTML =
-        '<td class="agent">' + escapeHtml(a.agentName || '') + '</td>' +
-        '<td class="num">' + formatNumber(a.actions || 0) + '</td>' +
-        '<td class="num">' + formatTokens(a.tokens || 0) + '</td>' +
-        '<td class="num cost">' + formatCost(a.costUsd || 0) + '</td>';
+        '<td class="agent">' +
+        escapeHtml(a.agentName || '') +
+        '</td>' +
+        '<td class="num">' +
+        formatNumber(a.actions || 0) +
+        '</td>' +
+        '<td class="num">' +
+        formatTokens(a.tokens || 0) +
+        '</td>' +
+        '<td class="num cost">' +
+        formatCost(a.costUsd || 0) +
+        '</td>';
       tbody.appendChild(tr);
     });
   }
@@ -439,10 +491,18 @@
       var actionStr = r.action || '';
       if (r.target) actionStr += ':' + r.target;
       tr.innerHTML =
-        '<td>' + formatTime(r.createdAt) + '</td>' +
-        '<td class="agent">' + escapeHtml(r.agentName || '') + '</td>' +
-        '<td>' + escapeHtml(actionStr) + '</td>' +
-        '<td class="num cost">' + formatCost(r.costUsd || 0) + '</td>';
+        '<td>' +
+        formatTime(r.createdAt) +
+        '</td>' +
+        '<td class="agent">' +
+        escapeHtml(r.agentName || '') +
+        '</td>' +
+        '<td>' +
+        escapeHtml(actionStr) +
+        '</td>' +
+        '<td class="num cost">' +
+        formatCost(r.costUsd || 0) +
+        '</td>';
       tbody.appendChild(tr);
     });
   }
@@ -478,7 +538,8 @@
 
     // Status indicator dot
     var statusDot = el('span', 'activity-status');
-    statusDot.style.cssText = 'display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:4px;vertical-align:middle;';
+    statusDot.style.cssText =
+      'display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:4px;vertical-align:middle;';
     if (record.status === 'failure') {
       statusDot.style.background = 'var(--failure)';
     } else if (record.status === 'timeout') {
@@ -552,8 +613,10 @@
             var todayStart = getTodayStart();
             if (rec.createdAt >= todayStart) {
               state.todayStats.totalActions = (state.todayStats.totalActions || 0) + 1;
-              state.todayStats.totalTokens = (state.todayStats.totalTokens || 0) + (rec.tokensUsed || 0);
-              state.todayStats.totalCostUsd = (state.todayStats.totalCostUsd || 0) + (rec.costUsd || 0);
+              state.todayStats.totalTokens =
+                (state.todayStats.totalTokens || 0) + (rec.tokensUsed || 0);
+              state.todayStats.totalCostUsd =
+                (state.todayStats.totalCostUsd || 0) + (rec.costUsd || 0);
               renderSummaryCards();
             }
           }
@@ -565,7 +628,9 @@
         // Browser auto-reconnects
       };
 
-      es.onopen = function () { setConnected(true); };
+      es.onopen = function () {
+        setConnected(true);
+      };
     } catch (e) {
       setConnected(false);
       console.warn('[Usage] SSE not available, using polling only', e);
@@ -589,8 +654,12 @@
     if (btn) {
       btn.addEventListener('click', function () {
         btn.classList.add('spinning');
-        refreshAll(true).catch(function (e) { console.warn(e); });
-        setTimeout(function () { btn.classList.remove('spinning'); }, 800);
+        refreshAll(true).catch(function (e) {
+          console.warn(e);
+        });
+        setTimeout(function () {
+          btn.classList.remove('spinning');
+        }, 800);
       });
     }
   }
@@ -603,24 +672,34 @@
     setupSSE();
 
     // Initial full load (incl. 7-day line chart)
-    refreshAll(true).then(function () {
-      // Seed feed from recent if no events yet
-      var feedEl = $('activity-feed');
-      if (feedEl && state.feed.length === 0 && state.recent.length) {
-        var seed = state.recent.slice(0, 8).reverse();
-        seed.forEach(function (r) { addToFeed(r); });
-      }
-    }).catch(function (e) {
-      var feed = $('activity-feed');
-      if (feed) feed.innerHTML = '<div class="empty">Failed to load usage data. Is the dashboard server running?</div>';
-      console.error('[AgentTrace Usage] init error', e);
-    });
+    refreshAll(true)
+      .then(function () {
+        // Seed feed from recent if no events yet
+        var feedEl = $('activity-feed');
+        if (feedEl && state.feed.length === 0 && state.recent.length) {
+          var seed = state.recent.slice(0, 8).reverse();
+          seed.forEach(function (r) {
+            addToFeed(r);
+          });
+        }
+      })
+      .catch(function (e) {
+        var feed = $('activity-feed');
+        if (feed)
+          feed.innerHTML =
+            '<div class="empty">Failed to load usage data. Is the dashboard server running?</div>';
+        console.error('[AgentTrace Usage] init error', e);
+      });
 
     // Expose debug handle
     window.__agenttraceUsage = {
       state: state,
-      refresh: function () { return refreshAll(true); },
-      sse: function () { return state.es; },
+      refresh: function () {
+        return refreshAll(true);
+      },
+      sse: function () {
+        return state.es;
+      },
     };
   }
 

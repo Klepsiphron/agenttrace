@@ -2,7 +2,7 @@
 
 This guide is written for **AI agents** (and the developers building them) who want to install and use AgentTrace to track their own execution, token usage, costs, and behavior.
 
-AgentTrace is local-first (SQLite), zero-dependency, and works great for agents that want to observe *themselves*.
+AgentTrace is local-first (SQLite), zero-dependency, and works great for agents that want to observe _themselves_.
 
 ## Why Agents Should Track Their Own Usage
 
@@ -16,6 +16,7 @@ As an autonomous AI agent, you generate value through sequences of LLM calls, to
 **AgentTrace lets agents emit structured traces and usage records** that are stored locally. Agents can even query their own history at runtime (`getUsageStats()`, `getAgentUsage()`) to make decisions, set budgets, or log summaries.
 
 Benefits for agents:
+
 - Automatic cost and token accounting per model.
 - Hierarchical tracing for workflows (planner → tool → synthesizer).
 - Self-reporting of high-level actions (research, code, review) via agent-usage records.
@@ -26,6 +27,7 @@ Benefits for agents:
 ## Quick Install
 
 ### TypeScript / Node
+
 ```bash
 npm install @agenttrace-io/sdk
 # Optional: CLI for dashboard and queries (or use npx)
@@ -33,6 +35,7 @@ npm install -g @agenttrace-io/cli
 ```
 
 ### Python
+
 ```bash
 pip install agenttrace-io
 # CLI remains Node-based:
@@ -44,18 +47,20 @@ Requires: Node 18+ or Python 3.10+.
 ## Basic Setup (3 Lines of Code)
 
 ### TypeScript
+
 ```typescript
 import { init, trace } from '@agenttrace-io/sdk';
 
-const agentTrace = init();                    // 1. init (uses ./agenttrace.db)
+const agentTrace = init(); // 1. init (uses ./agenttrace.db)
 const result = await trace('my-step', async () => {
-  return await doWork();                      // 2. wrap work
+  return await doWork(); // 2. wrap work
 });
-console.log(agentTrace.getStats());           // 3. inspect
+console.log(agentTrace.getStats()); // 3. inspect
 agentTrace.close();
 ```
 
 ### Python
+
 ```python
 from agenttrace import init, trace
 
@@ -69,12 +74,13 @@ Traces are automatically timed, costed (for known models), and stored. Nest `tra
 
 ## Environment Variables for Configuration
 
-| Variable                  | Description                                      | Default                  |
-|---------------------------|--------------------------------------------------|--------------------------|
-| `AGENTTRACE_DB_PATH`      | Path to the SQLite database file                 | `./agenttrace.db`        |
-| `AGENTTRACE_USAGE_LOG`    | Path for SelfTracker JSONL log (advanced)        | `~/.hermes/agenttrace-usage.jsonl` |
+| Variable               | Description                               | Default                            |
+| ---------------------- | ----------------------------------------- | ---------------------------------- |
+| `AGENTTRACE_DB_PATH`   | Path to the SQLite database file          | `./agenttrace.db`                  |
+| `AGENTTRACE_USAGE_LOG` | Path for SelfTracker JSONL log (advanced) | `~/.hermes/agenttrace-usage.jsonl` |
 
 Set before running your agent:
+
 ```bash
 export AGENTTRACE_DB_PATH=/tmp/my-agent-traces.db
 ```
@@ -82,6 +88,7 @@ export AGENTTRACE_DB_PATH=/tmp/my-agent-traces.db
 ## Integration with Popular Agent Frameworks
 
 ### LangChain (Python & JS)
+
 Wrap LLM calls or use inside chains/tools. For LangGraph use the dedicated middleware (`@agenttrace-io/middleware-langgraph`).
 
 ```python
@@ -108,6 +115,7 @@ async def call_with_trace(prompt: str):
 JS/TS equivalent using callbacks or manual wrapping works the same with the Node SDK.
 
 ### CrewAI
+
 Use the official middleware (recommended):
 
 ```bash
@@ -130,6 +138,7 @@ mw.close()
 The middleware auto-traces `task:*` and `tool:*` and extracts token usage where CrewAI provides it.
 
 ### AutoGen (Microsoft)
+
 Wrap agent `initiate_chat` / `generate_reply` or individual LLM calls:
 
 ```python
@@ -146,26 +155,32 @@ async def traced_generate(agent, messages):
 Use `at.record_agent_usage(...)` for high-level events like "handoff" or "termination".
 
 ### OpenAI Agents SDK
+
 Wrap the `Runner.run` or individual `responses.create` / chat completions. Record tokens from the `usage` field returned by the Responses API:
 
 ```typescript
 import { trace } from '@agenttrace-io/sdk';
 
-const response = await trace('openai-agent-step', async () => {
-  const r = await openai.responses.create({ model: 'gpt-4o-mini', input: '...' });
-  return r;
-}, {
-  tokens: {
-    promptTokens: response.usage?.input_tokens ?? 0,
-    completionTokens: response.usage?.output_tokens ?? 0,
+const response = await trace(
+  'openai-agent-step',
+  async () => {
+    const r = await openai.responses.create({ model: 'gpt-4o-mini', input: '...' });
+    return r;
   },
-  model: 'gpt-4o-mini',
-});
+  {
+    tokens: {
+      promptTokens: response.usage?.input_tokens ?? 0,
+      completionTokens: response.usage?.output_tokens ?? 0,
+    },
+    model: 'gpt-4o-mini',
+  },
+);
 ```
 
 ## Example: Tracing a Simple Agent Workflow
 
 See the dedicated example directories:
+
 - `examples/agent-usage-tracking/node-basic/`
 - `examples/agent-usage-tracking/python-basic/`
 
@@ -220,12 +235,14 @@ import { init, alert } from '@agenttrace-io/sdk';
 
 const at = init();
 
-at.registerAlert(alert({
-  name: 'high-daily-cost',
-  condition: (stats) => stats.totalCostUsd > 5.0,
-  webhook: 'https://example.com/agent-alerts',
-  cooldown: 3600, // seconds
-}));
+at.registerAlert(
+  alert({
+    name: 'high-daily-cost',
+    condition: (stats) => stats.totalCostUsd > 5.0,
+    webhook: 'https://example.com/agent-alerts',
+    cooldown: 3600, // seconds
+  }),
+);
 
 // Now every trace() will evaluate registered alerts
 await trace('expensive-step', async () => expensiveLLM());
@@ -249,14 +266,16 @@ if stats.total_cost_usd > 5.0:
 Agents can introspect at runtime:
 
 **TypeScript**
+
 ```typescript
 const stats = agentTrace.getStats();
-const usage = agentTrace.getUsageStats();           // agent_usage aggregates
+const usage = agentTrace.getUsageStats(); // agent_usage aggregates
 const myActions = agentTrace.getAgentUsage({ agentName: 'me' });
 const costs = agentTrace.getCostBreakdown();
 ```
 
 **Python**
+
 ```python
 stats = agent.get_stats()
 u = agent.get_usage_stats()
@@ -265,6 +284,7 @@ breakdown = agent.get_cost_breakdown()
 ```
 
 Useful for:
+
 - Deciding which model to pick next based on remaining budget.
 - Logging a "daily summary" trace before shutdown.
 - Early exit on error rate thresholds.
@@ -284,30 +304,32 @@ Useful for:
 
 ## Comparison: AgentTrace vs Just Logging to Console
 
-| Aspect                    | Console.log / print                     | AgentTrace                                      |
-|---------------------------|-----------------------------------------|-------------------------------------------------|
-| Structure                 | Free text, ad-hoc                       | Typed traces, runs, tokens, costs, trees        |
-| Cost tracking             | Manual, error-prone                     | Automatic per known model + custom rates        |
-| Queryability              | Grep / tail only                        | SQL-backed, filters, stats, breakdowns          |
-| Self-introspection        | Impossible at runtime                   | `getStats()`, `getUsageStats()` callable by agent |
-| Visualization             | None                                    | Local dashboard + CLI tables                    |
-| Multi-agent / hierarchy   | Hard (prefixes)                         | Parent/child + linkTraces built-in              |
-| Alerts / webhooks         | Custom code each time                   | Declarative `registerAlert` with cooldown       |
-| Export / interop          | Parse your logs                         | JSON, CSV, OpenTelemetry OTLP                   |
-| Persistence               | Ephemeral                               | SQLite file you control                         |
-| Overhead                  | Very low                                | Very low (local write, ~microseconds)           |
+| Aspect                  | Console.log / print   | AgentTrace                                        |
+| ----------------------- | --------------------- | ------------------------------------------------- |
+| Structure               | Free text, ad-hoc     | Typed traces, runs, tokens, costs, trees          |
+| Cost tracking           | Manual, error-prone   | Automatic per known model + custom rates          |
+| Queryability            | Grep / tail only      | SQL-backed, filters, stats, breakdowns            |
+| Self-introspection      | Impossible at runtime | `getStats()`, `getUsageStats()` callable by agent |
+| Visualization           | None                  | Local dashboard + CLI tables                      |
+| Multi-agent / hierarchy | Hard (prefixes)       | Parent/child + linkTraces built-in                |
+| Alerts / webhooks       | Custom code each time | Declarative `registerAlert` with cooldown         |
+| Export / interop        | Parse your logs       | JSON, CSV, OpenTelemetry OTLP                     |
+| Persistence             | Ephemeral             | SQLite file you control                           |
+| Overhead                | Very low              | Very low (local write, ~microseconds)             |
 
-**Use console logs for developer debugging.** Use AgentTrace when the *agent itself* (or its operators) needs to understand and act on its own behavior and spend.
+**Use console logs for developer debugging.** Use AgentTrace when the _agent itself_ (or its operators) needs to understand and act on its own behavior and spend.
 
 ---
 
 See also:
+
 - Main [README](../README.md)
 - [Getting Started](../tutorials/getting-started.md)
 - Example directories under `examples/agent-usage-tracking/`
 - Framework examples: `examples/langgraph/`, `examples/crewai/`
 
 Run the dashboard after examples:
+
 ```bash
 npx agenttrace-io dashboard --db ./traces.db
 ```

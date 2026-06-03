@@ -70,7 +70,8 @@
         border: 1px solid #30363d;
         border-radius: 8px;
         overflow: hidden;
-        box-shadow: 0 20px 60px -15px rgba(0, 0, 0, 0.6),
+        box-shadow:
+          0 20px 60px -15px rgba(0, 0, 0, 0.6),
           0 0 0 1px rgba(255, 255, 255, 0.03) inset;
         /* Ensure crisp rendering of the SVG at native size */
         image-rendering: -webkit-optimize-contrast;
@@ -147,14 +148,25 @@
       <div class="instructions">
         <strong>Export steps:</strong><br />
         • Best results: Use the device toolbar method described in the HTML comment above.<br />
-        • Alternative: Open <code>social-preview.svg</code> directly in a browser tab, press F11 for fullscreen, then use OS screenshot tool (or browser devtools capture) at 100% zoom.<br />
-        • Recommended export format for GitHub: <strong>PNG</strong> (lossless). JPG is also accepted.<br />
-        • After export, go to your repo → <strong>Settings → General → Social preview</strong> and upload the image.
+        • Alternative: Open <code>social-preview.svg</code> directly in a browser tab, press F11 for
+        fullscreen, then use OS screenshot tool (or browser devtools capture) at 100% zoom.<br />
+        • Recommended export format for GitHub: <strong>PNG</strong> (lossless). JPG is also
+        accepted.<br />
+        • After export, go to your repo → <strong>Settings → General → Social preview</strong> and
+        upload the image.
       </div>
 
       <div class="actions">
-        <a class="btn" href="social-preview.svg" target="_blank" rel="noopener">Open SVG directly</a>
-        <button class="btn" onclick="copySvgToClipboard()" title="Copies the SVG markup for inline use">Copy SVG source</button>
+        <a class="btn" href="social-preview.svg" target="_blank" rel="noopener"
+          >Open SVG directly</a
+        >
+        <button
+          class="btn"
+          onclick="copySvgToClipboard()"
+          title="Copies the SVG markup for inline use"
+        >
+          Copy SVG source
+        </button>
         <a class="btn" href="logo.svg" target="_blank" rel="noopener">View logo.svg</a>
       </div>
 

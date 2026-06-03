@@ -471,9 +471,9 @@ export function createDashboardApp(dbPath?: string): DashboardApp {
         const storage: any = (trace as any).storage;
         const db = storage?.db;
         if (db && typeof db.prepare === 'function') {
-          const ag = db
-            .prepare('SELECT COUNT(DISTINCT agent_name) as c FROM agent_usage')
-            .get() as { c?: number } | undefined;
+          const ag = db.prepare('SELECT COUNT(DISTINCT agent_name) as c FROM agent_usage').get() as
+            | { c?: number }
+            | undefined;
           checks.activeAgents = ag?.c ?? 0;
         }
       } catch {
@@ -489,7 +489,11 @@ export function createDashboardApp(dbPath?: string): DashboardApp {
     try {
       const disk = getDiskSpace(effectiveDbPath);
       const dstatus = resourceStatus(disk.totalBytes - disk.freeBytes, disk.totalBytes);
-      checks.diskSpace = { status: dstatus, freeBytes: disk.freeBytes, totalBytes: disk.totalBytes };
+      checks.diskSpace = {
+        status: dstatus,
+        freeBytes: disk.freeBytes,
+        totalBytes: disk.totalBytes,
+      };
     } catch {
       checks.diskSpace = { status: 'ok', freeBytes: 0, totalBytes: 0 };
     }
@@ -504,14 +508,17 @@ export function createDashboardApp(dbPath?: string): DashboardApp {
     }
 
     // Derive overall status
-    const critical = checks.database.status === 'error' ||
+    const critical =
+      checks.database.status === 'error' ||
       checks.diskSpace.status === 'critical' ||
       checks.memory.status === 'critical';
-    const warning = checks.diskSpace.status === 'warning' ||
-      checks.memory.status === 'warning';
+    const warning = checks.diskSpace.status === 'warning' || checks.memory.status === 'warning';
 
-    const overall: 'healthy' | 'degraded' | 'unhealthy' =
-      critical ? 'unhealthy' : (warning ? 'degraded' : 'healthy');
+    const overall: 'healthy' | 'degraded' | 'unhealthy' = critical
+      ? 'unhealthy'
+      : warning
+        ? 'degraded'
+        : 'healthy';
 
     const uptime = Date.now() - startTime;
     const timestamp = new Date().toISOString();

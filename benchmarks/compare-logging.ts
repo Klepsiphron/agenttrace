@@ -67,7 +67,9 @@ function makeTemp(prefix: string): { dir: string; cleanup: () => void } {
   return {
     dir,
     cleanup: () => {
-      try { fs.rmSync(dir, { recursive: true, force: true }); } catch {}
+      try {
+        fs.rmSync(dir, { recursive: true, force: true });
+      } catch {}
     },
   };
 }
@@ -126,7 +128,10 @@ function benchConsoleWrite(records: LogRecord[]): { timeMs: number; perSecond: n
   };
 }
 
-function benchJsonlWrite(records: LogRecord[], logPath: string): { timeMs: number; perSecond: number; fileSizeBytes: number } {
+function benchJsonlWrite(
+  records: LogRecord[],
+  logPath: string,
+): { timeMs: number; perSecond: number; fileSizeBytes: number } {
   // ensure clean
   if (fs.existsSync(logPath)) fs.unlinkSync(logPath);
   const t0 = performance.now();
@@ -142,7 +147,10 @@ function benchJsonlWrite(records: LogRecord[], logPath: string): { timeMs: numbe
   };
 }
 
-async function benchAgentTraceWrite(records: LogRecord[], dbPath: string): Promise<{ timeMs: number; perSecond: number }> {
+async function benchAgentTraceWrite(
+  records: LogRecord[],
+  dbPath: string,
+): Promise<{ timeMs: number; perSecond: number }> {
   const agent = new AgentTrace({ dbPath, silent: true, autoCleanup: false });
   const runId = agent.startRun('compare-bench');
   const storage = (agent as unknown as { storage: TraceStorage }).storage;
@@ -171,14 +179,16 @@ function jsonlFilter(recs: LogRecord[], predicate: (r: LogRecord) => boolean): L
   return recs.filter(predicate);
 }
 
-async function benchQueries(n: number): Promise<Array<{
-  name: string;
-  agenttraceMs: number;
-  jsonlScanMs: number;
-  agenttraceCount: number;
-  jsonlCount: number;
-  speedup: string;
-}>> {
+async function benchQueries(n: number): Promise<
+  Array<{
+    name: string;
+    agenttraceMs: number;
+    jsonlScanMs: number;
+    agenttraceCount: number;
+    jsonlCount: number;
+    speedup: string;
+  }>
+> {
   const base = Date.now() - n * 2;
   const records = Array.from({ length: n }, (_, i) => makeRecord(i, base));
 
@@ -275,8 +285,12 @@ async function benchQueries(n: number): Promise<Array<{
 function getDbSize(dbPath: string): number {
   try {
     let sz = fs.statSync(dbPath).size;
-    try { sz += fs.statSync(dbPath + '-wal').size; } catch {}
-    try { sz += fs.statSync(dbPath + '-shm').size; } catch {}
+    try {
+      sz += fs.statSync(dbPath + '-wal').size;
+    } catch {}
+    try {
+      sz += fs.statSync(dbPath + '-shm').size;
+    } catch {}
     return sz;
   } catch {
     return 0;
@@ -313,7 +327,9 @@ export async function runCompareBenchmarks(n = 10000): Promise<CompareResult> {
 
   // QUERY phase (fresh load for fairness)
   const queryResults = await benchQueries(n);
-  console.log(`  Query comparisons: ${queryResults.length} scenarios (full scans for JSONL vs indexed for AgentTrace)`);
+  console.log(
+    `  Query comparisons: ${queryResults.length} scenarios (full scans for JSONL vs indexed for AgentTrace)`,
+  );
 
   // cleanup after sizes captured
   tmp.cleanup();
@@ -328,8 +344,14 @@ export async function runCompareBenchmarks(n = 10000): Promise<CompareResult> {
       console: { timeMs: consoleRes.timeMs, perSecond: consoleRes.perSecond },
     },
     storage: {
-      agenttrace: { dbSizeBytes: dbSize, kbPerRecord: Math.round((dbSize / 1024 / n) * 1000) / 1000 },
-      jsonl: { fileSizeBytes: jsonlSize, kbPerRecord: Math.round((jsonlSize / 1024 / n) * 1000) / 1000 },
+      agenttrace: {
+        dbSizeBytes: dbSize,
+        kbPerRecord: Math.round((dbSize / 1024 / n) * 1000) / 1000,
+      },
+      jsonl: {
+        fileSizeBytes: jsonlSize,
+        kbPerRecord: Math.round((jsonlSize / 1024 / n) * 1000) / 1000,
+      },
       ratio,
     },
     query: queryResults,

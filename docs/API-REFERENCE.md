@@ -12,21 +12,21 @@ differ in naming or API shape, both are documented side by side.
 
 1.  [Installation](#1-installation)
 2.  [TypeScript SDK -- `AgentTrace`](#2-typescript-sdk--agenttrace)
-    -   [Constructor & TraceConfig](#constructor--traceconfig)
-    -   [Run Management: `startRun` / `completeRun`](#run-management)
-    -   [Tracing: `trace()`](#tracing-trace)
-    -   [Tool Calls: `recordToolCall`](#tool-calls)
-    -   [Querying: `getTraces`, `getTrace`, `getRuns`, `getRun`](#querying)
-    -   [Statistics: `getStats`, `getCostBreakdown`, `getHealth`, `getStorageStats`, `getDroppedTraces`](#statistics)
-    -   [Agent Usage Tracking: `recordAgentUsage`, `getAgentUsage`, `getUsageStats`, `getActiveAgents`, `getAgentWho`, `getAgentSessions`](#agent-usage-tracking)
-    -   [API Keys: `createApiKey`, `listApiKeys`, `revokeApiKey`, `validateApiKey`](#api-key-management)
-    -   [Webhooks: `addWebhook`, `getWebhooks`, `removeWebhook`, `triggerWebhook`, `testWebhook`](#webhook-management)
-    -   [Multi-Agent Tracing: `createChild`, `linkTraces`, `getTraceTree`](#multi-agent-tracing)
-    -   [Alerts: `registerAlert`, `checkAlerts`, `getAlerts`, `getAlertHistory`](#alerting)
-    -   [Export: `export()`](#export)
-    -   [Evaluation: `evaluate`, `evaluateTrace`](#evaluation)
-    -   [Lifecycle: `close`, cleanup, retention](#lifecycle)
-    -   [Events: `onUsage`, `offUsage`](#events)
+    - [Constructor & TraceConfig](#constructor--traceconfig)
+    - [Run Management: `startRun` / `completeRun`](#run-management)
+    - [Tracing: `trace()`](#tracing-trace)
+    - [Tool Calls: `recordToolCall`](#tool-calls)
+    - [Querying: `getTraces`, `getTrace`, `getRuns`, `getRun`](#querying)
+    - [Statistics: `getStats`, `getCostBreakdown`, `getHealth`, `getStorageStats`, `getDroppedTraces`](#statistics)
+    - [Agent Usage Tracking: `recordAgentUsage`, `getAgentUsage`, `getUsageStats`, `getActiveAgents`, `getAgentWho`, `getAgentSessions`](#agent-usage-tracking)
+    - [API Keys: `createApiKey`, `listApiKeys`, `revokeApiKey`, `validateApiKey`](#api-key-management)
+    - [Webhooks: `addWebhook`, `getWebhooks`, `removeWebhook`, `triggerWebhook`, `testWebhook`](#webhook-management)
+    - [Multi-Agent Tracing: `createChild`, `linkTraces`, `getTraceTree`](#multi-agent-tracing)
+    - [Alerts: `registerAlert`, `checkAlerts`, `getAlerts`, `getAlertHistory`](#alerting)
+    - [Export: `export()`](#export)
+    - [Evaluation: `evaluate`, `evaluateTrace`](#evaluation)
+    - [Lifecycle: `close`, cleanup, retention](#lifecycle)
+    - [Events: `onUsage`, `offUsage`](#events)
 3.  [TypeScript SDK -- `TraceStorage`](#3-typescript-sdk--tracestorage)
 4.  [TypeScript SDK -- `SelfTracker`](#4-typescript-sdk--selftracker)
 5.  [TypeScript SDK -- `TraceContext`](#5-typescript-sdk--tracecontext)
@@ -34,45 +34,45 @@ differ in naming or API shape, both are documented side by side.
 7.  [TypeScript SDK -- Singleton Helpers](#7-typescript-sdk--singleton-helpers)
 8.  [TypeScript SDK -- Migration Utilities](#8-typescript-sdk--migration-utilities)
 9.  [TypeScript Types & Interfaces](#9-typescript-types--interfaces)
-    -   [Trace](#trace)
-    -   [Run](#run-1)
-    -   [TokenUsage](#tokenusage)
-    -   [ToolCall](#toolcall)
-    -   [TraceConfig](#traceconfig)
-    -   [TraceFilter](#tracefilter)
-    -   [TraceStats](#tracestats)
-    -   [CostBreakdown](#costbreakdown)
-    -   [Scorer / ScorerResult / EvaluateOptions](#scorer--scorerresult--evaluateoptions)
-    -   [AlertCondition / AlertHistory](#alertcondition--alerthistory)
-    -   [TraceContext / TraceTreeNode](#tracecontext--treetreenode)
-    -   [HealthReport](#healthreport)
-    -   [AgentUsageRecord](#agentusagerecord)
-    -   [AgentUsageFilter](#agentusagefilter)
-    -   [UsageStats](#usagestats)
-    -   [AgentWho / AgentSession](#agentwho--agentsession)
-    -   [WebhookConfig / WebhookEvent / WebhookDelivery](#webhookconfig--webhookevent--webhookdelivery)
-    -   [ApiKey / CreatedApiKey / Project](#apikey--createdapikey--project)
-    -   [DashboardConfig / FrameworkIntegration / ExportFormat](#dashboardconfig--frameworkintegration--exportformat)
+    - [Trace](#trace)
+    - [Run](#run-1)
+    - [TokenUsage](#tokenusage)
+    - [ToolCall](#toolcall)
+    - [TraceConfig](#traceconfig)
+    - [TraceFilter](#tracefilter)
+    - [TraceStats](#tracestats)
+    - [CostBreakdown](#costbreakdown)
+    - [Scorer / ScorerResult / EvaluateOptions](#scorer--scorerresult--evaluateoptions)
+    - [AlertCondition / AlertHistory](#alertcondition--alerthistory)
+    - [TraceContext / TraceTreeNode](#tracecontext--treetreenode)
+    - [HealthReport](#healthreport)
+    - [AgentUsageRecord](#agentusagerecord)
+    - [AgentUsageFilter](#agentusagefilter)
+    - [UsageStats](#usagestats)
+    - [AgentWho / AgentSession](#agentwho--agentsession)
+    - [WebhookConfig / WebhookEvent / WebhookDelivery](#webhookconfig--webhookevent--webhookdelivery)
+    - [ApiKey / CreatedApiKey / Project](#apikey--createdapikey--project)
+    - [DashboardConfig / FrameworkIntegration / ExportFormat](#dashboardconfig--frameworkintegration--exportformat)
 10. [Python SDK -- `AgentTrace`](#10-python-sdk--agenttrace)
-    -   [Constructor & TraceConfig](#python-constructor--traceconfig)
-    -   [Run Management](#python-run-management)
-    -   [Tracing: `trace()`](#python-tracing)
-    -   [Querying / Stats / Export / Eval](#python-querying--stats--export--eval)
-    -   [Agent Usage Tracking](#python-agent-usage-tracking)
-    -   [Lifecycle](#python-lifecycle)
+    - [Constructor & TraceConfig](#python-constructor--traceconfig)
+    - [Run Management](#python-run-management)
+    - [Tracing: `trace()`](#python-tracing)
+    - [Querying / Stats / Export / Eval](#python-querying--stats--export--eval)
+    - [Agent Usage Tracking](#python-agent-usage-tracking)
+    - [Lifecycle](#python-lifecycle)
 11. [Python SDK -- `TraceStorage`](#11-python-sdk--tracestorage)
 12. [Python SDK -- `AgentUsageTracker`](#12-python-sdk--agentusagetracker)
 13. [Python SDK -- Singleton Helpers](#13-python-sdk--singleton-helpers)
 14. [Python Types (Dataclasses)](#14-python-types-dataclasses)
 15. [CLI Commands Reference](#15-cli-commands-reference)
-    -   [init / dashboard / version](#init--dashboard--version)
-    -   [runs / traces](#runs--traces)
-    -   [stats / costs](#stats--costs)
-    -   [export / tree](#export-cmd--tree)
-    -   [alerts / health](#alerts--health)
-    -   [self-stats / who / cost / sessions / activity](#self-stats--who--cost--sessions--activity)
-    -   [cleanup / retention](#cleanup--retention)
-    -   [benchmark](#benchmark)
+    - [init / dashboard / version](#init--dashboard--version)
+    - [runs / traces](#runs--traces)
+    - [stats / costs](#stats--costs)
+    - [export / tree](#export-cmd--tree)
+    - [alerts / health](#alerts--health)
+    - [self-stats / who / cost / sessions / activity](#self-stats--who--cost--sessions--activity)
+    - [cleanup / retention](#cleanup--retention)
+    - [benchmark](#benchmark)
 16. [Database Schema](#16-database-schema)
 
 ---
@@ -106,20 +106,20 @@ const agent = new AgentTrace(config?: TraceConfig);
 
 **`TraceConfig` fields (all optional):**
 
-| Field                    | Type                                             | Default              | Description                                                        |
-| ------------------------ | ------------------------------------------------ | -------------------- | ------------------------------------------------------------------ |
-| `dbPath`                 | `string`                                         | `'./agenttrace.db'`  | SQLite database file path                                          |
-| `maxTraces`              | `number`                                         | `10000`              | Max traces retained; oldest deleted when exceeded                  |
-| `autoCleanup`            | `boolean`                                        | `true`               | Auto-cleanup after each `trace()` call                             |
-| `costCalculator`         | `(tokens: TokenUsage, model?: string) => number` | built-in             | Custom USD cost function                                           |
-| `hallucinationDetector`  | `(output: unknown, expected?: unknown) => boolean` | `() => false`      | Custom hallucination check                                         |
-| `silent`                 | `boolean`                                        | `false`              | Suppress console output                                            |
-| `retentionDays`          | `number`                                         | `30`                 | Data retention in days (0 = forever)                               |
-| `cleanupIntervalHours`   | `number`                                         | `24`                 | How often to run retention cleanup                                 |
-| `tenantId`               | `string`                                         | `''`                 | Multi-tenant scoping                                               |
-| `maxTracesPerSecond`     | `number`                                         | `0`                  | Rate limit per second (0 = disabled)                               |
-| `maxTracesPerMinute`     | `number`                                         | `0`                  | Rate limit per minute (0 = disabled)                               |
-| `burstAllowance`         | `number`                                         | `10`                 | Extra burst tokens above sustained rate                            |
+| Field                   | Type                                               | Default             | Description                                       |
+| ----------------------- | -------------------------------------------------- | ------------------- | ------------------------------------------------- |
+| `dbPath`                | `string`                                           | `'./agenttrace.db'` | SQLite database file path                         |
+| `maxTraces`             | `number`                                           | `10000`             | Max traces retained; oldest deleted when exceeded |
+| `autoCleanup`           | `boolean`                                          | `true`              | Auto-cleanup after each `trace()` call            |
+| `costCalculator`        | `(tokens: TokenUsage, model?: string) => number`   | built-in            | Custom USD cost function                          |
+| `hallucinationDetector` | `(output: unknown, expected?: unknown) => boolean` | `() => false`       | Custom hallucination check                        |
+| `silent`                | `boolean`                                          | `false`             | Suppress console output                           |
+| `retentionDays`         | `number`                                           | `30`                | Data retention in days (0 = forever)              |
+| `cleanupIntervalHours`  | `number`                                           | `24`                | How often to run retention cleanup                |
+| `tenantId`              | `string`                                           | `''`                | Multi-tenant scoping                              |
+| `maxTracesPerSecond`    | `number`                                           | `0`                 | Rate limit per second (0 = disabled)              |
+| `maxTracesPerMinute`    | `number`                                           | `0`                 | Rate limit per minute (0 = disabled)              |
+| `burstAllowance`        | `number`                                           | `10`                | Extra burst tokens above sustained rate           |
 
 ### Run Management
 
@@ -170,14 +170,18 @@ Wraps an async function, recording a trace on completion or error. Returns the
 function's return value. Re-throws any error after recording.
 
 ```typescript
-const result = await agent.trace('llm-call', async () => {
-  return await openai.chat.completions.create({ model: 'gpt-4o', messages });
-}, {
-  input: { messages },
-  tokens: { promptTokens: 100, completionTokens: 50, totalTokens: 150 },
-  model: 'gpt-4o',
-  provider: 'openai',
-});
+const result = await agent.trace(
+  'llm-call',
+  async () => {
+    return await openai.chat.completions.create({ model: 'gpt-4o', messages });
+  },
+  {
+    input: { messages },
+    tokens: { promptTokens: 100, completionTokens: 50, totalTokens: 150 },
+    model: 'gpt-4o',
+    provider: 'openai',
+  },
+);
 ```
 
 ### Tool Calls
@@ -358,7 +362,7 @@ hash is persisted.
 
 ```typescript
 const key = agent.createApiKey('dashboard');
-console.log(key.key);    // at_abc123... (show once)
+console.log(key.key); // at_abc123... (show once)
 console.log(key.preview); // at_abc123****
 ```
 
@@ -402,7 +406,7 @@ Register a new webhook. Returns the webhook ID.
 const id = agent.addWebhook(
   'https://hooks.slack.com/...',
   ['trace.error', 'run.complete'],
-  'my-signing-secret'
+  'my-signing-secret',
 );
 ```
 
@@ -556,7 +560,7 @@ scores traces in that run; otherwise all traces.
 const results = await agent.evaluate({
   scorers: [
     { name: 'output-length', fn: (trace) => String(trace.output).length },
-    { name: 'success', fn: (trace) => trace.status === 'success' ? 1 : 0 },
+    { name: 'success', fn: (trace) => (trace.status === 'success' ? 1 : 0) },
   ],
   runId: 'some-run-id',
   concurrency: 5,
@@ -638,113 +642,113 @@ pending migrations.
 
 ### Run Operations
 
-| Method                                         | Returns           | Description                                    |
-| ---------------------------------------------- | ----------------- | ---------------------------------------------- |
-| `createRun(run: Partial<Run> & { id, name, startedAt })` | `Run`    | Insert a new run (status: `'running'`)         |
-| `getRun(id: string)`                           | `Run \| null`     | Get a run by ID                                |
-| `getRuns(limit?: number)`                      | `Run[]`           | Recent runs, most recent first                 |
-| `completeRun(id: string, status: Run['status'])` | `void`          | Mark a run as completed                        |
-| `updateRunStats(runId, tokens, toolCalls, latencyMs, costUsd)` | `void` | Incremental stats update (called by `createTrace`) |
+| Method                                                         | Returns       | Description                                        |
+| -------------------------------------------------------------- | ------------- | -------------------------------------------------- |
+| `createRun(run: Partial<Run> & { id, name, startedAt })`       | `Run`         | Insert a new run (status: `'running'`)             |
+| `getRun(id: string)`                                           | `Run \| null` | Get a run by ID                                    |
+| `getRuns(limit?: number)`                                      | `Run[]`       | Recent runs, most recent first                     |
+| `completeRun(id: string, status: Run['status'])`               | `void`        | Mark a run as completed                            |
+| `updateRunStats(runId, tokens, toolCalls, latencyMs, costUsd)` | `void`        | Incremental stats update (called by `createTrace`) |
 
 ### Trace Operations
 
-| Method                                         | Returns           | Description                                    |
-| ---------------------------------------------- | ----------------- | ---------------------------------------------- |
-| `createTrace(trace: Omit<Trace, 'createdAt' \| 'updatedAt'>)` | `Trace` | Insert a trace + tool calls + update run stats |
-| `getTrace(id: string)`                         | `Trace \| null`   | Get a trace by ID                              |
-| `getTraces(filter?: TraceFilter)`              | `Trace[]`         | Query traces with filtering                    |
+| Method                                                        | Returns         | Description                                    |
+| ------------------------------------------------------------- | --------------- | ---------------------------------------------- |
+| `createTrace(trace: Omit<Trace, 'createdAt' \| 'updatedAt'>)` | `Trace`         | Insert a trace + tool calls + update run stats |
+| `getTrace(id: string)`                                        | `Trace \| null` | Get a trace by ID                              |
+| `getTraces(filter?: TraceFilter)`                             | `Trace[]`       | Query traces with filtering                    |
 
 ### Score Operations
 
-| Method                                         | Returns           | Description                                    |
-| ---------------------------------------------- | ----------------- | ---------------------------------------------- |
-| `createScore(id: string, traceId: string, name: string, value: number)` | `void` | Store a score for a trace             |
-| `getScores(traceId?: string)`                  | `Array<{ id, traceId, name, value, createdAt }>` | Retrieve stored scores |
+| Method                                                                  | Returns                                          | Description               |
+| ----------------------------------------------------------------------- | ------------------------------------------------ | ------------------------- |
+| `createScore(id: string, traceId: string, name: string, value: number)` | `void`                                           | Store a score for a trace |
+| `getScores(traceId?: string)`                                           | `Array<{ id, traceId, name, value, createdAt }>` | Retrieve stored scores    |
 
 ### Agent Usage Operations
 
-| Method                                         | Returns           | Description                                    |
-| ---------------------------------------------- | ----------------- | ---------------------------------------------- |
-| `recordAgentUsage(record: AgentUsageRecord)`   | `void`            | Insert an agent usage record                   |
-| `getAgentUsage(filter?: AgentUsageFilter)`     | `AgentUsageRecord[]` | Query agent usage with filters              |
-| `getUsageStats(agentName?, fromDate?, toDate?)` | `UsageStats`    | Aggregated usage statistics                    |
-| `getActiveAgents()`                            | `{ agentName, lastActive, totalActions }[]` | All agents overview           |
-| `getAgentWho(filter?)`                         | `AgentWho[]`      | Active agents overview (supports `activeOnly`) |
-| `getAgentSessions(filter?)`                    | `AgentSession[]`  | Session-level summaries                        |
-| `getAgentCostSummary(filter?)`                 | `{ totalCostUsd, costByAgent, costByModel }` | Cost breakdown from agent_usage |
+| Method                                          | Returns                                      | Description                                    |
+| ----------------------------------------------- | -------------------------------------------- | ---------------------------------------------- |
+| `recordAgentUsage(record: AgentUsageRecord)`    | `void`                                       | Insert an agent usage record                   |
+| `getAgentUsage(filter?: AgentUsageFilter)`      | `AgentUsageRecord[]`                         | Query agent usage with filters                 |
+| `getUsageStats(agentName?, fromDate?, toDate?)` | `UsageStats`                                 | Aggregated usage statistics                    |
+| `getActiveAgents()`                             | `{ agentName, lastActive, totalActions }[]`  | All agents overview                            |
+| `getAgentWho(filter?)`                          | `AgentWho[]`                                 | Active agents overview (supports `activeOnly`) |
+| `getAgentSessions(filter?)`                     | `AgentSession[]`                             | Session-level summaries                        |
+| `getAgentCostSummary(filter?)`                  | `{ totalCostUsd, costByAgent, costByModel }` | Cost breakdown from agent_usage                |
 
 ### Alert Operations
 
-| Method                                         | Returns           | Description                                    |
-| ---------------------------------------------- | ----------------- | ---------------------------------------------- |
-| `saveAlert(name: string, config: Record<string, unknown>)` | `void` | Persist alert config (no function)     |
-| `getStoredAlerts()`                            | `Array<{ name, config, createdAt }>` | Load persisted alert configs  |
-| `insertAlertHistory(entry: AlertHistory)`      | `void`            | Record an alert firing                         |
-| `getAlertHistory()`                            | `AlertHistory[]`  | Alert firing history                           |
+| Method                                                     | Returns                              | Description                        |
+| ---------------------------------------------------------- | ------------------------------------ | ---------------------------------- |
+| `saveAlert(name: string, config: Record<string, unknown>)` | `void`                               | Persist alert config (no function) |
+| `getStoredAlerts()`                                        | `Array<{ name, config, createdAt }>` | Load persisted alert configs       |
+| `insertAlertHistory(entry: AlertHistory)`                  | `void`                               | Record an alert firing             |
+| `getAlertHistory()`                                        | `AlertHistory[]`                     | Alert firing history               |
 
 ### Multi-Agent Tracing Operations
 
-| Method                                         | Returns           | Description                                    |
-| ---------------------------------------------- | ----------------- | ---------------------------------------------- |
-| `setTraceParent(traceId: string, parentId: string)` | `void`     | Set parent_id on a trace                       |
-| `getTraceParentId(traceId: string)`            | `string \| null`  | Get parent_id for a trace                      |
-| `getChildTraceIds(parentId: string)`           | `string[]`        | Direct children of a trace                     |
-| `getLinkedTraceIds(traceId: string)`           | `string[]`        | Traces linked via `trace_links` table          |
-| `linkTraces(traceIds: string[])`               | `void`            | Create pairwise links between traces           |
-| `getTraceTree(traceId: string)`                | `TraceTreeNode`   | Full tree (ancestor -> children + linked)      |
+| Method                                              | Returns          | Description                               |
+| --------------------------------------------------- | ---------------- | ----------------------------------------- |
+| `setTraceParent(traceId: string, parentId: string)` | `void`           | Set parent_id on a trace                  |
+| `getTraceParentId(traceId: string)`                 | `string \| null` | Get parent_id for a trace                 |
+| `getChildTraceIds(parentId: string)`                | `string[]`       | Direct children of a trace                |
+| `getLinkedTraceIds(traceId: string)`                | `string[]`       | Traces linked via `trace_links` table     |
+| `linkTraces(traceIds: string[])`                    | `void`           | Create pairwise links between traces      |
+| `getTraceTree(traceId: string)`                     | `TraceTreeNode`  | Full tree (ancestor -> children + linked) |
 
 ### Webhook Operations
 
-| Method                                         | Returns           | Description                                    |
-| ---------------------------------------------- | ----------------- | ---------------------------------------------- |
-| `registerWebhook(url: string, events: WebhookEvent[], secret?: string)` | `string` | Create webhook, returns ID |
-| `getWebhooks()`                                | `WebhookConfig[]` | All webhooks                                   |
-| `getEnabledWebhooksForEvent(event: WebhookEvent)` | `WebhookConfig[]` | Filtered by event + enabled           |
-| `deleteWebhook(id: string)`                    | `void`            | Remove a webhook                               |
-| `resetWebhookFailures(id: string)`             | `void`            | Reset failure count to 0                       |
-| `incrementWebhookFailures(id: string)`         | `void`            | Increment failure count                        |
+| Method                                                                  | Returns           | Description                 |
+| ----------------------------------------------------------------------- | ----------------- | --------------------------- |
+| `registerWebhook(url: string, events: WebhookEvent[], secret?: string)` | `string`          | Create webhook, returns ID  |
+| `getWebhooks()`                                                         | `WebhookConfig[]` | All webhooks                |
+| `getEnabledWebhooksForEvent(event: WebhookEvent)`                       | `WebhookConfig[]` | Filtered by event + enabled |
+| `deleteWebhook(id: string)`                                             | `void`            | Remove a webhook            |
+| `resetWebhookFailures(id: string)`                                      | `void`            | Reset failure count to 0    |
+| `incrementWebhookFailures(id: string)`                                  | `void`            | Increment failure count     |
 
 ### API Key Operations
 
-| Method                                         | Returns           | Description                                    |
-| ---------------------------------------------- | ----------------- | ---------------------------------------------- |
-| `createApiKey(name: string)`                   | `ApiKey`          | Create (stores hash only), returns metadata    |
-| `getApiKeys()`                                 | `ApiKey[]`        | List all keys (no secrets)                     |
-| `revokeApiKey(id: string)`                     | `void`            | Delete a key                                   |
-| `validateApiKey(key: string)`                  | `{ valid: boolean; permissions: string[] }` | Validate a raw key string |
+| Method                        | Returns                                     | Description                                 |
+| ----------------------------- | ------------------------------------------- | ------------------------------------------- |
+| `createApiKey(name: string)`  | `ApiKey`                                    | Create (stores hash only), returns metadata |
+| `getApiKeys()`                | `ApiKey[]`                                  | List all keys (no secrets)                  |
+| `revokeApiKey(id: string)`    | `void`                                      | Delete a key                                |
+| `validateApiKey(key: string)` | `{ valid: boolean; permissions: string[] }` | Validate a raw key string                   |
 
 ### Stats & Health
 
-| Method                                         | Returns           | Description                                    |
-| ---------------------------------------------- | ----------------- | ---------------------------------------------- |
-| `getStats(tenantId?: string)`                  | `TraceStats`      | Aggregate statistics (optionally tenant-scoped)|
-| `getCostBreakdown(runId?: string)`             | `CostBreakdown`   | Cost by model + by day                         |
-| `getStorageStats()`                            | `{ totalSizeBytes, traceCount, runCount, oldestTrace, newestTrace }` | DB stats |
-| `getHealthInfo()`                              | `{ dbPath, traceCount, dbSize, integrity }` | Health + integrity check       |
+| Method                             | Returns                                                              | Description                                     |
+| ---------------------------------- | -------------------------------------------------------------------- | ----------------------------------------------- |
+| `getStats(tenantId?: string)`      | `TraceStats`                                                         | Aggregate statistics (optionally tenant-scoped) |
+| `getCostBreakdown(runId?: string)` | `CostBreakdown`                                                      | Cost by model + by day                          |
+| `getStorageStats()`                | `{ totalSizeBytes, traceCount, runCount, oldestTrace, newestTrace }` | DB stats                                        |
+| `getHealthInfo()`                  | `{ dbPath, traceCount, dbSize, integrity }`                          | Health + integrity check                        |
 
 ### Cleanup & Retention
 
-| Method                                         | Returns           | Description                                    |
-| ---------------------------------------------- | ----------------- | ---------------------------------------------- |
-| `cleanup(maxTraces?: number)`                  | `number`          | Delete oldest traces exceeding max             |
-| `cleanupOldTraces(before: number)`             | `number`          | Delete traces older than timestamp             |
-| `cleanupOldRuns(before: number)`               | `number`          | Delete runs older than timestamp               |
-| `cleanupOldAgentUsage(before: number)`         | `number`          | Delete agent_usage older than timestamp        |
-| `getRetentionPolicy()`                         | `{ retentionDays, cleanupIntervalHours }` | From settings table          |
-| `setRetentionPolicy(retentionDays, cleanupIntervalHours?)` | `void` | Persist retention settings       |
+| Method                                                     | Returns                                   | Description                             |
+| ---------------------------------------------------------- | ----------------------------------------- | --------------------------------------- |
+| `cleanup(maxTraces?: number)`                              | `number`                                  | Delete oldest traces exceeding max      |
+| `cleanupOldTraces(before: number)`                         | `number`                                  | Delete traces older than timestamp      |
+| `cleanupOldRuns(before: number)`                           | `number`                                  | Delete runs older than timestamp        |
+| `cleanupOldAgentUsage(before: number)`                     | `number`                                  | Delete agent_usage older than timestamp |
+| `getRetentionPolicy()`                                     | `{ retentionDays, cleanupIntervalHours }` | From settings table                     |
+| `setRetentionPolicy(retentionDays, cleanupIntervalHours?)` | `void`                                    | Persist retention settings              |
 
 ### Settings
 
-| Method                                         | Returns           | Description                                    |
-| ---------------------------------------------- | ----------------- | ---------------------------------------------- |
-| `getSetting(key: string)`                      | `string \| null`  | Read a settings value                          |
-| `setSetting(key: string, value: string)`       | `void`            | Write a settings value                         |
+| Method                                   | Returns          | Description            |
+| ---------------------------------------- | ---------------- | ---------------------- |
+| `getSetting(key: string)`                | `string \| null` | Read a settings value  |
+| `setSetting(key: string, value: string)` | `void`           | Write a settings value |
 
 ### Lifecycle
 
-| Method                                         | Returns           | Description                                    |
-| ---------------------------------------------- | ----------------- | ---------------------------------------------- |
-| `close()`                                      | `void`            | Close the database connection                  |
+| Method    | Returns | Description                   |
+| --------- | ------- | ----------------------------- |
+| `close()` | `void`  | Close the database connection |
 
 ---
 
@@ -767,25 +771,25 @@ const tracker = new SelfTracker({
 
 ### `SelfTrackerConfig`
 
-| Field         | Type     | Default              | Description                          |
-| ------------- | -------- | -------------------- | ------------------------------------ |
-| `agentName`   | `string` | (required)           | Name of the agent                    |
-| `agentType`   | `string` | (required)           | Type (e.g. `'orchestrator'`)        |
-| `dbPath`      | `string` | `'./agenttrace.db'`  | SQLite database path                 |
+| Field       | Type     | Default             | Description                  |
+| ----------- | -------- | ------------------- | ---------------------------- |
+| `agentName` | `string` | (required)          | Name of the agent            |
+| `agentType` | `string` | (required)          | Type (e.g. `'orchestrator'`) |
+| `dbPath`    | `string` | `'./agenttrace.db'` | SQLite database path         |
 
 ### Methods
 
-| Method                                              | Returns    | Description                                       |
-| --------------------------------------------------- | ---------- | ------------------------------------------------- |
-| `startSession(): string`                            | `string`   | Start a new session, returns sessionId (UUID)     |
-| `trackAction(action: string, target: string, metadata?: Record<string, unknown>): void` | `void` | Record a generic action          |
-| `trackDelegation(targetAgent: string, task: string): void` | `void` | Record delegation to another agent         |
-| `trackResearch(query: string, results: number): void` | `void`  | Record a research step                            |
-| `trackImplementation(files: string[], linesOfCode: number): void` | `void` | Record an implementation step          |
-| `trackReview(prNumber: string, status: string): void` | `void` | Record a code review step                         |
-| `endSession(): void`                                | `void`     | Complete the current session                      |
-| `getSessionStats(): { sessionId, actions, duration, tokens, cost }` | `object` | Current session stats          |
-| `close(): void`                                     | `void`     | Close underlying storage                          |
+| Method                                                                                  | Returns  | Description                                   |
+| --------------------------------------------------------------------------------------- | -------- | --------------------------------------------- |
+| `startSession(): string`                                                                | `string` | Start a new session, returns sessionId (UUID) |
+| `trackAction(action: string, target: string, metadata?: Record<string, unknown>): void` | `void`   | Record a generic action                       |
+| `trackDelegation(targetAgent: string, task: string): void`                              | `void`   | Record delegation to another agent            |
+| `trackResearch(query: string, results: number): void`                                   | `void`   | Record a research step                        |
+| `trackImplementation(files: string[], linesOfCode: number): void`                       | `void`   | Record an implementation step                 |
+| `trackReview(prNumber: string, status: string): void`                                   | `void`   | Record a code review step                     |
+| `endSession(): void`                                                                    | `void`   | Complete the current session                  |
+| `getSessionStats(): { sessionId, actions, duration, tokens, cost }`                     | `object` | Current session stats                         |
+| `close(): void`                                                                         | `void`   | Close underlying storage                      |
 
 Each method writes both to the SQLite database (as a trace in the `traces` table
 with `selfTracked: true` metadata) and appends a JSONL line to
@@ -808,11 +812,11 @@ const ctx = new TraceContext(traceId: string, parentSpanId?: string, metadata?: 
 
 ### Properties
 
-| Field           | Type                              | Description                    |
-| --------------- | --------------------------------- | ------------------------------ |
-| `traceId`       | `string`                          | The trace/span ID              |
-| `parentSpanId`  | `string \| undefined`             | Parent's trace ID (if child)   |
-| `metadata`      | `Record<string, unknown>`         | Arbitrary metadata             |
+| Field          | Type                      | Description                  |
+| -------------- | ------------------------- | ---------------------------- |
+| `traceId`      | `string`                  | The trace/span ID            |
+| `parentSpanId` | `string \| undefined`     | Parent's trace ID (if child) |
+| `metadata`     | `Record<string, unknown>` | Arbitrary metadata           |
 
 ---
 
@@ -835,19 +839,19 @@ const limiter = new TokenBucketRateLimiter({
 
 ### `RateLimiterConfig`
 
-| Field                    | Type     | Description                                    |
-| ------------------------ | -------- | ---------------------------------------------- |
-| `maxTracesPerSecond`     | `number` | Sustained rate per second (0 = disabled)       |
-| `maxTracesPerMinute`     | `number` | Sustained rate per minute (0 = disabled)       |
-| `burstAllowance`         | `number` | Extra tokens allowed above sustained rate      |
+| Field                | Type     | Description                               |
+| -------------------- | -------- | ----------------------------------------- |
+| `maxTracesPerSecond` | `number` | Sustained rate per second (0 = disabled)  |
+| `maxTracesPerMinute` | `number` | Sustained rate per minute (0 = disabled)  |
+| `burstAllowance`     | `number` | Extra tokens allowed above sustained rate |
 
 ### Methods
 
-| Method                       | Returns    | Description                                    |
-| ---------------------------- | ---------- | ---------------------------------------------- |
-| `tryConsume(): boolean`      | `boolean`  | Try to consume one token. Returns true if allowed, false if rate-limited. |
-| `getDroppedTraces(): number` | `number`   | Total traces dropped due to rate limiting      |
-| `resetDroppedTraces(): void` | `void`     | Reset the dropped counter to 0                 |
+| Method                       | Returns   | Description                                                               |
+| ---------------------------- | --------- | ------------------------------------------------------------------------- |
+| `tryConsume(): boolean`      | `boolean` | Try to consume one token. Returns true if allowed, false if rate-limited. |
+| `getDroppedTraces(): number` | `number`  | Total traces dropped due to rate limiting                                 |
+| `resetDroppedTraces(): void` | `void`    | Reset the dropped counter to 0                                            |
 
 ---
 
@@ -878,14 +882,14 @@ const myAlert = alert({
 });
 ```
 
-| Export              | Signature                                              | Description                          |
-| ------------------- | ------------------------------------------------------ | ------------------------------------ |
-| `init`              | `(config?: TraceConfig) => AgentTrace`                 | Create and return the global instance |
-| `getAgentTrace`     | `() => AgentTrace`                                     | Get (or lazily create) the global instance |
-| `score`             | `(name: string, fn: Scorer['fn']) => Scorer`           | Create a Scorer object               |
-| `alert`             | `(config: Omit<AlertCondition, 'lastTriggered'>) => AlertCondition` | Create an AlertCondition |
-| `VERSION`           | `string` (value: `'0.1.0'`)                            | SDK version constant                 |
-| `PACKAGE_NAME`      | `string` (value: `'@agenttrace-io/sdk'`)               | Package name constant                |
+| Export              | Signature                                                                     | Description                                         |
+| ------------------- | ----------------------------------------------------------------------------- | --------------------------------------------------- |
+| `init`              | `(config?: TraceConfig) => AgentTrace`                                        | Create and return the global instance               |
+| `getAgentTrace`     | `() => AgentTrace`                                                            | Get (or lazily create) the global instance          |
+| `score`             | `(name: string, fn: Scorer['fn']) => Scorer`                                  | Create a Scorer object                              |
+| `alert`             | `(config: Omit<AlertCondition, 'lastTriggered'>) => AlertCondition`           | Create an AlertCondition                            |
+| `VERSION`           | `string` (value: `'0.1.0'`)                                                   | SDK version constant                                |
+| `PACKAGE_NAME`      | `string` (value: `'@agenttrace-io/sdk'`)                                      | Package name constant                               |
 | `registerModelRate` | `(model: string, promptRatePerK: number, completionRatePerK: number) => void` | Add/override pricing in the default cost calculator |
 
 ---
@@ -900,22 +904,22 @@ import { runPendingMigrations, getSchemaVersion } from '@agenttrace-io/sdk';
 // Documented here for contributors.
 ```
 
-| Export                    | Signature                                      | Description                          |
-| ------------------------- | ---------------------------------------------- | ------------------------------------ |
-| `runPendingMigrations`    | `(dbPath: string) => { applied: number; version: number }` | Run any pending migrations against a DB file |
-| `getSchemaVersion`        | `(dbPath: string) => number`                   | Return current schema version (0 if none) |
-| `getCurrentVersion`       | `(db: Database) => number`                     | Read version from an open DB handle  |
+| Export                 | Signature                                                  | Description                                  |
+| ---------------------- | ---------------------------------------------------------- | -------------------------------------------- |
+| `runPendingMigrations` | `(dbPath: string) => { applied: number; version: number }` | Run any pending migrations against a DB file |
+| `getSchemaVersion`     | `(dbPath: string) => number`                               | Return current schema version (0 if none)    |
+| `getCurrentVersion`    | `(db: Database) => number`                                 | Read version from an open DB handle          |
 
 **Migration history:**
 
-| Version | Name                                    |
-| ------- | --------------------------------------- |
-| 1       | Initial schema (runs, traces, tool_calls) |
+| Version | Name                                         |
+| ------- | -------------------------------------------- |
+| 1       | Initial schema (runs, traces, tool_calls)    |
 | 2       | Multi-agent tracing (parent_id, trace_links) |
-| 3       | Multi-tenant (projects, tenant_id columns) |
-| 4       | Trace context (parent_id on traces)     |
-| 5       | Webhooks table                          |
-| 6       | API keys and rate limiting tables       |
+| 3       | Multi-tenant (projects, tenant_id columns)   |
+| 4       | Trace context (parent_id on traces)          |
+| 5       | Webhooks table                               |
+| 6       | API keys and rate limiting tables            |
 
 ---
 
@@ -1286,13 +1290,13 @@ API key types.
 interface ApiKey {
   id: string;
   name: string;
-  preview: string;  // e.g. 'at_abc123****' (never the full secret)
+  preview: string; // e.g. 'at_abc123****' (never the full secret)
   createdAt: number;
   lastUsedAt?: number;
 }
 
 interface CreatedApiKey extends ApiKey {
-  key: string;  // full secret, shown only once at creation time
+  key: string; // full secret, shown only once at creation time
 }
 
 interface Project {
@@ -1386,27 +1390,27 @@ with agent.trace("my-op") as t:
 
 ### Python Querying / Stats / Export / Eval
 
-| Method (Python)                          | TypeScript Equivalent          | Notes                                    |
-| ---------------------------------------- | ------------------------------ | ---------------------------------------- |
-| `get_traces(filter={}) -> list[Trace]`   | `getTraces(filter?)`           | Accepts dict or `TraceFilter` dataclass  |
-| `get_trace(id) -> Trace \| None`         | `getTrace(id)`                 |                                          |
-| `get_runs(limit=100) -> list[Run]`       | `getRuns(limit?)`              |                                          |
-| `get_run(id) -> Run \| None`             | `getRun(id)`                   |                                          |
-| `get_stats() -> TraceStats`              | `getStats()`                   |                                          |
-| `get_cost_breakdown(run_id=None) -> CostBreakdown` | `getCostBreakdown(filter?)` |                              |
-| `export(format='json', filter={}) -> str`| `export(format?, filter?)`     | `format`: `'json'` or `'csv'` (no OTel)  |
-| `evaluate(scorers, run_id=None, trace_ids=None, concurrency=None) -> list[ScorerResult]` | `evaluate(options)` | Accepts bare callables or `Scorer` objects |
-| `evaluate_trace(trace_id, scorers) -> ScorerResult` | `evaluateTrace(traceId, scorers)` |                              |
-| `get_scores(trace_id=None) -> list[dict]`| (via `TraceStorage.getScores`) |                                          |
-| `record_tool_call(call) -> str`          | `recordToolCall(call)`         | Stub; tool calls stored at trace time    |
+| Method (Python)                                                                          | TypeScript Equivalent             | Notes                                      |
+| ---------------------------------------------------------------------------------------- | --------------------------------- | ------------------------------------------ |
+| `get_traces(filter={}) -> list[Trace]`                                                   | `getTraces(filter?)`              | Accepts dict or `TraceFilter` dataclass    |
+| `get_trace(id) -> Trace \| None`                                                         | `getTrace(id)`                    |                                            |
+| `get_runs(limit=100) -> list[Run]`                                                       | `getRuns(limit?)`                 |                                            |
+| `get_run(id) -> Run \| None`                                                             | `getRun(id)`                      |                                            |
+| `get_stats() -> TraceStats`                                                              | `getStats()`                      |                                            |
+| `get_cost_breakdown(run_id=None) -> CostBreakdown`                                       | `getCostBreakdown(filter?)`       |                                            |
+| `export(format='json', filter={}) -> str`                                                | `export(format?, filter?)`        | `format`: `'json'` or `'csv'` (no OTel)    |
+| `evaluate(scorers, run_id=None, trace_ids=None, concurrency=None) -> list[ScorerResult]` | `evaluate(options)`               | Accepts bare callables or `Scorer` objects |
+| `evaluate_trace(trace_id, scorers) -> ScorerResult`                                      | `evaluateTrace(traceId, scorers)` |                                            |
+| `get_scores(trace_id=None) -> list[dict]`                                                | (via `TraceStorage.getScores`)    |                                            |
+| `record_tool_call(call) -> str`                                                          | `recordToolCall(call)`            | Stub; tool calls stored at trace time      |
 
 ### Python Agent Usage Tracking
 
-| Method (Python)                          | TypeScript Equivalent          |
-| ---------------------------------------- | ------------------------------ |
-| `record_agent_usage(record) -> void`     | `recordAgentUsage(record)`     |
-| `get_agent_usage(filter={}) -> list[AgentUsageRecord]` | `getAgentUsage(filter?)` |
-| `get_usage_stats(agent_name=None, from_date=None, to_date=None) -> UsageStats` | `getUsageStats(...)` |
+| Method (Python)                                                                | TypeScript Equivalent      |
+| ------------------------------------------------------------------------------ | -------------------------- |
+| `record_agent_usage(record) -> void`                                           | `recordAgentUsage(record)` |
+| `get_agent_usage(filter={}) -> list[AgentUsageRecord]`                         | `getAgentUsage(filter?)`   |
+| `get_usage_stats(agent_name=None, from_date=None, to_date=None) -> UsageStats` | `getUsageStats(...)`       |
 
 ### Python Lifecycle
 
@@ -1431,26 +1435,26 @@ storage = TraceStorage('./agenttrace.db')
 
 ### Key Methods (Python)
 
-| Method                                         | Returns                    |
-| ---------------------------------------------- | -------------------------- |
-| `create_run(run: dict \| Run) -> Run`          | `Run`                      |
-| `get_run(id: str) -> Run \| None`              | `Run \| None`              |
-| `get_runs(limit=100) -> list[Run]`             | `list[Run]`                |
-| `complete_run(id: str, status: str) -> None`   | `None`                     |
-| `update_run_stats(run_id, tokens, tool_calls, latency_ms, cost_usd) -> None` | `None` |
-| `create_trace(trace: Trace \| dict) -> Trace`  | `Trace`                    |
-| `get_trace(id: str) -> Trace \| None`          | `Trace \| None`            |
-| `get_traces(filter={}) -> list[Trace]`         | `list[Trace]`              |
-| `create_score(id, trace_id, name, value) -> None` | `None`                  |
-| `get_scores(trace_id=None) -> list[dict]`      | `list[dict]`               |
-| `get_stats() -> TraceStats`                    | `TraceStats`               |
-| `get_cost_breakdown(run_id=None) -> CostBreakdown` | `CostBreakdown`        |
-| `cleanup(max_traces=10000) -> int`             | `int` (deleted count)      |
-| `record_agent_usage(record) -> None`           | `None`                     |
-| `get_agent_usage(filter={}) -> list[AgentUsageRecord]` | `list[AgentUsageRecord]` |
-| `get_usage_stats(agent_name=None, from_date=None, to_date=None) -> UsageStats` | `UsageStats` |
-| `get_active_agents() -> list[dict]`            | `list[dict]`               |
-| `close() -> None`                              | `None`                     |
+| Method                                                                         | Returns                  |
+| ------------------------------------------------------------------------------ | ------------------------ |
+| `create_run(run: dict \| Run) -> Run`                                          | `Run`                    |
+| `get_run(id: str) -> Run \| None`                                              | `Run \| None`            |
+| `get_runs(limit=100) -> list[Run]`                                             | `list[Run]`              |
+| `complete_run(id: str, status: str) -> None`                                   | `None`                   |
+| `update_run_stats(run_id, tokens, tool_calls, latency_ms, cost_usd) -> None`   | `None`                   |
+| `create_trace(trace: Trace \| dict) -> Trace`                                  | `Trace`                  |
+| `get_trace(id: str) -> Trace \| None`                                          | `Trace \| None`          |
+| `get_traces(filter={}) -> list[Trace]`                                         | `list[Trace]`            |
+| `create_score(id, trace_id, name, value) -> None`                              | `None`                   |
+| `get_scores(trace_id=None) -> list[dict]`                                      | `list[dict]`             |
+| `get_stats() -> TraceStats`                                                    | `TraceStats`             |
+| `get_cost_breakdown(run_id=None) -> CostBreakdown`                             | `CostBreakdown`          |
+| `cleanup(max_traces=10000) -> int`                                             | `int` (deleted count)    |
+| `record_agent_usage(record) -> None`                                           | `None`                   |
+| `get_agent_usage(filter={}) -> list[AgentUsageRecord]`                         | `list[AgentUsageRecord]` |
+| `get_usage_stats(agent_name=None, from_date=None, to_date=None) -> UsageStats` | `UsageStats`             |
+| `get_active_agents() -> list[dict]`                                            | `list[dict]`             |
+| `close() -> None`                                                              | `None`                   |
 
 ---
 
@@ -1469,16 +1473,16 @@ tracker = AgentUsageTracker(agent_name="owl", agent_type="orchestrator")
 
 ### Methods
 
-| Method                                              | Returns    |
-| --------------------------------------------------- | ---------- |
-| `start_session() -> str`                            | `str` (session ID) |
-| `track_action(action: str, target: str, metadata=None) -> None` | `None` |
-| `track_delegation(target_agent: str, task: str) -> None` | `None` |
-| `track_research(query: str, results: int) -> None`  | `None`     |
-| `track_implementation(files: list[str], lines_of_code: int) -> None` | `None` |
-| `end_session() -> None`                             | `None`     |
-| `get_session_stats() -> dict`                       | `{ sessionId, actions, duration, tokens, cost }` |
-| `close() -> None`                                   | `None`     |
+| Method                                                               | Returns                                          |
+| -------------------------------------------------------------------- | ------------------------------------------------ |
+| `start_session() -> str`                                             | `str` (session ID)                               |
+| `track_action(action: str, target: str, metadata=None) -> None`      | `None`                                           |
+| `track_delegation(target_agent: str, task: str) -> None`             | `None`                                           |
+| `track_research(query: str, results: int) -> None`                   | `None`                                           |
+| `track_implementation(files: list[str], lines_of_code: int) -> None` | `None`                                           |
+| `end_session() -> None`                                              | `None`                                           |
+| `get_session_stats() -> dict`                                        | `{ sessionId, actions, duration, tokens, cost }` |
+| `close() -> None`                                                    | `None`                                           |
 
 ---
 
@@ -1519,22 +1523,22 @@ print(PACKAGE_NAME)  # 'agenttrace-io'
 
 All types are exported from `agenttrace.types`.
 
-| Python Dataclass       | TypeScript Interface    | Key Fields (snake_case)                          |
-| ---------------------- | ----------------------- | ------------------------------------------------ |
-| `Trace`                | `Trace`                 | `id`, `run_id`, `name`, `status`, `input`, `output`, `tokens`, `tool_calls`, `latency_ms`, `cost_usd`, `error`, `metadata`, `created_at`, `updated_at` |
-| `Run`                  | `Run`                   | `id`, `name`, `status`, `trace_count`, `total_tokens`, `total_tool_calls`, `total_latency_ms`, `total_cost_usd`, `error_count`, `started_at`, `completed_at`, `metadata` |
-| `TokenUsage`           | `TokenUsage`            | `prompt_tokens`, `completion_tokens`, `total_tokens`, `model`, `provider` |
-| `ToolCall`             | `ToolCall`              | `id`, `name`, `input`, `output`, `latency_ms`, `success`, `error`, `timestamp` |
-| `TraceConfig`          | `TraceConfig`           | `db_path`, `max_traces`, `auto_cleanup`, `cost_calculator`, `hallucination_detector`, `silent` |
-| `TraceFilter`          | `TraceFilter`           | `run_id`, `status`, `name`, `from_date`, `to_date`, `min_cost`, `max_cost`, `min_latency`, `max_latency`, `limit`, `offset` |
-| `TraceStats`           | `TraceStats`            | `total_runs`, `total_traces`, `success_rate`, `avg_latency_ms`, `total_cost_usd`, `total_tokens`, `avg_tokens_per_trace`, `top_tools`, `top_errors` |
-| `CostBreakdown`        | `CostBreakdown`         | `total_cost_usd`, `cost_by_model`, `cost_by_day` |
-| `Scorer`               | `Scorer`                | `name`, `fn`                                     |
-| `ScorerResult`         | `ScorerResult`          | `trace_id`, `scores`, `errors`                   |
-| `EvaluateOptions`      | `EvaluateOptions`       | `scorers`, `run_id`, `trace_ids`, `concurrency`  |
-| `AgentUsageRecord`     | `AgentUsageRecord`      | `id`, `agent_name`, `agent_type`, `session_id`, `action`, `target`, `tokens_used`, `cost_usd`, `duration_ms`, `status`, `metadata`, `created_at` |
-| `AgentUsageFilter`     | `AgentUsageFilter`      | `agent_name`, `agent_type`, `action`, `status`, `from_date`, `to_date`, `limit`, `offset`, `session_id` |
-| `UsageStats`           | `UsageStats`            | `total_agents`, `total_actions`, `total_tokens`, `total_cost_usd`, `avg_duration_ms`, `actions_by_type`, `top_agents` |
+| Python Dataclass   | TypeScript Interface | Key Fields (snake_case)                                                                                                                                                  |
+| ------------------ | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `Trace`            | `Trace`              | `id`, `run_id`, `name`, `status`, `input`, `output`, `tokens`, `tool_calls`, `latency_ms`, `cost_usd`, `error`, `metadata`, `created_at`, `updated_at`                   |
+| `Run`              | `Run`                | `id`, `name`, `status`, `trace_count`, `total_tokens`, `total_tool_calls`, `total_latency_ms`, `total_cost_usd`, `error_count`, `started_at`, `completed_at`, `metadata` |
+| `TokenUsage`       | `TokenUsage`         | `prompt_tokens`, `completion_tokens`, `total_tokens`, `model`, `provider`                                                                                                |
+| `ToolCall`         | `ToolCall`           | `id`, `name`, `input`, `output`, `latency_ms`, `success`, `error`, `timestamp`                                                                                           |
+| `TraceConfig`      | `TraceConfig`        | `db_path`, `max_traces`, `auto_cleanup`, `cost_calculator`, `hallucination_detector`, `silent`                                                                           |
+| `TraceFilter`      | `TraceFilter`        | `run_id`, `status`, `name`, `from_date`, `to_date`, `min_cost`, `max_cost`, `min_latency`, `max_latency`, `limit`, `offset`                                              |
+| `TraceStats`       | `TraceStats`         | `total_runs`, `total_traces`, `success_rate`, `avg_latency_ms`, `total_cost_usd`, `total_tokens`, `avg_tokens_per_trace`, `top_tools`, `top_errors`                      |
+| `CostBreakdown`    | `CostBreakdown`      | `total_cost_usd`, `cost_by_model`, `cost_by_day`                                                                                                                         |
+| `Scorer`           | `Scorer`             | `name`, `fn`                                                                                                                                                             |
+| `ScorerResult`     | `ScorerResult`       | `trace_id`, `scores`, `errors`                                                                                                                                           |
+| `EvaluateOptions`  | `EvaluateOptions`    | `scorers`, `run_id`, `trace_ids`, `concurrency`                                                                                                                          |
+| `AgentUsageRecord` | `AgentUsageRecord`   | `id`, `agent_name`, `agent_type`, `session_id`, `action`, `target`, `tokens_used`, `cost_usd`, `duration_ms`, `status`, `metadata`, `created_at`                         |
+| `AgentUsageFilter` | `AgentUsageFilter`   | `agent_name`, `agent_type`, `action`, `status`, `from_date`, `to_date`, `limit`, `offset`, `session_id`                                                                  |
+| `UsageStats`       | `UsageStats`         | `total_agents`, `total_actions`, `total_tokens`, `total_cost_usd`, `avg_duration_ms`, `actions_by_type`, `top_agents`                                                    |
 
 **Type aliases:**
 
@@ -1560,11 +1564,11 @@ agenttrace-io <command> [options]
 
 ### init / dashboard / version
 
-| Command     | Description                                    |
-| ----------- | ---------------------------------------------- |
-| `init`      | Create empty `agenttrace.db` in current dir    |
-| `dashboard` | Start the local dashboard server               |
-| `version`   | Show CLI version                               |
+| Command     | Description                                 |
+| ----------- | ------------------------------------------- |
+| `init`      | Create empty `agenttrace.db` in current dir |
+| `dashboard` | Start the local dashboard server            |
+| `version`   | Show CLI version                            |
 
 ```bash
 agenttrace-io init
@@ -1574,10 +1578,10 @@ agenttrace-io version
 
 ### runs / traces
 
-| Command   | Options                                      | Description                          |
-| --------- | -------------------------------------------- | ------------------------------------ |
-| `runs`    | `--limit N`, `--status FILTER`               | List recent runs (most recent first) |
-| `traces`  | `--limit N`, `--status FILTER`, `--run-id ID`| List traces (most recent first)     |
+| Command  | Options                                       | Description                          |
+| -------- | --------------------------------------------- | ------------------------------------ |
+| `runs`   | `--limit N`, `--status FILTER`                | List recent runs (most recent first) |
+| `traces` | `--limit N`, `--status FILTER`, `--run-id ID` | List traces (most recent first)      |
 
 ```bash
 agenttrace-io runs --limit 5 --status success,running
@@ -1586,10 +1590,10 @@ agenttrace-io traces --run-id 123e4567 --json
 
 ### stats / costs
 
-| Command   | Options                                      | Description                          |
-| --------- | -------------------------------------------- | ------------------------------------ |
-| `stats`   |                                              | Show summary statistics              |
-| `costs`   | `--daily`, `--run-id ID`                     | Cost breakdown by model (or `--daily`)|
+| Command | Options                  | Description                            |
+| ------- | ------------------------ | -------------------------------------- |
+| `stats` |                          | Show summary statistics                |
+| `costs` | `--daily`, `--run-id ID` | Cost breakdown by model (or `--daily`) |
 
 ```bash
 agenttrace-io stats
@@ -1600,10 +1604,10 @@ agenttrace-io costs --run-id abc123
 
 ### export / tree
 
-| Command   | Options                                      | Description                          |
-| --------- | -------------------------------------------- | ------------------------------------ |
-| `export`  | `--format json|csv`, `--output FILE`, `--run-id ID` | Export traces to JSON or CSV |
-| `tree`    | `--trace-id ID` (required)                   | Show parent/child/related trace tree |
+| Command  | Options                    | Description                          |
+| -------- | -------------------------- | ------------------------------------ | ---------------------------- |
+| `export` | `--format json             | csv`, `--output FILE`, `--run-id ID` | Export traces to JSON or CSV |
+| `tree`   | `--trace-id ID` (required) | Show parent/child/related trace tree |
 
 ```bash
 agenttrace-io export --format csv --output out.csv --run-id abc
@@ -1612,10 +1616,10 @@ agenttrace-io tree --trace-id abc123def
 
 ### alerts / health
 
-| Command   | Options                                      | Description                          |
-| --------- | -------------------------------------------- | ------------------------------------ |
-| `alerts`  | `list`, `test --name NAME`, `history`        | Manage alerts                        |
-| `health`  |                                              | Check health of gateway, dashboard, DB |
+| Command  | Options                               | Description                            |
+| -------- | ------------------------------------- | -------------------------------------- |
+| `alerts` | `list`, `test --name NAME`, `history` | Manage alerts                          |
+| `health` |                                       | Check health of gateway, dashboard, DB |
 
 ```bash
 agenttrace-io alerts list
@@ -1626,13 +1630,13 @@ agenttrace-io health
 
 ### self-stats / who / cost / sessions / activity
 
-| Command       | Options                                                    | Description                          |
-| ------------- | ---------------------------------------------------------- | ------------------------------------ |
-| `self-stats`  | `--json`                                                   | Show OWL/Hermes self-tracked usage   |
-| `who`         | `--active`, `--type TYPE`, `--limit N`                     | Show active agents                   |
-| `cost`        | `--from DATE`, `--to DATE`, `--agent NAME`, `--format json\|table` | Agent cost breakdown         |
-| `sessions`    | `--agent NAME`, `--active`, `--limit N`                    | List agent sessions                  |
-| `activity`    | `--agent NAME`, `--type ACTION`, `--limit N`, `--since DUR`| Recent agent activity timeline       |
+| Command      | Options                                                            | Description                        |
+| ------------ | ------------------------------------------------------------------ | ---------------------------------- |
+| `self-stats` | `--json`                                                           | Show OWL/Hermes self-tracked usage |
+| `who`        | `--active`, `--type TYPE`, `--limit N`                             | Show active agents                 |
+| `cost`       | `--from DATE`, `--to DATE`, `--agent NAME`, `--format json\|table` | Agent cost breakdown               |
+| `sessions`   | `--agent NAME`, `--active`, `--limit N`                            | List agent sessions                |
+| `activity`   | `--agent NAME`, `--type ACTION`, `--limit N`, `--since DUR`        | Recent agent activity timeline     |
 
 ```bash
 agenttrace-io self-stats
@@ -1646,10 +1650,10 @@ agenttrace-io activity --since 2h --limit 20
 
 ### cleanup / retention
 
-| Command      | Options                                      | Description                          |
-| ------------ | -------------------------------------------- | ------------------------------------ |
-| `cleanup`    | `--days N`, `--dry-run`                      | Manually run data retention cleanup  |
-| `retention`  | `show`, `set <days> [--interval H]`          | Manage data retention policy         |
+| Command     | Options                             | Description                         |
+| ----------- | ----------------------------------- | ----------------------------------- |
+| `cleanup`   | `--days N`, `--dry-run`             | Manually run data retention cleanup |
+| `retention` | `show`, `set <days> [--interval H]` | Manage data retention policy        |
 
 ```bash
 agenttrace-io cleanup
@@ -1661,9 +1665,9 @@ agenttrace-io retention set 90 --interval 12
 
 ### benchmark
 
-| Command      | Options                                      | Description                          |
-| ------------ | -------------------------------------------- | ------------------------------------ |
-| `benchmark`  |                                              | Run performance benchmark suite (prints JSON results) |
+| Command     | Options | Description                                           |
+| ----------- | ------- | ----------------------------------------------------- |
+| `benchmark` |         | Run performance benchmark suite (prints JSON results) |
 
 ```bash
 agenttrace-io benchmark
@@ -1671,17 +1675,17 @@ agenttrace-io benchmark
 
 ### Global Options
 
-| Option    | Description                                    |
-| --------- | ---------------------------------------------- |
-| `--json`  | Emit machine-readable JSON (for runs, traces, stats, costs, export, self-stats) |
-| `--help`  | Show help                                      |
+| Option   | Description                                                                     |
+| -------- | ------------------------------------------------------------------------------- |
+| `--json` | Emit machine-readable JSON (for runs, traces, stats, costs, export, self-stats) |
+| `--help` | Show help                                                                       |
 
 ### Environment Variables
 
-| Variable                | Description                                    |
-| ----------------------- | ---------------------------------------------- |
-| `AGENTTRACE_DB_PATH`    | Override default database path (`./agenttrace.db`) |
-| `AGENTTRACE_USAGE_LOG`  | Override self-tracker JSONL log path           |
+| Variable               | Description                                        |
+| ---------------------- | -------------------------------------------------- |
+| `AGENTTRACE_DB_PATH`   | Override default database path (`./agenttrace.db`) |
+| `AGENTTRACE_USAGE_LOG` | Override self-tracker JSONL log path               |
 
 ---
 
@@ -1691,24 +1695,24 @@ AgentTrace uses a single SQLite database with WAL mode and foreign keys enabled.
 
 ### Tables
 
-| Table              | Description                                    |
-| ------------------ | ---------------------------------------------- |
-| `runs`             | Agent runs (collections of traces)             |
-| `traces`           | Individual traced operations                   |
-| `tool_calls`       | Tool calls associated with traces              |
-| `scores`           | Evaluation scores for traces                   |
-| `alerts`           | Alert condition configs (serialized)           |
-| `alert_history`    | Alert firing history                           |
-| `trace_links`      | Manual links between traces (cross-agent)      |
-| `agent_usage`      | Agent self-tracking usage records              |
-| `webhooks`         | Webhook configurations                         |
-| `webhook_deliveries` | Webhook delivery records                     |
-| `api_keys`         | API key hashes (secrets never stored)          |
-| `rate_limit_log`   | Rate-limited trace records                     |
-| `projects`         | Multi-tenant projects                          |
-| `settings`         | Key-value settings (retention policy, etc.)    |
-| `version`          | Schema migration version tracking              |
-| `meta`             | Migration metadata                             |
+| Table                | Description                                 |
+| -------------------- | ------------------------------------------- |
+| `runs`               | Agent runs (collections of traces)          |
+| `traces`             | Individual traced operations                |
+| `tool_calls`         | Tool calls associated with traces           |
+| `scores`             | Evaluation scores for traces                |
+| `alerts`             | Alert condition configs (serialized)        |
+| `alert_history`      | Alert firing history                        |
+| `trace_links`        | Manual links between traces (cross-agent)   |
+| `agent_usage`        | Agent self-tracking usage records           |
+| `webhooks`           | Webhook configurations                      |
+| `webhook_deliveries` | Webhook delivery records                    |
+| `api_keys`           | API key hashes (secrets never stored)       |
+| `rate_limit_log`     | Rate-limited trace records                  |
+| `projects`           | Multi-tenant projects                       |
+| `settings`           | Key-value settings (retention policy, etc.) |
+| `version`            | Schema migration version tracking           |
+| `meta`               | Migration metadata                          |
 
 ### Schema Version
 

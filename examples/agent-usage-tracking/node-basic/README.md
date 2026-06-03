@@ -5,6 +5,7 @@ Basic TypeScript example of an AI agent using AgentTrace to trace its own operat
 ## Why this matters for agents
 
 Agents that can see their own spend and behavior can:
+
 - Choose cheaper models when budget is low
 - Detect loops or expensive paths
 - Report summaries to operators or long-term memory

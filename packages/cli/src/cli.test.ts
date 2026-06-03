@@ -38,7 +38,12 @@ async function seedData(dbPath: string) {
   });
   await t.trace('trace-2', async () => 'err', {
     status: 'error',
-    tokens: { promptTokens: 200, completionTokens: 100, totalTokens: 300, model: 'claude-sonnet-4' },
+    tokens: {
+      promptTokens: 200,
+      completionTokens: 100,
+      totalTokens: 300,
+      model: 'claude-sonnet-4',
+    },
     model: 'claude-sonnet-4',
   });
   t.completeRun();
@@ -56,22 +61,44 @@ async function seedAgentUsage(dbPath: string) {
   const storage = new TraceStorage(dbPath);
   const now = Date.now();
   storage.recordAgentUsage({
-    id: randomUUID(), agentName: 'agent-a', agentType: 'researcher',
-    sessionId: 'sess-1', action: 'search', target: 'web',
-    tokensUsed: 500, costUsd: 0.005, durationMs: 200,
-    status: 'success', metadata: { model: 'gpt-4o' }, createdAt: now - 600000,
+    id: randomUUID(),
+    agentName: 'agent-a',
+    agentType: 'researcher',
+    sessionId: 'sess-1',
+    action: 'search',
+    target: 'web',
+    tokensUsed: 500,
+    costUsd: 0.005,
+    durationMs: 200,
+    status: 'success',
+    metadata: { model: 'gpt-4o' },
+    createdAt: now - 600000,
   });
   storage.recordAgentUsage({
-    id: randomUUID(), agentName: 'agent-b', agentType: 'coder',
-    sessionId: 'sess-2', action: 'implement',
-    tokensUsed: 1000, costUsd: 0.01, durationMs: 500,
-    status: 'success', metadata: { model: 'claude-sonnet-4' }, createdAt: now - 60000,
+    id: randomUUID(),
+    agentName: 'agent-b',
+    agentType: 'coder',
+    sessionId: 'sess-2',
+    action: 'implement',
+    tokensUsed: 1000,
+    costUsd: 0.01,
+    durationMs: 500,
+    status: 'success',
+    metadata: { model: 'claude-sonnet-4' },
+    createdAt: now - 60000,
   });
   storage.recordAgentUsage({
-    id: randomUUID(), agentName: 'agent-a', agentType: 'researcher',
-    sessionId: 'sess-1', action: 'summarize',
-    tokensUsed: 300, costUsd: 0.003, durationMs: 150,
-    status: 'success', metadata: { model: 'gpt-4o' }, createdAt: now - 30000,
+    id: randomUUID(),
+    agentName: 'agent-a',
+    agentType: 'researcher',
+    sessionId: 'sess-1',
+    action: 'summarize',
+    tokensUsed: 300,
+    costUsd: 0.003,
+    durationMs: 150,
+    status: 'success',
+    metadata: { model: 'gpt-4o' },
+    createdAt: now - 30000,
   });
   storage.close();
 }
@@ -129,8 +156,12 @@ describe('CLI commands (comprehensive)', () => {
     }
   }
 
-  function out() { return logs.join('\n'); }
-  function clearLogs() { logs.length = 0; }
+  function out() {
+    return logs.join('\n');
+  }
+  function clearLogs() {
+    logs.length = 0;
+  }
 
   // ── version ──
 
@@ -201,7 +232,9 @@ describe('CLI commands (comprehensive)', () => {
     it('--limit controls number of results', async () => {
       await seedData(tmpDb);
       runCmd(['runs', '--limit', '1']);
-      const lines = out().split('\n').filter((l) => l.trim().length > 0);
+      const lines = out()
+        .split('\n')
+        .filter((l) => l.trim().length > 0);
       // header + separator + 1 data row = 3 lines minimum
       expect(lines.length).toBeGreaterThanOrEqual(2);
     });
@@ -697,7 +730,14 @@ describe('CLI commands (comprehensive)', () => {
     it('list after adding shows webhook', () => {
       runCmd(['init']);
       clearLogs();
-      runCmd(['webhook', 'add', '--url', 'https://example.com/hook', '--events', 'trace.complete,run.complete']);
+      runCmd([
+        'webhook',
+        'add',
+        '--url',
+        'https://example.com/hook',
+        '--events',
+        'trace.complete,run.complete',
+      ]);
       const o = out();
       expect(o).toContain('Registered webhook');
       expect(o).toContain('https://example.com/hook');

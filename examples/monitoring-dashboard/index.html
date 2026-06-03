@@ -17,7 +17,9 @@
           </div>
         </div>
         <div class="top-actions">
-          <button id="refresh-btn" class="btn btn-secondary" title="Refresh data">&#x21BB; Refresh</button>
+          <button id="refresh-btn" class="btn btn-secondary" title="Refresh data">
+            &#x21BB; Refresh
+          </button>
           <div class="export-group">
             <button id="export-json-btn" class="btn btn-secondary">Export JSON</button>
             <button id="export-csv-btn" class="btn btn-secondary">Export CSV</button>
@@ -148,8 +150,7 @@
           <h2>Traces for <span id="selected-run-name" class="run-name"></span></h2>
           <span id="traces-count" class="count-badge">0 traces</span>
         </div>
-        <div id="traces-list" class="traces-list">
-        </div>
+        <div id="traces-list" class="traces-list"></div>
       </section>
 
       <!-- Trace Details -->
@@ -160,13 +161,15 @@
             &#x2715; Close
           </button>
         </div>
-        <div id="trace-details" class="trace-details">
-        </div>
+        <div id="trace-details" class="trace-details"></div>
       </section>
     </main>
 
     <footer class="footer">
-      <span>AgentTrace Monitoring Dashboard &mdash; data lives on disk &bull; <a href="https://github.com" target="_blank" rel="noopener">GitHub</a></span>
+      <span
+        >AgentTrace Monitoring Dashboard &mdash; data lives on disk &bull;
+        <a href="https://github.com" target="_blank" rel="noopener">GitHub</a></span
+      >
     </footer>
 
     <script src="app.js"></script>

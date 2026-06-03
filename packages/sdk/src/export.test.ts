@@ -173,9 +173,7 @@ describe('AgentTrace export() -- CSV format', () => {
 
       // Header + 3 data rows
       expect(lines.length).toBe(4);
-      expect(lines[0]).toBe(
-        'id,runId,name,status,latencyMs,costUsd,totalTokens,createdAt',
-      );
+      expect(lines[0]).toBe('id,runId,name,status,latencyMs,costUsd,totalTokens,createdAt');
 
       // Each data row has 8 columns
       for (let i = 1; i < lines.length; i++) {
@@ -197,9 +195,7 @@ describe('AgentTrace export() -- CSV format', () => {
       const csv = agent.export('csv', { runId: 'nope' });
       const lines = csv.trim().split('\n');
       expect(lines.length).toBe(1);
-      expect(lines[0]).toBe(
-        'id,runId,name,status,latencyMs,costUsd,totalTokens,createdAt',
-      );
+      expect(lines[0]).toBe('id,runId,name,status,latencyMs,costUsd,totalTokens,createdAt');
     } finally {
       cleanup();
     }
@@ -291,19 +287,17 @@ describe('AgentTrace export() -- OTEL format', () => {
       const json = agent.export('otel', { runId });
       const otlp = JSON.parse(json) as Record<string, unknown>;
       const spans = (
-        (otlp.resourceSpans as Array<Record<string, unknown>>)[0].scopeSpans as Array<Record<string, unknown>>
+        (otlp.resourceSpans as Array<Record<string, unknown>>)[0].scopeSpans as Array<
+          Record<string, unknown>
+        >
       )[0].spans as Array<Record<string, unknown>>;
 
       expect(spans.length).toBe(2);
 
-      const okSpan = spans.find(
-        (s) => (s.name as string) === 'ok-trace',
-      )!;
+      const okSpan = spans.find((s) => (s.name as string) === 'ok-trace')!;
       expect((okSpan.status as Record<string, unknown>).code).toBe(1); // STATUS_CODE_OK
 
-      const errSpan = spans.find(
-        (s) => (s.name as string) === 'err-trace',
-      )!;
+      const errSpan = spans.find((s) => (s.name as string) === 'err-trace')!;
       expect((errSpan.status as Record<string, unknown>).code).toBe(2); // STATUS_CODE_ERROR
       // OTEL message is trace.error || trace.status — the error message from the thrown Error
       expect((errSpan.status as Record<string, unknown>).message).toBe('otel boom');
@@ -347,7 +341,9 @@ describe('AgentTrace export() -- filtered exports', () => {
       const otelJson = agent.export('otel', { runId, status: ['error'] });
       const otlp = JSON.parse(otelJson) as Record<string, unknown>;
       const spans = (
-        (otlp.resourceSpans as Array<Record<string, unknown>>)[0].scopeSpans as Array<Record<string, unknown>>
+        (otlp.resourceSpans as Array<Record<string, unknown>>)[0].scopeSpans as Array<
+          Record<string, unknown>
+        >
       )[0].spans as Array<Record<string, unknown>>;
       expect(spans.length).toBe(1);
       expect(spans[0].name).toBe('e1');
@@ -449,7 +445,9 @@ describe('AgentTrace export() -- filtered exports', () => {
 
       // Export only late traces (fromDate after the early trace)
       const allTraces = agent.getTraces({ runId });
-      const earlyMaxCa = Math.max(...allTraces.filter((t) => t.name === 'early-trace').map((t) => t.createdAt));
+      const earlyMaxCa = Math.max(
+        ...allTraces.filter((t) => t.name === 'early-trace').map((t) => t.createdAt),
+      );
       const lateJson = agent.export('json', { runId, fromDate: earlyMaxCa + 1 });
       const lateTraces = JSON.parse(lateJson) as Trace[];
       expect(lateTraces.length).toBeGreaterThanOrEqual(1);
@@ -545,9 +543,7 @@ describe('AgentTrace export() -- large dataset exports', () => {
       expect(lines.length).toBe(COUNT + 1); // header + 500 data rows
 
       // Header is correct
-      expect(lines[0]).toBe(
-        'id,runId,name,status,latencyMs,costUsd,totalTokens,createdAt',
-      );
+      expect(lines[0]).toBe('id,runId,name,status,latencyMs,costUsd,totalTokens,createdAt');
 
       // Every data row has 8 columns
       for (let i = 1; i < lines.length; i++) {
@@ -572,7 +568,9 @@ describe('AgentTrace export() -- large dataset exports', () => {
       const json = agent.export('otel', { runId });
       const otlp = JSON.parse(json) as Record<string, unknown>;
       const spans = (
-        (otlp.resourceSpans as Array<Record<string, unknown>>)[0].scopeSpans as Array<Record<string, unknown>>
+        (otlp.resourceSpans as Array<Record<string, unknown>>)[0].scopeSpans as Array<
+          Record<string, unknown>
+        >
       )[0].spans as Array<Record<string, unknown>>;
       expect(spans.length).toBe(COUNT);
 

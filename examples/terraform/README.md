@@ -89,19 +89,19 @@ ECS Fargate task -- private subnets (2 AZs)
 
 Override any variable via `-var` or a `terraform.tfvars` file:
 
-| Variable | Default | Description |
-|---|---|---|
-| `aws_region` | `us-east-1` | AWS region |
-| `project_name` | `agenttrace` | Resource name prefix |
-| `environment` | `dev` | Environment tag |
-| `vpc_cidr` | `10.0.0.0/16` | VPC CIDR block |
-| `container_port` | `4317` | AgentTrace dashboard port |
-| `task_cpu` | `512` | Fargate CPU units (0.5 vCPU) |
-| `task_memory` | `1024` | Fargate memory (GiB) |
-| `desired_count` | `1` | Number of ECS tasks |
-| `ecr_image_tag` | `latest` | Docker image tag to deploy |
-| `ecr_image_retention_count` | `10` | ECR images to retain |
-| `log_retention_days` | `30` | CloudWatch log retention |
+| Variable                    | Default       | Description                  |
+| --------------------------- | ------------- | ---------------------------- |
+| `aws_region`                | `us-east-1`   | AWS region                   |
+| `project_name`              | `agenttrace`  | Resource name prefix         |
+| `environment`               | `dev`         | Environment tag              |
+| `vpc_cidr`                  | `10.0.0.0/16` | VPC CIDR block               |
+| `container_port`            | `4317`        | AgentTrace dashboard port    |
+| `task_cpu`                  | `512`         | Fargate CPU units (0.5 vCPU) |
+| `task_memory`               | `1024`        | Fargate memory (GiB)         |
+| `desired_count`             | `1`           | Number of ECS tasks          |
+| `ecr_image_tag`             | `latest`      | Docker image tag to deploy   |
+| `ecr_image_retention_count` | `10`          | ECR images to retain         |
+| `log_retention_days`        | `30`          | CloudWatch log retention     |
 
 Example `terraform.tfvars`:
 

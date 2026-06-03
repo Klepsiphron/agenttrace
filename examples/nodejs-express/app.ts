@@ -23,9 +23,9 @@ import type { AgentUsageRecord } from '@agenttrace-io/sdk';
 // ─── 1. Initialize AgentTrace ───────────────────────────────────────
 const at = init({
   dbPath: './agenttrace-express.db',
-  silent: false,          // log trace events to stdout
-  maxTraces: 50000,       // keep plenty for a demo
-  retentionDays: 30,      // auto-cleanup after 30 days
+  silent: false, // log trace events to stdout
+  maxTraces: 50000, // keep plenty for a demo
+  retentionDays: 30, // auto-cleanup after 30 days
 });
 
 // Register a runaway-cost alert (triggers if lifetime spend > $5)
@@ -34,7 +34,7 @@ at.registerAlert(
     name: 'express-cost-guard',
     condition: (stats) => (stats.totalCostUsd || 0) > 5,
     webhook: undefined, // set to your Slack/Discord webhook URL
-    cooldown: 300,       // re-alert at most every 5 min
+    cooldown: 300, // re-alert at most every 5 min
   }),
 );
 
@@ -73,7 +73,12 @@ function agentTraceMiddleware(req: Request, res: Response, next: NextFunction): 
 }
 
 // ─── 3. Error tracking middleware ───────────────────────────────────
-function errorTracingMiddleware(err: Error, req: Request, res: Response, _next: NextFunction): void {
+function errorTracingMiddleware(
+  err: Error,
+  req: Request,
+  res: Response,
+  _next: NextFunction,
+): void {
   // Record the error as a failed trace
   at.recordAgentUsage({
     agentName: 'express-server',
@@ -197,7 +202,12 @@ app.post('/api/agent/run', async (req: Request, res: Response, next: NextFunctio
           {
             input: { task, tools },
             model: 'claude-sonnet-4',
-            tokens: { promptTokens: 200, completionTokens: 80, totalTokens: 280, model: 'claude-sonnet-4' },
+            tokens: {
+              promptTokens: 200,
+              completionTokens: 80,
+              totalTokens: 280,
+              model: 'claude-sonnet-4',
+            },
           },
         );
 
@@ -216,7 +226,13 @@ app.post('/api/agent/run', async (req: Request, res: Response, next: NextFunctio
             },
           );
           toolResults.push(toolResult);
-          at.recordToolCall({ name: tool, input: { task }, output: toolResult, latencyMs: 50, success: true });
+          at.recordToolCall({
+            name: tool,
+            input: { task },
+            output: toolResult,
+            latencyMs: 50,
+            success: true,
+          });
         }
 
         // Step 3: Synthesize
@@ -229,7 +245,12 @@ app.post('/api/agent/run', async (req: Request, res: Response, next: NextFunctio
           {
             input: { toolResults: toolResults.length },
             model: 'claude-sonnet-4',
-            tokens: { promptTokens: 150, completionTokens: 60, totalTokens: 210, model: 'claude-sonnet-4' },
+            tokens: {
+              promptTokens: 150,
+              completionTokens: 60,
+              totalTokens: 210,
+              model: 'claude-sonnet-4',
+            },
           },
         );
 
@@ -296,7 +317,9 @@ const PORT = parseInt(process.env.PORT || '3000', 10);
 
 const server = app.listen(PORT, () => {
   console.log(`[AgentTrace Express] Listening on http://localhost:${PORT}`);
-  console.log(`[AgentTrace Express] DB: ${(at as any).config?.dbPath || './agenttrace-express.db'}`);
+  console.log(
+    `[AgentTrace Express] DB: ${(at as any).config?.dbPath || './agenttrace-express.db'}`,
+  );
   console.log();
   console.log('Routes:');
   console.log(`  GET  /health            - Health + AgentTrace status`);
@@ -314,7 +337,9 @@ function shutdown() {
 
   // Print final stats
   const stats = at.getStats();
-  console.log(`[AgentTrace] Final stats: ${stats.totalTraces} traces, $${(stats.totalCostUsd || 0).toFixed(6)} total cost, ${stats.successRate} success rate`);
+  console.log(
+    `[AgentTrace] Final stats: ${stats.totalTraces} traces, $${(stats.totalCostUsd || 0).toFixed(6)} total cost, ${stats.successRate} success rate`,
+  );
 
   at.close();
   server.close(() => process.exit(0));
