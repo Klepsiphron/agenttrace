@@ -3,21 +3,21 @@ import { JSDOM } from 'jsdom';
 import fs from 'fs';
 import path from 'path';
 
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars -- test harness with heavy JSDOM + mock globals requires anys and some stub fns */
-
 const PUBLIC_DIR = path.resolve(__dirname, '../public');
 const APP_JS = path.join(PUBLIC_DIR, 'app.js');
 
 interface MockResponse {
   ok: boolean;
   status: number;
-  json: () => Promise<any>;
+  json: () => Promise<unknown>;
   text?: () => Promise<string>;
+  blob?: () => Promise<unknown>;
 }
 
-function createMockResponse(data: any, ok = true, status = 200): MockResponse {
+function createMockResponse(data: unknown, ok = true, status = 200): MockResponse {
   const textData = typeof data === 'string' ? data : JSON.stringify(data);
-  const blobData = new ((global as any).Blob || Blob)([textData], {
+  const GlobalBlob = (global as unknown as { Blob?: typeof Blob }).Blob || Blob;
+  const blobData = new GlobalBlob([textData], {
     type: ok ? 'application/json' : 'text/plain',
   });
   return {
@@ -26,26 +26,27 @@ function createMockResponse(data: any, ok = true, status = 200): MockResponse {
     json: () => Promise.resolve(data),
     text: () => Promise.resolve(textData),
     blob: () => Promise.resolve(blobData),
-  } as any;
+  } as MockResponse;
 }
 
 describe('AgentTrace Dashboard Frontend (app.js)', () => {
   let dom: JSDOM;
   let fetchMock: ReturnType<typeof vi.fn>;
-  let originalWindow: any;
-  let originalDocument: any;
-  let originalFetch: any;
-  let originalSetInterval: any;
-  let originalClearInterval: any;
+  let originalWindow: unknown;
+  let originalDocument: unknown;
+  let originalFetch: unknown;
+  let originalSetInterval: unknown;
+  let originalClearInterval: unknown;
   let intervalId: number | null = null;
 
   beforeEach(() => {
     // Save originals
-    originalWindow = (global as any).window;
-    originalDocument = (global as any).document;
-    originalFetch = (global as any).fetch;
-    originalSetInterval = (global as any).setInterval;
-    originalClearInterval = (global as any).clearInterval;
+    const g = global as unknown as Record<string, unknown>;
+    originalWindow = g.window;
+    originalDocument = g.document;
+    originalFetch = g.fetch;
+    originalSetInterval = g.setInterval;
+    originalClearInterval = g.clearInterval;
 
     // Setup JSDOM with minimal dashboard skeleton (matches what index.html provides)
     dom = new JSDOM(
@@ -87,75 +88,77 @@ describe('AgentTrace Dashboard Frontend (app.js)', () => {
       },
     );
 
-    (global as any).window = dom.window;
-    (global as any).document = dom.window.document;
-    (global as any).HTMLElement = dom.window.HTMLElement;
-    (global as any).Event = dom.window.Event;
-    (global as any).MouseEvent = dom.window.MouseEvent;
+    const g = global as unknown as Record<string, unknown> & { window?: unknown; document?: unknown };
+    g.window = dom.window;
+    g.document = dom.window.document;
+    g.HTMLElement = dom.window.HTMLElement;
+    g.Event = dom.window.Event;
+    g.MouseEvent = dom.window.MouseEvent;
 
     // Mock fetch - must be on the JSDOM window (code runs via eval in that context)
     fetchMock = vi.fn();
-    dom.window.fetch = fetchMock as any;
-    (global as any).fetch = fetchMock;
+    dom.window.fetch = fetchMock as unknown as typeof fetch;
+    g.fetch = fetchMock;
 
     // Mock timers / intervals for auto-refresh - install on window too
     intervalId = null;
-    const setIntMock = vi.fn((fn: any, ms: number) => {
-      intervalId = 123 as any;
+    const setIntMock = vi.fn((_fn: unknown, _ms: number) => {
+      intervalId = 123;
       return intervalId;
-    }) as any;
-    const clearIntMock = vi.fn((id: any) => {
+    });
+    const clearIntMock = vi.fn((_id: unknown) => {
       intervalId = null;
-    }) as any;
-    dom.window.setInterval = setIntMock;
-    dom.window.clearInterval = clearIntMock;
-    (global as any).setInterval = setIntMock;
-    (global as any).clearInterval = clearIntMock;
+    });
+    dom.window.setInterval = setIntMock as unknown as typeof setInterval;
+    dom.window.clearInterval = clearIntMock as unknown as typeof clearInterval;
+    g.setInterval = setIntMock;
+    g.clearInterval = clearIntMock;
 
     // JSDOM does not implement alert by default (export error path uses it)
-    (dom.window as any).alert = vi.fn();
+    (dom.window as Record<string, unknown>).alert = vi.fn();
 
     // Provide a download anchor mock for export tests
     const origCreateElement = document.createElement.bind(document);
     document.createElement = vi.fn((tag: string) => {
       const el = origCreateElement(tag);
       if (tag === 'a') {
-        (el as any).click = vi.fn();
-        (el as any).href = '';
-        (el as any).download = '';
+        (el as Record<string, unknown>).click = vi.fn();
+        (el as Record<string, unknown>).href = '';
+        (el as Record<string, unknown>).download = '';
       }
       return el;
-    }) as any;
+    }) as unknown as typeof document.createElement;
 
     // Blob and URL mocks - install BOTH on global (for test code) AND on dom.window (for eval'ed app.js)
     const MockBlob = class {
       constructor(
-        public parts: any[],
-        public options?: any,
+        public parts: unknown[],
+        public options?: Record<string, unknown>,
       ) {}
     };
     const mockURL = {
       createObjectURL: vi.fn(() => 'blob:mock-url'),
       revokeObjectURL: vi.fn(),
-    } as any;
-    (global as any).Blob = MockBlob;
-    (global as any).URL = mockURL;
-    dom.window.Blob = MockBlob as any;
-    dom.window.URL = mockURL;
+    };
+    g.Blob = MockBlob;
+    g.URL = mockURL;
+    dom.window.Blob = MockBlob as unknown as typeof Blob;
+    dom.window.URL = mockURL as unknown as typeof URL;
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
-    (global as any).window = originalWindow;
-    (global as any).document = originalDocument;
-    (global as any).fetch = originalFetch;
-    (global as any).setInterval = originalSetInterval;
-    (global as any).clearInterval = originalClearInterval;
-    delete (global as any).Blob;
-    delete (global as any).URL;
-    delete (global as any).HTMLElement;
-    delete (global as any).Event;
-    delete (global as any).MouseEvent;
+    const g = global as unknown as Record<string, unknown>;
+    g.window = originalWindow;
+    g.document = originalDocument;
+    g.fetch = originalFetch;
+    g.setInterval = originalSetInterval;
+    g.clearInterval = originalClearInterval;
+    delete g.Blob;
+    delete g.URL;
+    delete g.HTMLElement;
+    delete g.Event;
+    delete g.MouseEvent;
   });
 
   function loadAppScript() {
@@ -170,7 +173,7 @@ describe('AgentTrace Dashboard Frontend (app.js)', () => {
 
   function click(el: Element | null) {
     if (el) {
-      el.dispatchEvent(new (dom.window as any).MouseEvent('click', { bubbles: true }));
+      el.dispatchEvent(new ((dom.window as Record<string, unknown>).MouseEvent as typeof MouseEvent)('click', { bubbles: true }));
     }
   }
 
@@ -267,7 +270,7 @@ describe('AgentTrace Dashboard Frontend (app.js)', () => {
     // allow async init loads to settle before next test mutates mocks
     await new Promise((r) => setTimeout(r, 5));
     // Should have set up auto refresh interval
-    expect((global as any).setInterval).toHaveBeenCalled();
+    expect((global as unknown as Record<string, unknown>).setInterval).toHaveBeenCalled();
   });
 
   it('fetches stats on load and updates DOM elements', async () => {
@@ -430,7 +433,7 @@ describe('AgentTrace Dashboard Frontend (app.js)', () => {
 
     expect(fetchMock).toHaveBeenCalledWith('/api/export?format=json');
     // Should have created blob url and clicked anchor (our mock)
-    expect((global as any).URL.createObjectURL).toHaveBeenCalled();
+    expect((global as unknown as Record<string, unknown> & { URL: { createObjectURL: unknown } }).URL.createObjectURL).toHaveBeenCalled();
   });
 
   it('export CSV button uses ?format=csv', async () => {
@@ -457,7 +460,7 @@ describe('AgentTrace Dashboard Frontend (app.js)', () => {
     loadAppScript();
     await new Promise((r) => setTimeout(r, 5));
 
-    expect((global as any).setInterval).toHaveBeenCalledWith(expect.any(Function), 5000);
+    expect((global as unknown as Record<string, unknown>).setInterval).toHaveBeenCalledWith(expect.any(Function), 5000);
   });
 
   it('handles empty states gracefully (no runs, no traces)', async () => {

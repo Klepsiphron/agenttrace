@@ -3,6 +3,8 @@
  * Tests the full flow: trace → store → query → export
  */
 
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars, no-empty -- test files use loose any for fixtures/mocks and some unused for structure; added only for lint-clean on new multi-agent tests */
+
 import { describe, expect, it, beforeEach, afterEach } from 'vitest';
 import { AgentTrace, score } from './index';
 import { TraceStorage } from './storage';
@@ -185,8 +187,9 @@ describe('AgentTrace Integration', () => {
 
   // --- Multi-agent tracing tests (added for v0.2, existing tests untouched) ---
 
-  it('TraceContext class holds traceId, parentSpanId, metadata', () => {
-    const ctx = new (await import('./index.js')).TraceContext('trace-abc', 'parent-xyz', { foo: 'bar' });
+  it('TraceContext class holds traceId, parentSpanId, metadata', async () => {
+    const { TraceContext } = await import('./index.js');
+    const ctx = new TraceContext('trace-abc', 'parent-xyz', { foo: 'bar' });
     expect(ctx.traceId).toBe('trace-abc');
     expect(ctx.parentSpanId).toBe('parent-xyz');
     expect(ctx.metadata).toEqual({ foo: 'bar' });
@@ -202,7 +205,7 @@ describe('AgentTrace Integration', () => {
   });
 
   it('trace() with parentId stores parentId on trace', async () => {
-    const runId = agenttrace.startRun('parent-run');
+    const _runId = agenttrace.startRun('parent-run');
     const parentTrace = await agenttrace.trace('parent-agent', async () => 'p', {
       tokens: { promptTokens: 1, completionTokens: 1, totalTokens: 2 },
     });
@@ -216,7 +219,7 @@ describe('AgentTrace Integration', () => {
   });
 
   it('trace() with context from createChild links parent/child and id matches context', async () => {
-    const runId = agenttrace.startRun('ctx-run');
+    const _runId = agenttrace.startRun('ctx-run');
     const p = await agenttrace.trace('p-agent', async () => 1, {
       tokens: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
     });
@@ -235,34 +238,34 @@ describe('AgentTrace Integration', () => {
   });
 
   it('linkTraces and getTraceTree includes linked as children', async () => {
-    const runId = agenttrace.startRun('link-run');
+    const _runId = agenttrace.startRun('link-run');
     const t1 = await agenttrace.trace('t1', async () => 'a', { tokens: { promptTokens: 0, completionTokens: 0, totalTokens: 0 } });
     const t2 = await agenttrace.trace('t2', async () => 'b', { tokens: { promptTokens: 0, completionTokens: 0, totalTokens: 0 } });
     const t3 = await agenttrace.trace('t3', async () => 'c', { tokens: { promptTokens: 0, completionTokens: 0, totalTokens: 0 } });
     agenttrace.linkTraces([t1.id, t2.id, t3.id]);
     const tree = agenttrace.getTraceTree(t1.id);
     // since linked, t1 is root, should have t2,t3 under it via links
-    const childIds = tree.children.map((n: any) => n.trace.id);
+    const childIds = tree.children.map((n: unknown) => (n as any).trace.id); // eslint-disable-line @typescript-eslint/no-explicit-any
     expect(childIds).toContain(t2.id);
     expect(childIds).toContain(t3.id);
   });
 
   it('getTraceTree walks up to root and includes full subtree', async () => {
-    const runId = agenttrace.startRun('tree-run');
+    const _runId = agenttrace.startRun('tree-run');
     const root = await agenttrace.trace('root', async () => 0, { tokens: { promptTokens: 0, completionTokens: 0, totalTokens: 0 } });
     const c1 = await agenttrace.trace('c1', async () => 1, { parentId: root.id, tokens: { promptTokens: 0, completionTokens: 0, totalTokens: 0 } });
     const gc = await agenttrace.trace('gc', async () => 2, { parentId: c1.id, tokens: { promptTokens: 0, completionTokens: 0, totalTokens: 0 } });
     const treeFromLeaf = agenttrace.getTraceTree(gc.id);
     expect(treeFromLeaf.trace.id).toBe(root.id); // walked to root
     // depth check
-    const lvl1 = treeFromLeaf.children.find((n: any) => n.trace.id === c1.id);
+    const lvl1 = treeFromLeaf.children.find((n: unknown) => (n as any).trace.id === c1.id); // eslint-disable-line @typescript-eslint/no-explicit-any
     expect(lvl1).toBeTruthy();
     expect(lvl1!.children.length).toBe(1);
     expect(lvl1!.children[0].trace.id).toBe(gc.id);
   });
 
   it('dashboard tree API and storage getTraceTree work (via sdk)', async () => {
-    const runId = agenttrace.startRun('api-tree');
+    const _runId = agenttrace.startRun('api-tree');
     const r = await agenttrace.trace('r', async () => 'r', { tokens: { promptTokens: 0, completionTokens: 0, totalTokens: 0 } });
     const ch = await agenttrace.trace('ch', async () => 'ch', { parentId: r.id, tokens: { promptTokens: 0, completionTokens: 0, totalTokens: 0 } });
     const tree = agenttrace.getTraceTree(r.id);
@@ -273,7 +276,7 @@ describe('AgentTrace Integration', () => {
     const { TraceStorage } = await import('./storage.js');
     const st = new TraceStorage(testDb);
     try {
-      const stTree = st.getTraceTree(ch.id);
+      const stTree = st.getTraceTree(ch.id); // eslint-disable-line @typescript-eslint/no-explicit-any -- no, the any is param in other
       expect(stTree.trace.id).toBe(r.id);
     } finally {
       st.close();

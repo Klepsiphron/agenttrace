@@ -1,13 +1,13 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { createDashboardApp } from './index.js';
 import * as http from 'node:http';
-
-/* eslint-disable @typescript-eslint/no-explicit-any -- test server address and fetch harness use loose types */
+import type { AddressInfo } from 'node:net';
+import type { Express } from 'express';
 
 function getServerPort(server: http.Server): number {
   const addr = server.address();
   if (addr && typeof addr === 'object' && 'port' in addr) {
-    return ((addr as any).port as number) || 0;
+    return ((addr as AddressInfo).port as number) || 0;
   }
   return 0;
 }
@@ -35,7 +35,7 @@ describe('dashboard cost API endpoints (new tests)', () => {
     closes = [];
   });
 
-  async function startTemp(app: any): Promise<{ port: number; base: string }> {
+  async function startTemp(app: Express): Promise<{ port: number; base: string }> {
     const server = app.listen(0);
     servers.push(server);
     const port = getServerPort(server);

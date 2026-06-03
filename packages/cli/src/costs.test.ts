@@ -5,8 +5,6 @@ import * as path from 'node:path';
 import { main, PACKAGE_NAME, VERSION } from './index.js';
 import { AgentTrace } from '@agenttrace/sdk';
 
-/* eslint-disable @typescript-eslint/no-explicit-any -- test console/process spies and error catching use loose types */
-
 function makeTempDbPath(): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'agenttrace-cli-costs-'));
   return path.join(dir, 'agenttrace.db');
@@ -54,16 +52,16 @@ describe('CLI cost commands (new tests)', () => {
     errs = [];
     origLog = console.log;
     origErr = console.error;
-    console.log = (...args: any[]) => {
+    console.log = (...args: unknown[]) => {
       logs.push(args.map((a) => (typeof a === 'string' ? a : JSON.stringify(a))).join(' '));
     };
-    console.error = (...args: any[]) => {
+    console.error = (...args: unknown[]) => {
       errs.push(args.map((a) => String(a)).join(' '));
     };
 
     vi.spyOn(process, 'exit').mockImplementation((() => {
       throw new Error('process.exit called');
-    }) as any);
+    }) as (code?: number | string | undefined) => never);
   });
 
   afterEach(() => {
@@ -113,8 +111,8 @@ describe('CLI cost commands (new tests)', () => {
     process.argv = ['node', 'agenttrace', 'costs'];
     try {
       main();
-    } catch (e: any) {
-      if (!String(e.message).includes('process.exit')) throw e;
+    } catch (e: unknown) {
+      if (!String((e as { message?: string }).message).includes('process.exit')) throw e;
     }
     const out = logs.join('\n');
     expect(out).toContain('Cost Breakdown by Model');
@@ -128,8 +126,8 @@ describe('CLI cost commands (new tests)', () => {
     process.argv = ['node', 'agenttrace', 'costs', '--daily'];
     try {
       main();
-    } catch (e: any) {
-      if (!String(e.message).includes('process.exit')) throw e;
+    } catch (e: unknown) {
+      if (!String((e as { message?: string }).message).includes('process.exit')) throw e;
     }
     const out = logs.join('\n');
     expect(out).toContain('Daily Cost Breakdown');
@@ -141,8 +139,8 @@ describe('CLI cost commands (new tests)', () => {
     process.argv = ['node', 'agenttrace', 'costs', '--run-id', runId];
     try {
       main();
-    } catch (e: any) {
-      if (!String(e.message).includes('process.exit')) throw e;
+    } catch (e: unknown) {
+      if (!String((e as { message?: string }).message).includes('process.exit')) throw e;
     }
     const out = logs.join('\n');
     expect(out).toContain('gpt-4.1');
@@ -154,8 +152,8 @@ describe('CLI cost commands (new tests)', () => {
     process.argv = ['node', 'agenttrace', 'costs', '--run-id', run2];
     try {
       main();
-    } catch (e: any) {
-      if (!String(e.message).includes('process.exit')) throw e;
+    } catch (e: unknown) {
+      if (!String((e as { message?: string }).message).includes('process.exit')) throw e;
     }
     const out2 = logs.join('\n');
     expect(out2).toContain('llama-4-scout');
@@ -167,8 +165,8 @@ describe('CLI cost commands (new tests)', () => {
     process.argv = ['node', 'agenttrace', 'costs', '--json'];
     try {
       main();
-    } catch (e: any) {
-      if (!String(e.message).includes('process.exit')) throw e;
+    } catch (e: unknown) {
+      if (!String((e as { message?: string }).message).includes('process.exit')) throw e;
     }
     const jsonLine = logs.find((l) => l.trim().startsWith('{'));
     expect(jsonLine).toBeTruthy();
