@@ -13,12 +13,13 @@
           <span class="logo">◉</span>
           <div>
             <h1>AgentTrace</h1>
-            <span class="subtitle">Live Usage</span>
+            <span class="subtitle">Live Usage Dashboard</span>
           </div>
         </div>
         <div class="top-actions">
           <a href="/" class="btn btn-secondary">← Dashboard</a>
-          <button id="refresh-btn" class="btn btn-secondary" title="Refresh data">⟳ Refresh</button>
+          <button id="refresh-btn" class="btn btn-secondary" title="Refresh all data">⟳ Refresh</button>
+          <span id="last-updated" class="status-hint">--</span>
           <span class="version">v0.0.0</span>
         </div>
       </div>
@@ -30,24 +31,24 @@
       <!-- Summary Cards -->
       <section class="stats-grid usage-grid" id="summary-cards">
         <div class="stat-card">
-          <div class="stat-value" id="active-agents">0</div>
+          <div class="stat-value" id="active-agents">--</div>
           <div class="stat-label">Active Agents (30m)</div>
         </div>
         <div class="stat-card">
-          <div class="stat-value" id="actions-today">0</div>
+          <div class="stat-value" id="actions-today">--</div>
           <div class="stat-label">Actions Today</div>
         </div>
         <div class="stat-card">
-          <div class="stat-value" id="cost-today">$0.0000</div>
+          <div class="stat-value" id="cost-today">--</div>
           <div class="stat-label">Cost Today (USD)</div>
         </div>
         <div class="stat-card">
-          <div class="stat-value" id="tokens-today">0</div>
+          <div class="stat-value" id="tokens-today">--</div>
           <div class="stat-label">Tokens Today</div>
         </div>
       </section>
 
-      <!-- Charts -->
+      <!-- Charts Row -->
       <div class="split">
         <section class="panel">
           <div class="panel-header">
@@ -55,7 +56,6 @@
           </div>
           <div class="chart-panel">
             <div id="bar-chart" class="chart-container">
-              <!-- populated by JS as CSS bars -->
               <div class="empty small">Loading…</div>
             </div>
           </div>
@@ -67,14 +67,13 @@
           </div>
           <div class="chart-panel">
             <div id="line-chart" class="chart-container">
-              <!-- SVG populated by JS -->
               <div class="empty small">Loading…</div>
             </div>
           </div>
         </section>
       </div>
 
-      <!-- Tables -->
+      <!-- Tables Row -->
       <div class="split">
         <section class="panel">
           <div class="panel-header">
@@ -128,13 +127,16 @@
             <span class="live-dot" id="live-dot"></span>
             Live Agent Activity Feed
           </h2>
-          <span id="feed-count" class="count-badge">0 events</span>
+          <div class="panel-header-right">
+            <span id="sse-status" class="sse-status sse-off" title="SSE connection status">●</span>
+            <span id="feed-count" class="count-badge">0 events</span>
+          </div>
         </div>
         <div id="activity-feed" class="activity-feed" aria-live="polite">
           <div class="empty">Connecting to live stream…</div>
         </div>
-        <div class="panel-header" style="border-top:1px solid var(--border); font-size:11px; color:var(--text-muted);">
-          Auto-updates via SSE • last 50 shown
+        <div class="panel-footer-hint">
+          Auto-updates via SSE + 5s polling fallback • last 50 shown
         </div>
       </section>
     </main>

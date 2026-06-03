@@ -1326,6 +1326,373 @@ async function runMain(): Promise<void> {
       break;
     }
 
+    case 'webhook': {
+      const dbp = getDbPath();
+      const dbExists = existsSync(dbp);
+      const argvArgs = process.argv.slice(2);
+      const idx = argvArgs.indexOf('webhook');
+      let sub = 'list';
+      if (idx !== -1) {
+        for (let k = idx + 1; k < argvArgs.length; k++) {
+          const c = argvArgs[k];
+          if (typeof c === 'string' && !c.startsWith('-')) {
+            sub = c;
+            break;
+          }
+        }
+      }
+
+      if (sub === 'list') {
+        if (!dbExists) {
+          if (useJson) {
+            console.log('[]');
+          } else {
+            console.log('No webhooks configured.');
+          }
+          break;
+        }
+        const storage = new TraceStorage(dbp);
+        const webhooks = storage.getWebhooks();
+        storage.close();
+        if (useJson) {
+          console.log(JSON.stringify(webhooks, null, 2));
+        } else if (webhooks.length === 0) {
+          console.log('No webhooks configured.');
+        } else {
+          console.log('Configured webhooks:');
+          for (const w of webhooks) {
+            const status = w.enabled ? 'enabled' : 'disabled';
+            const last = w.lastTriggeredAt
+              ? new Date(w.lastTriggeredAt).toISOString().slice(0, 19)
+              : 'never';
+            console.log(`  ${w.id.substring(0, 8)}  ${w.url}  [${status}]  events=${w.events.join(',')}  last=${last}  failures=${w.failureCount}`);
+          }
+        }
+        break;
+      }
+
+      if (!dbExists) {
+        console.error(`No ${dbp} found in current directory.`);
+        console.error('Run "agenttrace-io init" to create one.');
+        process.exit(1);
+      }
+      const storage = new TraceStorage(dbp);
+
+      if (sub === 'add') {
+        const url = flags.url ? String(flags.url) : '';
+        if (!url) {
+          console.error('Usage: agenttrace-io webhook add --url <url> [--events e1,e2] [--secret s]');
+          storage.close();
+          process.exit(1);
+        }
+        const events = flags.events
+          ? String(flags.events).split(',').map((s) => s.trim()).filter(Boolean)
+          : ['trace.complete', 'run.complete'];
+        const secret = flags.secret ? String(flags.secret) : undefined;
+        const id = storage.registerWebhook(url, events, secret);
+        storage.close();
+        if (useJson) {
+          console.log(JSON.stringify({ id, url, events, secret: !!secret }, null, 2));
+        } else {
+          console.log(`Registered webhook ${id.substring(0, 8)} -> ${url} (${events.join(', ')})`);
+        }
+        break;
+      }
+
+      if (sub === 'remove' || sub === 'delete') {
+        const id = flags.id ? String(flags.id) : '';
+        if (!id) {
+          console.error('Usage: agenttrace-io webhook remove --id <id>');
+          storage.close();
+          process.exit(1);
+        }
+        storage.deleteWebhook(id);
+        storage.close();
+        if (useJson) {
+          console.log(JSON.stringify({ removed: true, id }, null, 2));
+        } else {
+          console.log(`Removed webhook ${id.substring(0, 8)}`);
+        }
+        break;
+      }
+
+      console.error(`Unknown webhook subcommand: ${sub}`);
+      printUsage();
+      storage.close();
+      process.exit(1);
+      break;
+    }
+
+    case 'cleanup': {
+      const dbp = getDbPath();
+      if (!existsSync(dbp)) {
+        console.error(`No ${dbp} found in current directory.`);
+        console.error('Run "agenttrace-io init" to create one.');
+        process.exit(1);
+      }
+      const storage = new TraceStorage(dbp);
+      const rawDays = flags.days ? parseInt(String(flags.days), 10) : NaN;
+      const days = Number.isFinite(rawDays) && rawDays > 0 ? rawDays : 30;
+      const cutoff = Date.now() - days * 86400000;
+      const tracesDeleted = storage.cleanupOldTraces(cutoff);
+      const runsDeleted = storage.cleanupOldRuns(cutoff);
+      const usageDeleted = storage.cleanupOldAgentUsage(cutoff);
+      storage.close();
+      if (useJson) {
+        console.log(
+          JSON.stringify({ tracesDeleted, runsDeleted, usageDeleted, days }, null, 2),
+        );
+      } else {
+        console.log(`Cleanup complete (older than ${days} days):`);
+        console.log(`  Traces deleted:  ${tracesDeleted}`);
+        console.log(`  Runs deleted:    ${runsDeleted}`);
+        console.log(`  Usage deleted:   ${usageDeleted}`);
+      }
+      break;
+    }
+
+    case 'retention': {
+      const dbp = getDbPath();
+      const dbExists = existsSync(dbp);
+      const argvArgs2 = process.argv.slice(2);
+      const idx2 = argvArgs2.indexOf('retention');
+      let sub = 'show';
+      if (idx2 !== -1) {
+        for (let k = idx2 + 1; k < argvArgs2.length; k++) {
+          const c = argvArgs2[k];
+          if (typeof c === 'string' && !c.startsWith('-')) {
+            sub = c;
+            break;
+          }
+        }
+      }
+
+      if (sub === 'show' || sub === 'stats') {
+        if (!dbExists) {
+          if (useJson) {
+            console.log(JSON.stringify({ error: 'no database' }, null, 2));
+          } else {
+            console.log('No database found. Run "agenttrace-io init" first.');
+          }
+          break;
+        }
+        const storage = new TraceStorage(dbp);
+        const policy = storage.getRetentionPolicy();
+        const stats = storage.getStorageStats();
+        storage.close();
+        if (useJson) {
+          console.log(JSON.stringify({ policy, stats }, null, 2));
+        } else {
+          console.log('Retention Policy:');
+          console.log(`  Retention days:        ${policy.retentionDays}`);
+          console.log(`  Cleanup interval (hrs): ${policy.cleanupIntervalHours}`);
+          console.log('');
+          console.log('Storage Stats:');
+          console.log(`  DB size:      ${stats.totalSizeBytes} bytes`);
+          console.log(`  Trace count:  ${stats.traceCount}`);
+          console.log(`  Run count:    ${stats.runCount}`);
+          if (stats.oldestTrace) {
+            console.log(`  Oldest trace: ${new Date(stats.oldestTrace).toISOString().slice(0, 19)}`);
+          }
+          if (stats.newestTrace) {
+            console.log(`  Newest trace: ${new Date(stats.newestTrace).toISOString().slice(0, 19)}`);
+          }
+        }
+        break;
+      }
+
+      if (!dbExists) {
+        console.error(`No ${dbp} found in current directory.`);
+        console.error('Run "agenttrace-io init" to create one.');
+        process.exit(1);
+      }
+      const storage = new TraceStorage(dbp);
+
+      if (sub === 'set') {
+        const rawDays = flags.days ? parseInt(String(flags.days), 10) : NaN;
+        if (!Number.isFinite(rawDays) || rawDays < 0) {
+          console.error('Usage: agenttrace-io retention set --days <N> [--interval <H>]');
+          storage.close();
+          process.exit(1);
+        }
+        const interval = flags.interval ? parseInt(String(flags.interval), 10) : undefined;
+        storage.setRetentionPolicy(
+          rawDays,
+          Number.isFinite(interval) && interval! > 0 ? interval : undefined,
+        );
+        storage.close();
+        if (useJson) {
+          console.log(
+            JSON.stringify(
+              { retentionDays: rawDays, cleanupIntervalHours: interval || 24 },
+              null,
+              2,
+            ),
+          );
+        } else {
+          console.log(`Retention policy set: ${rawDays} days, cleanup every ${interval || 24}h`);
+        }
+        break;
+      }
+
+      console.error(`Unknown retention subcommand: ${sub}`);
+      printUsage();
+      storage.close();
+      process.exit(1);
+      break;
+    }
+
+    case 'key': {
+      const dbp = getDbPath();
+      const dbExists = existsSync(dbp);
+      const argvArgs3 = process.argv.slice(2);
+      const idx3 = argvArgs3.indexOf('key');
+      let sub = 'list';
+      if (idx3 !== -1) {
+        for (let k = idx3 + 1; k < argvArgs3.length; k++) {
+          const c = argvArgs3[k];
+          if (typeof c === 'string' && !c.startsWith('-')) {
+            sub = c;
+            break;
+          }
+        }
+      }
+
+      if (sub === 'list') {
+        if (!dbExists) {
+          if (useJson) {
+            console.log('[]');
+          } else {
+            console.log('No API keys found.');
+          }
+          break;
+        }
+        const storage = new TraceStorage(dbp);
+        const keys = storage.getApiKeys();
+        storage.close();
+        if (useJson) {
+          console.log(JSON.stringify(keys, null, 2));
+        } else if (keys.length === 0) {
+          console.log('No API keys found.');
+        } else {
+          console.log('API Keys:');
+          for (const k of keys) {
+            const status = k.enabled ? 'enabled' : 'disabled';
+            const last = k.lastUsedAt
+              ? new Date(k.lastUsedAt).toISOString().slice(0, 19)
+              : 'never';
+            console.log(`  ${k.id.substring(0, 8)}  ${k.name}  [${status}]  last_used=${last}`);
+          }
+        }
+        break;
+      }
+
+      if (!dbExists) {
+        console.error(`No ${dbp} found in current directory.`);
+        console.error('Run "agenttrace-io init" to create one.');
+        process.exit(1);
+      }
+      const storage = new TraceStorage(dbp);
+
+      if (sub === 'create') {
+        const name = flags.name ? String(flags.name) : '';
+        if (!name) {
+          console.error('Usage: agenttrace-io key create --name <name>');
+          storage.close();
+          process.exit(1);
+        }
+        const created = storage.createApiKey(name);
+        storage.close();
+        if (useJson) {
+          console.log(
+            JSON.stringify(
+              { id: created.id, name: created.name, key: created.key, preview: created.preview, createdAt: created.createdAt },
+              null,
+              2,
+            ),
+          );
+        } else {
+          console.log(`Created API key: ${created.name}`);
+          console.log(`  ID:      ${created.id.substring(0, 8)}`);
+          console.log(`  Key:     ${created.key}`);
+          console.log(`  Preview: ${created.preview}`);
+          console.log('  (Store this key — it will not be shown again)');
+        }
+        break;
+      }
+
+      if (sub === 'revoke' || sub === 'delete' || sub === 'remove') {
+        const id = flags.id ? String(flags.id) : '';
+        if (!id) {
+          console.error('Usage: agenttrace-io key revoke --id <id>');
+          storage.close();
+          process.exit(1);
+        }
+        storage.revokeApiKey(id);
+        storage.close();
+        if (useJson) {
+          console.log(JSON.stringify({ revoked: true, id }, null, 2));
+        } else {
+          console.log(`Revoked API key ${id.substring(0, 8)}`);
+        }
+        break;
+      }
+
+      console.error(`Unknown key subcommand: ${sub}`);
+      printUsage();
+      storage.close();
+      process.exit(1);
+      break;
+    }
+
+    case 'benchmark': {
+      const trace = getAgentTrace();
+      const results: Array<{ name: string; ops: number; durationMs: number; opsPerSec: number }> = [];
+
+      // Write benchmark
+      {
+        const start = Date.now();
+        const ops = 100;
+        for (let i = 0; i < ops; i++) {
+          const runId = trace.startRun(`bench-${i}`);
+          trace.completeRun();
+        }
+        const durationMs = Date.now() - start;
+        results.push({ name: 'write', ops, durationMs, opsPerSec: Math.round((ops / durationMs) * 1000) });
+      }
+
+      // Read benchmark
+      {
+        const start = Date.now();
+        const runs = trace.getRuns(1000);
+        const durationMs = Date.now() - start;
+        results.push({ name: 'read', ops: runs.length, durationMs, opsPerSec: Math.round((runs.length / Math.max(1, durationMs)) * 1000) });
+      }
+
+      // Stats benchmark
+      {
+        const start = Date.now();
+        const iterations = 10;
+        for (let i = 0; i < iterations; i++) {
+          trace.getStats();
+        }
+        const durationMs = Date.now() - start;
+        results.push({ name: 'stats', ops: iterations, durationMs, opsPerSec: Math.round((iterations / durationMs) * 1000) });
+      }
+
+      trace.close();
+
+      if (useJson) {
+        console.log(JSON.stringify({ results }, null, 2));
+      } else {
+        console.log('Benchmark Results:');
+        for (const r of results) {
+          console.log(`  ${r.name}: ${r.ops} ops in ${r.durationMs}ms (${r.opsPerSec} ops/sec)`);
+        }
+      }
+      break;
+    }
+
     default: {
       console.error(`Unknown command: ${command}`);
       printUsage();

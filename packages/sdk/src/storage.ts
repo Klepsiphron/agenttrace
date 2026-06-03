@@ -1039,34 +1039,40 @@ export class TraceStorage {
 
   // ---- Stats ----
 
-  getStats(): TraceStats {
-    const totalRuns = this.db.prepare('SELECT COUNT(*) as c FROM runs').get() as unknown as {
+  getStats(tenantId?: string): TraceStats {
+    const where = tenantId ? ' WHERE tenant_id = ?' : '';
+    const traceWhere = tenantId ? ' WHERE tenant_id = ?' : '';
+    const params: unknown[] = tenantId ? [tenantId] : [];
+
+    const totalRuns = this.db.prepare('SELECT COUNT(*) as c FROM runs' + where).get(...params) as unknown as {
       c: number;
     };
-    const totalTraces = this.db.prepare('SELECT COUNT(*) as c FROM traces').get() as unknown as {
+    const totalTraces = this.db.prepare('SELECT COUNT(*) as c FROM traces' + traceWhere).get(...params) as unknown as {
       c: number;
     };
     const successCount = this.db
-      .prepare("SELECT COUNT(*) as c FROM traces WHERE status = 'success'")
-      .get() as unknown as { c: number };
+      .prepare("SELECT COUNT(*) as c FROM traces" + traceWhere + (tenantId ? ' AND' : ' WHERE') + " status = 'success'")
+      .get(...params) as unknown as { c: number };
     const avgLatency = this.db
-      .prepare('SELECT AVG(latency_ms) as v FROM traces')
-      .get() as unknown as { v: number };
-    const totalCost = this.db.prepare('SELECT SUM(cost_usd) as v FROM traces').get() as unknown as {
+      .prepare('SELECT AVG(latency_ms) as v FROM traces' + traceWhere)
+      .get(...params) as unknown as { v: number };
+    const totalCost = this.db.prepare('SELECT SUM(cost_usd) as v FROM traces' + traceWhere).get(...params) as unknown as {
       v: number;
     };
     const totalTokens = this.db
-      .prepare('SELECT SUM(total_tokens) as v FROM traces')
-      .get() as unknown as { v: number };
+      .prepare('SELECT SUM(total_tokens) as v FROM traces' + traceWhere)
+      .get(...params) as unknown as { v: number };
 
     const topTools = this.db
       .prepare(
         `
-      SELECT name, COUNT(*) as count, AVG(latency_ms) as avgLatencyMs
-      FROM tool_calls GROUP BY name ORDER BY count DESC LIMIT 10
+      SELECT tc.name, COUNT(*) as count, AVG(tc.latency_ms) as avgLatencyMs
+      FROM tool_calls tc
+      INNER JOIN traces t ON tc.trace_id = t.id${tenantId ? ' WHERE t.tenant_id = ?' : ''}
+      GROUP BY tc.name ORDER BY count DESC LIMIT 10
     `,
       )
-      .all() as unknown[];
+      .all(...(tenantId ? [tenantId] : [])) as unknown[];
     const topToolsMapped = topTools.map((t) => {
       const rec = t as Record<string, unknown>;
       return {
@@ -1080,11 +1086,11 @@ export class TraceStorage {
       .prepare(
         `
       SELECT error, COUNT(*) as count FROM traces
-      WHERE error IS NOT NULL AND error != ''
+      WHERE error IS NOT NULL AND error != ''${tenantId ? ' AND tenant_id = ?' : ''}
       GROUP BY error ORDER BY count DESC LIMIT 10
     `,
       )
-      .all() as unknown[];
+      .all(...(tenantId ? [tenantId] : [])) as unknown[];
     const topErrorsMapped = topErrors.map((e) => {
       const rec = e as Record<string, unknown>;
       return { error: rec.error as string, count: Number(rec.count) };
@@ -1094,10 +1100,10 @@ export class TraceStorage {
       .prepare(
         `
       SELECT COALESCE(model, 'unknown') as model, SUM(cost_usd) as cost
-      FROM traces GROUP BY model
+      FROM traces${traceWhere} GROUP BY model
     `,
       )
-      .all() as unknown[];
+      .all(...params) as unknown[];
     const costByModel: Record<string, number> = {};
     for (const r of costByModelRows) {
       const rec = r as Record<string, unknown>;

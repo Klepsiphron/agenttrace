@@ -76,6 +76,7 @@ describe('dashboard cost API endpoints (new tests)', () => {
   it('GET /api/costs returns total, costByModel, costByDay', async () => {
     const { app, trace, close } = createDashboardApp(':memory:');
     closes.push(close);
+    const { plaintextKey } = createApiKey('test');
 
     trace.startRun('cost-run-x');
     await trace.trace('costed-1', async () => 'res1', {
@@ -93,7 +94,9 @@ describe('dashboard cost API endpoints (new tests)', () => {
     });
 
     const { base } = await startTemp(app);
-    const res = await fetch(`${base}/api/costs`);
+    const res = await fetch(`${base}/api/costs`, {
+      headers: { 'X-API-Key': plaintextKey },
+    });
     expect(res.status).toBe(200);
     const data = await res.json();
     expect(typeof data.totalCostUsd).toBe('number');
@@ -108,6 +111,7 @@ describe('dashboard cost API endpoints (new tests)', () => {
   it('GET /api/costs?run-id=... returns costs for specific run only', async () => {
     const { app, trace, close } = createDashboardApp(':memory:');
     closes.push(close);
+    const { plaintextKey } = createApiKey('test');
 
     const run1 = trace.startRun('run-one');
     await trace.trace('r1-op', async () => 'x', {
@@ -130,17 +134,23 @@ describe('dashboard cost API endpoints (new tests)', () => {
 
     const { base } = await startTemp(app);
 
-    const allRes = await fetch(`${base}/api/costs`);
+    const allRes = await fetch(`${base}/api/costs`, {
+      headers: { 'X-API-Key': plaintextKey },
+    });
     const all = await allRes.json();
     expect(all.totalCostUsd).toBeCloseTo(0.003, 6); // 0.002 + 0.001
 
-    const r1Res = await fetch(`${base}/api/costs?run-id=${run1}`);
+    const r1Res = await fetch(`${base}/api/costs?run-id=${run1}`, {
+      headers: { 'X-API-Key': plaintextKey },
+    });
     const r1 = await r1Res.json();
     expect(r1.totalCostUsd).toBeCloseTo(0.002, 6);
     expect(r1.costByModel['gpt-4.1']).toBeCloseTo(0.002, 6);
     expect(r1.costByModel['claude-haiku-4.5']).toBeUndefined();
 
-    const r2Res = await fetch(`${base}/api/costs?run-id=${run2}`);
+    const r2Res = await fetch(`${base}/api/costs?run-id=${run2}`, {
+      headers: { 'X-API-Key': plaintextKey },
+    });
     const r2 = await r2Res.json();
     expect(r2.totalCostUsd).toBeCloseTo(0.001, 6);
     expect(r2.costByModel['claude-haiku-4.5']).toBeCloseTo(0.001, 6);
@@ -149,6 +159,7 @@ describe('dashboard cost API endpoints (new tests)', () => {
   it('supports both run-id and runId query params', async () => {
     const { app, trace, close } = createDashboardApp(':memory:');
     closes.push(close);
+    const { plaintextKey } = createApiKey('test');
 
     const rid = trace.startRun('qparam');
     await trace.trace('qp', async () => 1, {
@@ -159,11 +170,15 @@ describe('dashboard cost API endpoints (new tests)', () => {
 
     const { base } = await startTemp(app);
 
-    const res1 = await fetch(`${base}/api/costs?run-id=${rid}`);
+    const res1 = await fetch(`${base}/api/costs?run-id=${rid}`, {
+      headers: { 'X-API-Key': plaintextKey },
+    });
     const d1 = await res1.json();
     expect(d1.totalCostUsd).toBeCloseTo(0.00004, 6); // 500*0.00008 /1000 = 0.00004
 
-    const res2 = await fetch(`${base}/api/costs?runId=${rid}`);
+    const res2 = await fetch(`${base}/api/costs?runId=${rid}`, {
+      headers: { 'X-API-Key': plaintextKey },
+    });
     const d2 = await res2.json();
     expect(d2.totalCostUsd).toBeCloseTo(0.00004, 6);
   });

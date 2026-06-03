@@ -317,7 +317,14 @@ export class AgentTrace {
   completeRun(status: Run['status'] = 'success'): void {
     if (this.currentRunId) {
       this.storage.completeRun(this.currentRunId, status);
+      const runId = this.currentRunId;
       this.currentRunId = null;
+      // Fire-and-forget webhook delivery for run complete/error
+      if (status === 'success') {
+        this.triggerWebhook('run.complete', { runId }).catch(() => {});
+      } else {
+        this.triggerWebhook('run.error', { runId }).catch(() => {});
+      }
     }
   }
 
@@ -602,15 +609,7 @@ export class AgentTrace {
     return this.storage.getWebhooks();
   }
 
-  /**
-   * Remove a webhook by ID.
-   */
-  removeWebhook(id: string): void {
-    this.storage.deleteWebhook(id);
-  }
-
-  /**
-   * Test a webhook by ID: fires a test event payload to the webhook URL.
+  /**\n   * Remove a webhook by ID.\n   */\n  removeWebhook(id: string): void {\n    this.storage.deleteWebhook(id);\n  }\n\n  /**\n   * Register a new webhook (alias for addWebhook). Returns the webhook ID.\n   */\n  registerWebhook(url: string, events: WebhookEvent[], secret?: string): string {\n    return this.addWebhook(url, events, secret);\n  }\n\n  /**\n   * Delete a webhook by ID (alias for removeWebhook).\n   */\n  deleteWebhook(id: string): void {\n    this.removeWebhook(id);\n  }\n\n  /**\n   * Trigger webhooks for a given event. Finds all enabled webhooks registered for\n   * the event, builds the payload, signs it if a secret is configured, and POSTs\n   * to each URL. Returns delivery results.\n   */\n  async triggerWebhook(event: WebhookEvent, payload: Record<string, unknown>): Promise<WebhookDelivery[]> {\n    const webhooks = this.storage.getEnabledWebhooksForEvent(event);\n    const results: WebhookDelivery[] = [];\n    const timestamp = Date.now();\n\n    for (const wh of webhooks) {\n      const fullPayload = { event, timestamp, ...payload };\n      const bodyStr = JSON.stringify(fullPayload);\n      const headers: Record<string, string> = {\n        'Content-Type': 'application/json',\n        'User-Agent': `AgentTrace/${VERSION}`,\n      };\n\n      if (wh.secret) {\n        const sig = createHash('sha256').update(wh.secret + '.' + bodyStr).digest('hex');\n        headers['X-AgentTrace-Signature'] = `sha256=${sig}`;\n      }\n\n      let deliveryStatus: 'success' | 'failure' = 'failure';\n      let httpStatus: number | undefined;\n      let errorMsg: string | undefined;\n\n      try {\n        const resp = await fetch(wh.url, {\n          method: 'POST',\n          headers,\n          body: bodyStr,\n        });\n        httpStatus = resp.ok ? resp.status : resp.status;\n        deliveryStatus = resp.ok ? 'success' : 'failure';\n        if (resp.ok) {\n          this.storage.resetWebhookFailures(wh.id);\n        } else {\n          this.storage.incrementWebhookFailures(wh.id);\n          errorMsg = `webhook responded ${resp.status}`;\n        }\n      } catch (e: unknown) {\n        this.storage.incrementWebhookFailures(wh.id);\n        errorMsg = e instanceof Error ? e.message : String(e);\n      }\n\n      const delivery: WebhookDelivery = {\n        id: randomUUID(),\n        webhookId: wh.id,\n        event,\n        payload: bodyStr,\n        status: deliveryStatus,\n        httpStatus,\n        error: errorMsg,\n        createdAt: timestamp,\n      };\n      results.push(delivery);\n    }\n\n    return results;\n  }\n\n  /**\n   * Test a webhook by ID: fires a test event payload to the webhook URL.
    * Returns delivery result.
    */
   async testWebhook(id: string): Promise<{ ok: boolean; status?: number; error?: string }> {

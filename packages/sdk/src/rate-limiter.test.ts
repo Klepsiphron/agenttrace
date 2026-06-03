@@ -69,10 +69,16 @@ describe('TokenBucketRateLimiter', () => {
         const limiter = new TokenBucketRateLimiter({
           maxTracesPerSecond: 10,
           maxTracesPerMinute: 0,
-          burstAllowance: 0,
+          burstAllowance: 5,
         });
-        // 10/sec * burst tokens — first call should succeed
+        // Burst of 5 available immediately from second bucket
         expect(limiter.tryConsume()).toBe(true);
+        expect(limiter.tryConsume()).toBe(true);
+        expect(limiter.tryConsume()).toBe(true);
+        expect(limiter.tryConsume()).toBe(true);
+        expect(limiter.tryConsume()).toBe(true);
+        // 6th should fail — burst exhausted, need refill
+        expect(limiter.tryConsume()).toBe(false);
       });
     });
   });
@@ -102,9 +108,9 @@ describe('TokenBucketRateLimiter', () => {
         const limiter = new TokenBucketRateLimiter({
           maxTracesPerSecond: 10,
           maxTracesPerMinute: 600,
-          burstAllowance: 0,
+          burstAllowance: 1,
         });
-        // Consume one token
+        // Consume the burst token
         expect(limiter.tryConsume()).toBe(true);
         // Advance 100ms — should refill 1 token (10/sec = 1 per 100ms)
         advance(100);
