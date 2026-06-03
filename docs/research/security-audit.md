@@ -122,6 +122,7 @@ CMD ["node", "packages/cli/dist/index.js", "dashboard", "--host", "0.0.0.0"]
 - The frontend (`public/app.js`) performs unauthenticated `fetch` calls.
 
 Any HTTP client that can reach the bound address can:
+
 - List all runs and traces.
 - Read full `input`/`output` content (the sensitive payloads).
 - Trigger exports.

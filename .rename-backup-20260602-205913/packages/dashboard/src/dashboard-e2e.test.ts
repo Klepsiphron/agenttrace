@@ -75,9 +75,11 @@ describe('dashboard e2e API (all endpoints)', () => {
     trace.completeRun();
 
     const r2 = trace.startRun('run-fail');
-    await trace.trace('bad', async () => {
-      throw new Error('boom');
-    }).catch(() => {});
+    await trace
+      .trace('bad', async () => {
+        throw new Error('boom');
+      })
+      .catch(() => {});
     trace.completeRun();
 
     const { base } = await startTemp(app);
@@ -221,7 +223,9 @@ describe('dashboard e2e API (all endpoints)', () => {
     const res = await fetch(`${base}/api/export`);
     expect(res.status).toBe(200);
     expect(res.headers.get('content-type')).toMatch(/application\/json/);
-    expect(res.headers.get('content-disposition')).toMatch(/attachment; filename="agenttrace-export.json"/);
+    expect(res.headers.get('content-disposition')).toMatch(
+      /attachment; filename="agenttrace-export.json"/,
+    );
     const data = await res.json();
     expect(Array.isArray(data)).toBe(true);
     expect(data.length).toBeGreaterThanOrEqual(1);
@@ -281,7 +285,12 @@ describe('dashboard e2e API (all endpoints)', () => {
 
     const rid2 = trace.startRun('c2');
     await trace.trace('y', async () => 2, {
-      tokens: { promptTokens: 2000, completionTokens: 0, totalTokens: 2000, model: 'claude-haiku-4.5' },
+      tokens: {
+        promptTokens: 2000,
+        completionTokens: 0,
+        totalTokens: 2000,
+        model: 'claude-haiku-4.5',
+      },
       model: 'claude-haiku-4.5',
     });
     trace.completeRun();
@@ -375,7 +384,11 @@ describe('dashboard e2e API (all endpoints)', () => {
     expect(results1[0]).toHaveProperty('scores');
     expect(results1[0]).toHaveProperty('errors');
     // our 'length' scorer
-    expect(typeof results1.find((r: { scores: Record<string, number> }) => r.scores.length !== undefined)).toBe('object');
+    expect(
+      typeof results1.find(
+        (r: { scores: Record<string, number> }) => r.scores.length !== undefined,
+      ),
+    ).toBe('object');
 
     // filter by runId
     const res2 = await fetch(`${base}/api/evaluate`, {

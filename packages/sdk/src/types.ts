@@ -197,3 +197,18 @@ export interface TraceTreeNode {
   trace: Trace;
   children: TraceTreeNode[];
 }
+
+/** Health report for database + process (used by /api/health and `agenttrace health`) */
+export interface HealthReport {
+  status: 'ok';
+  version: string;
+  uptime: number;
+  dbPath: string;
+  traceCount: number;
+  dbSize: number;
+  integrity: {
+    tablesExist: boolean;
+    noOrphans: boolean;
+    details?: string;
+  };
+}

@@ -22,6 +22,7 @@ import {
   AlertHistory,
   TraceContext,
   TraceTreeNode,
+  HealthReport,
 } from './types.js';
 
 export const VERSION = '0.1.0';
@@ -46,6 +47,7 @@ export type {
   AlertCondition,
   AlertHistory,
   TraceTreeNode,
+  HealthReport,
 } from './types.js';
 
 export { TraceContext } from './types.js';
@@ -387,6 +389,23 @@ export class AgentTrace {
    */
   getCostBreakdown(filter: { runId?: string } = {}): CostBreakdown {
     return this.storage.getCostBreakdown(filter.runId);
+  }
+
+  /**
+   * Return health report: status, version (sdk), uptime, dbPath, traceCount, dbSize + integrity check.
+   * Integrity verifies required tables exist and detects orphaned child records.
+   */
+  getHealth(): HealthReport {
+    const h = this.storage.getHealthInfo();
+    return {
+      status: 'ok',
+      version: VERSION,
+      uptime: process.uptime(),
+      dbPath: h.dbPath,
+      traceCount: h.traceCount,
+      dbSize: h.dbSize,
+      integrity: h.integrity,
+    };
   }
 
   // ---- Multi-agent tracing (v0.2) ----

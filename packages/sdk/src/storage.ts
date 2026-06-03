@@ -5,6 +5,7 @@
 
 import Database from 'better-sqlite3';
 import { randomUUID } from 'node:crypto';
+import { statSync } from 'node:fs';
 import {
   Trace,
   Run,
@@ -18,8 +19,10 @@ import {
 
 export class TraceStorage {
   private db: Database;
+  private dbPath: string;
 
   constructor(dbPath: string = './agenttrace.db') {
+    this.dbPath = dbPath;
     this.db = new Database(dbPath);
     this.db.pragma('journal_mode = WAL');
     this.db.pragma('foreign_keys = ON');
@@ -542,7 +545,7 @@ export class TraceStorage {
     // Walk up parent chain to find ultimate root (cycle safe)
     let rootId = traceId;
     const upSeen = new Set<string>();
-     
+
     while (true) {
       if (upSeen.has(rootId)) break;
       upSeen.add(rootId);
@@ -721,6 +724,136 @@ export class TraceStorage {
       .run(toDelete);
 
     return toDelete;
+  }
+
+  // ---- Health / Integrity ----
+
+  getHealthInfo(): {
+    dbPath: string;
+    traceCount: number;
+    dbSize: number;
+    integrity: { tablesExist: boolean; noOrphans: boolean; details?: string };
+  } {
+    const traceCountRow = this.db.prepare('SELECT COUNT(*) as c FROM traces').get() as unknown as {
+      c: number;
+    };
+    const traceCount = traceCountRow ? traceCountRow.c : 0;
+    const dbSize = this.getDbSize();
+
+    const integrity = this.checkIntegrity();
+
+    return {
+      dbPath: this.dbPath,
+      traceCount,
+      dbSize,
+      integrity,
+    };
+  }
+
+  private getDbSize(): number {
+    if (!this.dbPath || this.dbPath === ':memory:') {
+      return 0;
+    }
+    try {
+      return statSync(this.dbPath).size;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  private checkIntegrity(): { tablesExist: boolean; noOrphans: boolean; details?: string } {
+    const required = [
+      'runs',
+      'traces',
+      'tool_calls',
+      'scores',
+      'alerts',
+      'alert_history',
+      'trace_links',
+      'version',
+    ];
+
+    const existingRows = this.db
+      .prepare("SELECT name FROM sqlite_master WHERE type='table'")
+      .all() as Array<{ name: string }>;
+    const existing = new Set(existingRows.map((r) => r.name));
+    const missing = required.filter((t) => !existing.has(t));
+    const tablesExist = missing.length === 0;
+
+    // PRAGMA integrity_check
+    let pragmaOk = true;
+    let pragmaMsg = '';
+    try {
+      const res = this.db.pragma('integrity_check') as Array<{ integrity_check: string }>;
+      pragmaOk = Array.isArray(res) && res.length === 1 && res[0]?.integrity_check === 'ok';
+      if (!pragmaOk) {
+        pragmaMsg = res && res[0] ? String(res[0].integrity_check) : 'failed';
+      }
+    } catch (e) {
+      pragmaOk = false;
+      pragmaMsg = String(e);
+    }
+
+    let orphanCount = 0;
+    const orphanDetails: string[] = [];
+
+    if (tablesExist) {
+      // orphaned traces (FK should prevent but check anyway)
+      const ot = this.db
+        .prepare('SELECT COUNT(*) as c FROM traces WHERE run_id NOT IN (SELECT id FROM runs)')
+        .get() as unknown as { c: number };
+      if (ot && ot.c > 0) {
+        orphanCount += ot.c;
+        orphanDetails.push(`traces without run: ${ot.c}`);
+      }
+
+      // orphaned tool_calls
+      const otc = this.db
+        .prepare(
+          'SELECT COUNT(*) as c FROM tool_calls WHERE trace_id NOT IN (SELECT id FROM traces)',
+        )
+        .get() as unknown as { c: number };
+      if (otc && otc.c > 0) {
+        orphanCount += otc.c;
+        orphanDetails.push(`tool_calls without trace: ${otc.c}`);
+      }
+
+      // orphaned scores
+      const osc = this.db
+        .prepare('SELECT COUNT(*) as c FROM scores WHERE trace_id NOT IN (SELECT id FROM traces)')
+        .get() as unknown as { c: number };
+      if (osc && osc.c > 0) {
+        orphanCount += osc.c;
+        orphanDetails.push(`scores without trace: ${osc.c}`);
+      }
+
+      // orphaned trace_links
+      const ol = this.db
+        .prepare(
+          `
+          SELECT COUNT(*) as c FROM trace_links
+          WHERE source_trace_id NOT IN (SELECT id FROM traces)
+             OR target_trace_id NOT IN (SELECT id FROM traces)
+        `,
+        )
+        .get() as unknown as { c: number };
+      if (ol && ol.c > 0) {
+        orphanCount += ol.c;
+        orphanDetails.push(`trace_links orphaned: ${ol.c}`);
+      }
+    }
+
+    const noOrphans = orphanCount === 0;
+    const detailsParts: string[] = [];
+    if (!pragmaOk) detailsParts.push(`pragma: ${pragmaMsg || 'failed'}`);
+    if (orphanDetails.length) detailsParts.push(...orphanDetails);
+    const details = detailsParts.length ? detailsParts.join('; ') : undefined;
+
+    return {
+      tablesExist,
+      noOrphans,
+      details,
+    };
   }
 
   // ---- Helpers ----

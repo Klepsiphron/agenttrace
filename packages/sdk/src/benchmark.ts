@@ -196,12 +196,7 @@ function populateDataset(size: number): { agent: AgentTrace; runId: string } {
   return { agent, runId };
 }
 
-function timeQuery(
-  name: string,
-  filter: TraceFilter,
-  fn: () => Trace[],
-  reps = 50,
-): QueryPerf {
+function timeQuery(name: string, filter: TraceFilter, fn: () => Trace[], reps = 50): QueryPerf {
   const times: number[] = [];
   let lastRes: Trace[] = [];
   for (let r = 0; r < reps; r++) {
@@ -226,10 +221,16 @@ async function benchQueries(agent: AgentTrace): Promise<QueriesResult> {
   queries.push(timeQuery('noFilter', {}, () => agent.getTraces()));
 
   // by status success
-  queries.push(timeQuery('byStatusSuccess', { status: ['success'] }, () => agent.getTraces({ status: ['success'] })));
+  queries.push(
+    timeQuery('byStatusSuccess', { status: ['success'] }, () =>
+      agent.getTraces({ status: ['success'] }),
+    ),
+  );
 
   // by status error
-  queries.push(timeQuery('byStatusError', { status: ['error'] }, () => agent.getTraces({ status: ['error'] })));
+  queries.push(
+    timeQuery('byStatusError', { status: ['error'] }, () => agent.getTraces({ status: ['error'] })),
+  );
 
   // name like
   queries.push(timeQuery('byNameLike', { name: 'op-1' }, () => agent.getTraces({ name: 'op-1' }))); // LIKE %op-1%

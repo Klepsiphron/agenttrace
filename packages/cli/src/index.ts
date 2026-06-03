@@ -767,15 +767,15 @@ async function runMain(): Promise<void> {
         console.log('=================');
         const gStr = gatewayOk ? `${GREEN}ok${RESET}` : `${RED}fail${RESET}`;
         console.log(`gateway:   ${gStr}`);
-        const dStr = dashOk
-          ? `${GREEN}ok${RESET}`
-          : `${YELLOW}not running${RESET}`;
+        const dStr = dashOk ? `${GREEN}ok${RESET}` : `${YELLOW}not running${RESET}`;
         console.log(`dashboard: ${dStr} (${dashUrl})`);
         const dbStr = dbOk ? `${GREEN}ok${RESET}` : `${RED}fail${RESET}`;
         const extra = dbOk ? ` (traces=${dbTraceCount}, size=${dbSize}B)` : '';
         console.log(`database:  ${dbStr} (${dbp})${extra}`);
         if (dbOk && dbIntegrity && (!dbIntegrity.tablesExist || !dbIntegrity.noOrphans)) {
-          console.log(`  ${YELLOW}integrity: tablesExist=${dbIntegrity.tablesExist}, noOrphans=${dbIntegrity.noOrphans}${dbIntegrity.details ? ' ' + dbIntegrity.details : ''}${RESET}`);
+          console.log(
+            `  ${YELLOW}integrity: tablesExist=${dbIntegrity.tablesExist}, noOrphans=${dbIntegrity.noOrphans}${dbIntegrity.details ? ' ' + dbIntegrity.details : ''}${RESET}`,
+          );
         }
       }
 

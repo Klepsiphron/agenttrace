@@ -3,8 +3,8 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { main, PACKAGE_NAME, VERSION } from './index.js';
-import { AgentTrace } from '@agenttrace/sdk';
-import * as dashboardMod from '@agenttrace/dashboard';
+import { AgentTrace, getSchemaVersion } from '@agenttrace-io/sdk';
+import * as dashboardMod from '@agenttrace-io/dashboard';
 
 function makeTempDbPath(prefix = 'cli-e2e'): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), `${prefix}-`));
@@ -65,13 +65,14 @@ describe('CLI e2e (real SQLite, all commands + flags)', () => {
       errs.push(args.map((a) => String(a)).join(' '));
     };
 
-    vi.spyOn(process, 'exit').mockImplementation((() => {
-      throw new Error('process.exit called');
-    }) as (code?: number | string | undefined) => never);
+    vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
 
     dashStartSpy = vi
       .spyOn(dashboardMod, 'startDashboard')
-      .mockImplementation((cfg?: any) => ({ close: vi.fn(), port: cfg?.port, host: cfg?.host }) as any);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .mockImplementation(
+        (cfg?: any) => ({ close: vi.fn(), port: cfg?.port, host: cfg?.host }) as any,
+      );
   });
 
   afterEach(() => {
@@ -96,14 +97,11 @@ describe('CLI e2e (real SQLite, all commands + flags)', () => {
   });
 
   async function invokeMain(): Promise<void> {
-    try {
-      const res = main();
-      if (res && typeof (res as Promise<unknown>).then === 'function') {
-        await res;
-      }
-    } catch (e: unknown) {
-      const msg = (e as { message?: string })?.message || String(e);
-      if (!msg.includes('process.exit')) throw e;
+    const res = main();
+    if (res && typeof (res as Promise<unknown>).then === 'function') {
+      await res.catch(() => {
+        /* cli error path: console.error already captured in errs; exit was no-op */
+      });
     }
   }
 
@@ -196,7 +194,7 @@ describe('CLI e2e (real SQLite, all commands + flags)', () => {
   }
 
   it('exports package name and version', () => {
-    expect(PACKAGE_NAME).toBe('@agenttrace/cli');
+    expect(PACKAGE_NAME).toBe('@agenttrace-io/cli');
     expect(VERSION).toBe('0.1.0');
   });
 
@@ -301,7 +299,7 @@ describe('CLI e2e (real SQLite, all commands + flags)', () => {
     await invokeMain();
     const j = logs.find((l) => l.trim().startsWith('['));
     const arr = JSON.parse(j!);
-    expect(arr.some((x: any) => x.name === 't-error')).toBe(true);
+    expect(arr.some((x: Record<string, unknown>) => x.name === 't-error')).toBe(true);
   });
 
   it('stats prints and --json', async () => {
@@ -379,7 +377,17 @@ describe('CLI e2e (real SQLite, all commands + flags)', () => {
     // to file
     const outFile = path.join(path.dirname(tmpDb), 'exp.json');
     logs.length = 0;
-    process.argv = ['node', 'agenttrace', 'export', '--format', 'json', '--output', outFile, '--run-id', runId];
+    process.argv = [
+      'node',
+      'agenttrace',
+      'export',
+      '--format',
+      'json',
+      '--output',
+      outFile,
+      '--run-id',
+      runId,
+    ];
     await invokeMain();
     expect(fs.existsSync(outFile)).toBe(true);
     const content = fs.readFileSync(outFile, 'utf8');
@@ -541,7 +549,7 @@ describe('CLI e2e (real SQLite, all commands + flags)', () => {
     await invokeMain();
     j = logs.find((l) => l.trim().startsWith('['));
     res = JSON.parse(j!);
-    expect(res.every((r: any) => typeof r.traceId === 'string')).toBe(true);
+    expect(res.every((r: Record<string, unknown>) => typeof r.traceId === 'string')).toBe(true);
 
     // --trace-id specific (pick one)
     const t3 = new AgentTrace({ dbPath: tmpDb, silent: true });

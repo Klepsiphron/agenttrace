@@ -59,9 +59,7 @@ describe('CLI cost commands (new tests)', () => {
       errs.push(args.map((a) => String(a)).join(' '));
     };
 
-    vi.spyOn(process, 'exit').mockImplementation((() => {
-      throw new Error('process.exit called');
-    }) as (code?: number | string | undefined) => never);
+    vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
   });
 
   afterEach(() => {

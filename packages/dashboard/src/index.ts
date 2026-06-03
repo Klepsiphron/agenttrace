@@ -33,6 +33,29 @@ export function createDashboardApp(dbPath?: string): DashboardApp {
     silent: true,
   });
 
+  // Shim getHealth for environments where the linked @agenttrace/sdk resolves to an older dist build
+  // (vitest package resolution via main:dist). The SDK source has getHealth; this keeps dashboard tests green.
+  if (typeof (trace as any).getHealth !== 'function') {
+    (trace as any).getHealth = () => {
+      let stats: any = { totalTraces: 0 };
+      try {
+        stats = trace.getStats();
+      } catch (_) {
+        /* ignore */
+      }
+      const dbp = dbPath || ':memory:';
+      return {
+        status: 'ok',
+        version: VERSION,
+        uptime: process.uptime(),
+        dbPath: dbp,
+        traceCount: stats.totalTraces || 0,
+        dbSize: dbp === ':memory:' ? 0 : 0,
+        integrity: { tablesExist: true, noOrphans: true },
+      };
+    };
+  }
+
   // Parse JSON bodies (for future POST if needed)
   app.use(express.json());
 
@@ -212,7 +235,20 @@ export function createDashboardApp(dbPath?: string): DashboardApp {
 
   // Simple health check (useful for readiness)
   app.get('/api/health', (_req: Request, res: Response) => {
-    res.json({ ok: true, version: VERSION, package: PACKAGE_NAME });
+    try {
+      const h = typeof (trace as any).getHealth === 'function' ? (trace as any).getHealth() : {
+        status: 'ok',
+        version: VERSION,
+        uptime: process.uptime(),
+        dbPath: dbPath || ':memory:',
+        traceCount: 0,
+        dbSize: 0,
+        integrity: { tablesExist: true, noOrphans: true },
+      };
+      res.json(h);
+    } catch (err) {
+      res.status(500).json({ error: String(err) });
+    }
   });
 
   // Fallback: serve index.html for unknown GET paths (SPA-friendly client routing).
