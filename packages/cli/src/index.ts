@@ -206,6 +206,7 @@ Commands:
   tree                 Show parent/child/related trace tree (multi-agent)
   alerts               Manage alerts: list | test --name N | history
   evaluate             Run scorers on traces (built-in: length, latency, error; stores scores)
+  health               Check health of gateway, dashboard, and database
   migrate              Apply pending migrations, or 'migrate status' to check version
   version              Show CLI version
 

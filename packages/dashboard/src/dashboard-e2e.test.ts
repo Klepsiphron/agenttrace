@@ -243,7 +243,8 @@ describe('dashboard e2e API (all endpoints)', () => {
     expect(res.headers.get('content-type')).toMatch(/text\/csv/);
     expect(res.headers.get('content-disposition')).toMatch(/agenttrace-export.csv/);
     const text = await res.text();
-    expect(text).toMatch(/id,name|csvdata/);
+    expect(text).toContain('id,runId,name,status');
+    expect(text).toContain('c1');
   });
 
   it('GET /api/costs returns breakdown (total, costByModel, costByDay)', async () => {
@@ -301,12 +302,12 @@ describe('dashboard e2e API (all endpoints)', () => {
     const { app, trace, close } = createDashboardApp(':memory:');
     closes.push(close);
 
-    const al = alert({
+    const al = {
       name: 'high-traces',
-      condition: (s) => (s.totalTraces || 0) > 5,
+      condition: (s: { totalTraces?: number }) => (s.totalTraces || 0) > 5,
       cooldown: 60,
       webhook: 'https://example/hook',
-    });
+    } as any;
     trace.registerAlert(al);
 
     // populate to make stats interesting but not required for list

@@ -13,6 +13,7 @@ from .core import (
     score,
     evaluate,
     evaluate_trace,
+    alert,
 )
 from .types import (
     Trace,
@@ -26,6 +27,8 @@ from .types import (
     Scorer,
     ScorerResult,
     EvaluateOptions,
+    AlertCondition,
+    AlertHistory,
 )
 
 __all__ = [
@@ -36,6 +39,7 @@ __all__ = [
     "score",
     "evaluate",
     "evaluate_trace",
+    "alert",
     "VERSION",
     "PACKAGE_NAME",
     # types
@@ -50,4 +54,6 @@ __all__ = [
     "Scorer",
     "ScorerResult",
     "EvaluateOptions",
+    "AlertCondition",
+    "AlertHistory",
 ]

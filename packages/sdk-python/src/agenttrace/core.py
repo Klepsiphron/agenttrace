@@ -321,6 +321,10 @@ class AgentTrace:
             kl = k.lower().replace("-", "_")
             if kl in ("input", "tokens", "model", "provider", "metadata"):
                 opts[kl] = v
+            elif kl in ("parent_id", "parentid"):
+                opts["parent_id"] = v
+            elif kl == "context":
+                opts["context"] = v
             else:
                 opts[k] = v
 
@@ -351,8 +355,18 @@ class AgentTrace:
                         provider=tok_raw.get("provider") or opts.get("provider"),
                     )
                 cost_usd = self._cost_calculator(tokens, opts.get("model"))
-                trace_id = str(uuid.uuid4())
                 run_id = self._current_run_id or str(uuid.uuid4())
+                context = opts.get("context") if isinstance(opts.get("context"), TraceContext) else None
+                provided_parent = opts.get("parent_id")
+                if context is not None:
+                    trace_id = context.trace_id
+                    parent_id = context.parent_span_id
+                    base_meta = opts.get("metadata") or {}
+                    ctx_meta = context.metadata or {}
+                    opts["metadata"] = {**ctx_meta, **base_meta}
+                else:
+                    trace_id = str(uuid.uuid4())
+                    parent_id = provided_parent
                 tr = Trace(
                     id=trace_id,
                     run_id=run_id,
@@ -366,8 +380,11 @@ class AgentTrace:
                     cost_usd=cost_usd,
                     error=err,
                     metadata=opts.get("metadata") or {},
+                    parent_id=parent_id,
                 )
                 self.storage.create_trace(tr)
+                if context is not None:
+                    self.storage.create_trace_context(trace_id, parent_id, context.metadata)
                 if self.config.get("auto_cleanup", True):
                     self.storage.cleanup(self.config.get("max_traces", 10000))
                 # Auto-check alerts after each trace (alerts must never cause trace() to fail)
@@ -855,3 +872,46 @@ def evaluate_trace(trace_id: str, scorers: list[Scorer] | list[Callable[[Trace],
     """Top-level evaluate_trace using the global agent."""
     agent = get_agent_trace()
     return agent.evaluate_trace(trace_id, scorers)
+
+
+def alert(config: Optional[dict[str, Any] | AlertCondition] = None, **kwargs: Any) -> AlertCondition:
+    """Helper to create an AlertCondition (omits last_triggered which is internal).
+
+    Usage:
+        a = alert({
+            'name': 'high-cost',
+            'condition': lambda s: s.total_cost_usd > 1.0,
+            'webhook': 'https://...',
+            'cooldown': 300,
+        })
+
+        # or kwargs form
+        a = alert(name='errs', condition=lambda s: s.success_rate < 0.5, cooldown=0)
+    """
+    if isinstance(config, AlertCondition):
+        c = config
+        return AlertCondition(
+            name=c.name,
+            condition=c.condition,
+            webhook=c.webhook,
+            email=c.email,
+            cooldown=c.cooldown or 0,
+            last_triggered=None,
+        )
+    data: dict[str, Any] = {}
+    if isinstance(config, dict):
+        data.update(config)
+    data.update(kwargs)
+    name = data.get("name")
+    cond = data.get("condition")
+    if not name or not callable(cond):
+        name = name or ""
+        cond = cond or (lambda _s: False)
+    return AlertCondition(
+        name=name,
+        condition=cond,
+        webhook=data.get("webhook"),
+        email=data.get("email"),
+        cooldown=data.get("cooldown", 0) or 0,
+        last_triggered=None,
+    )
