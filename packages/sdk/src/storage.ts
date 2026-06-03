@@ -29,9 +29,11 @@ export class TraceStorage {
   private db: Database;
   private dbPath: string;
   private _droppedTraces: number = 0;
+  private tenantId: string;
 
-  constructor(dbPath: string = './agenttrace.db') {
+  constructor(dbPath: string = './agenttrace.db', tenantId?: string) {
     this.dbPath = dbPath;
+    this.tenantId = tenantId || '';
     this.db = new Database(dbPath);
     this.db.pragma('journal_mode = WAL');
     this.db.pragma('foreign_keys = ON');
@@ -302,9 +304,10 @@ export class TraceStorage {
     return this.rowToRun(row);
   }
 
-  getRuns(tenantId?: string, limit: number = 100): Run[] {
+  getRuns(limit: number = 100): Run[] {
     let sql = 'SELECT * FROM runs WHERE 1=1';
     const params: unknown[] = [];
+    const tenantId = this.tenantId;
     if (tenantId) {
       sql += ' AND tenant_id = ?';
       params.push(tenantId);
@@ -429,10 +432,11 @@ export class TraceStorage {
     return this.rowToTrace(row);
   }
 
-  getTraces(filter: TraceFilter = {}, tenantId?: string): Trace[] {
+  getTraces(filter: TraceFilter = {}): Trace[] {
     let sql = 'SELECT * FROM traces WHERE 1=1';
     const params: unknown[] = [];
 
+    const tenantId = this.tenantId;
     if (tenantId) {
       sql += ' AND tenant_id = ?';
       params.push(tenantId);
