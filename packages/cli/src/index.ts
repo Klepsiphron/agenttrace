@@ -16,6 +16,7 @@ import {
   type AgentWho,
   type AgentSession,
   type AgentUsageFilter,
+  type WebhookConfig,
   AlertCondition,
   ExportFormat,
   TraceStorage,
@@ -560,6 +561,25 @@ function printActivityTimeline(recs: AgentUsageRecord[]): void {
     String(r.tokensUsed || 0),
     (r.costUsd || 0).toFixed(4),
     colorizeStatus(r.status),
+  ]);
+  printTable(headers, rows);
+}
+
+function printWebhooksTable(webhooks: WebhookConfig[]): void {
+  if (webhooks.length === 0) {
+    console.log('No webhooks configured.');
+    return;
+  }
+  const headers = ['ID', 'URL', 'Events', 'Enabled', 'Last Triggered', 'Failures'];
+  const rows = webhooks.map((w) => [
+    w.id.substring(0, 8),
+    w.url,
+    (w.events || []).join(','),
+    w.enabled ? 'yes' : 'no',
+    w.lastTriggeredAt
+      ? new Date(w.lastTriggeredAt).toISOString().slice(0, 19).replace('T', ' ')
+      : 'never',
+    String(w.failureCount || 0),
   ]);
   printTable(headers, rows);
 }
@@ -1188,13 +1208,117 @@ async function runMain(): Promise<void> {
         if (actionF) f.action = actionF;
         if (sinceFrom) f.fromDate = sinceFrom;
         const recs = storage.getAgentUsage(f as AgentUsageFilter);
-        // recs are newest-first; for "chronological" we keep that order (recent activity first is conventional)
         if (useJson) {
           console.log(JSON.stringify(recs, null, 2));
         } else if (recs.length === 0) {
           console.log('No activity found.');
         } else {
           printActivityTimeline(recs);
+        }
+      } finally {
+        storage.close();
+      }
+      break;
+    }
+
+    case 'cleanup': {
+      const dbp = getDbPath();
+      const storage = new TraceStorage(dbp);
+      try {
+        const dryRun = !!flags['dry-run'] || !!flags.dryRun;
+        let days: number;
+        if (flags.days) {
+          const raw = parseInt(String(flags.days), 10);
+          days = Number.isFinite(raw) && raw > 0 ? raw : 0;
+        } else {
+          const policy = storage.getRetentionPolicy();
+          days = policy.retentionDays;
+        }
+        if (days <= 0) {
+          console.log('Retention is disabled (0 days). Nothing to clean up.');
+          break;
+        }
+        const cutoff = Date.now() - days * 86400000;
+
+        if (dryRun) {
+          // Count what would be deleted
+          const traces = storage.getTraces({ toDate: cutoff, limit: 100000 });
+          const traceCount = traces.length;
+          console.log(`Dry run: would delete data older than ${days} days (before ${new Date(cutoff).toISOString()})`);
+          console.log(`  Traces to delete: ~${traceCount}`);
+          console.log(`  (Run agenttrace-io cleanup without --dry-run to execute)`);
+        } else {
+          const tracesDeleted = storage.cleanupOldTraces(cutoff);
+          const runsDeleted = storage.cleanupOldRuns(cutoff);
+          const usageDeleted = storage.cleanupOldAgentUsage(cutoff);
+          const total = tracesDeleted + runsDeleted + usageDeleted;
+          if (useJson) {
+            console.log(JSON.stringify({ deleted: { traces: tracesDeleted, runs: runsDeleted, agentUsage: usageDeleted, total }, days, cutoff }, null, 2));
+          } else {
+            console.log(`Cleanup complete. Deleted ${total} records older than ${days} days:`);
+            console.log(`  Traces:      ${tracesDeleted}`);
+            console.log(`  Runs:        ${runsDeleted}`);
+            console.log(`  Agent usage: ${usageDeleted}`);
+          }
+        }
+      } finally {
+        storage.close();
+      }
+      break;
+    }
+
+    case 'retention': {
+      const sub = retentionSub || 'show';
+      const dbp = getDbPath();
+      const storage = new TraceStorage(dbp);
+      try {
+        if (sub === 'show') {
+          const policy = storage.getRetentionPolicy();
+          const stats = storage.getStorageStats();
+          const oldestDate = stats.oldestTrace ? new Date(stats.oldestTrace).toISOString().slice(0, 19).replace('T', ' ') : 'n/a';
+          const newestDate = stats.newestTrace ? new Date(stats.newestTrace).toISOString().slice(0, 19).replace('T', ' ') : 'n/a';
+          if (useJson) {
+            console.log(JSON.stringify({ policy, storage: { ...stats, oldestDate, newestDate } }, null, 2));
+          } else {
+            console.log('Retention Policy');
+            console.log('================');
+            console.log(`Retention days:        ${policy.retentionDays}`);
+            console.log(`Cleanup interval (hrs): ${policy.cleanupIntervalHours}`);
+            console.log('');
+            console.log('Storage Statistics');
+            console.log('==================');
+            console.log(`Database path:  ${dbp}`);
+            console.log(`Total size:     ${stats.totalSizeBytes} bytes`);
+            console.log(`Trace count:    ${stats.traceCount}`);
+            console.log(`Run count:      ${stats.runCount}`);
+            console.log(`Oldest trace:   ${oldestDate}`);
+            console.log(`Newest trace:   ${newestDate}`);
+          }
+        } else if (sub === 'set') {
+          const daysStr = retentionSetDays || (flags.days ? String(flags.days) : '');
+          if (!daysStr) {
+            console.error('Usage: agenttrace-io retention set <days> [--interval H]');
+            process.exit(1);
+          }
+          const days = parseInt(daysStr, 10);
+          if (!Number.isFinite(days) || days < 0) {
+            console.error(`Invalid days value: ${daysStr}`);
+            process.exit(1);
+          }
+          const intervalRaw = flags.interval ? parseInt(String(flags.interval), 10) : NaN;
+          const interval = Number.isFinite(intervalRaw) && intervalRaw > 0 ? intervalRaw : undefined;
+          storage.setRetentionPolicy(days, interval);
+          if (useJson) {
+            console.log(JSON.stringify({ retentionDays: days, cleanupIntervalHours: interval || 24 }, null, 2));
+          } else {
+            console.log(`Retention policy updated:`);
+            console.log(`  Retention days:        ${days}`);
+            if (interval) console.log(`  Cleanup interval (hrs): ${interval}`);
+          }
+        } else {
+          console.error(`Unknown retention subcommand: ${sub}`);
+          printUsage();
+          process.exit(1);
         }
       } finally {
         storage.close();

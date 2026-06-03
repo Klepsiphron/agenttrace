@@ -69,6 +69,7 @@ export type {
   CreatedApiKey,
   WebhookConfig,
   WebhookEvent,
+  WebhookDelivery,
 } from './types.js';
 
 export { TraceContext } from './types.js';

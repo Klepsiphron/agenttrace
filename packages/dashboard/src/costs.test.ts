@@ -1,7 +1,7 @@
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import * as os from 'node:os';
 import * as fs from 'node:fs';
-import { createDashboardApp } from './index.ts';
+import { createDashboardApp, createApiKey, apiKeyStore } from './index.ts';
 import * as http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import type { Express } from 'express';
@@ -60,6 +60,7 @@ describe('dashboard cost API endpoints (new tests)', () => {
     });
     servers = [];
     closes = [];
+    apiKeyStore.clear();
     vi.restoreAllMocks();
   });
 

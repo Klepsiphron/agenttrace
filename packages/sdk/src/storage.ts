@@ -300,10 +300,16 @@ export class TraceStorage {
     return this.rowToRun(row);
   }
 
-  getRuns(limit: number = 100): Run[] {
-    const rows = this.db
-      .prepare('SELECT * FROM runs ORDER BY started_at DESC LIMIT ?')
-      .all(limit) as unknown[];
+  getRuns(tenantId?: string, limit: number = 100): Run[] {
+    let sql = 'SELECT * FROM runs WHERE 1=1';
+    const params: unknown[] = [];
+    if (tenantId) {
+      sql += ' AND tenant_id = ?';
+      params.push(tenantId);
+    }
+    sql += ' ORDER BY started_at DESC LIMIT ?';
+    params.push(limit);
+    const rows = this.db.prepare(sql).all(...params) as unknown[];
     return rows.map((r) => this.rowToRun(r));
   }
 
@@ -357,11 +363,12 @@ export class TraceStorage {
   createTrace(trace: Omit<Trace, 'createdAt' | 'updatedAt'>): Trace {
     const now = Date.now();
     const stmt = this.db.prepare(`
-      INSERT INTO traces (id, run_id, name, status, input, output, prompt_tokens, completion_tokens, total_tokens, model, provider, latency_ms, cost_usd, error, metadata, parent_id, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO traces (id, tenant_id, run_id, name, status, input, output, prompt_tokens, completion_tokens, total_tokens, model, provider, latency_ms, cost_usd, error, metadata, parent_id, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     stmt.run(
       trace.id,
+      trace.tenantId || null,
       trace.runId,
       trace.name,
       trace.status,
@@ -418,9 +425,14 @@ export class TraceStorage {
     return this.rowToTrace(row);
   }
 
-  getTraces(filter: TraceFilter = {}): Trace[] {
+  getTraces(filter: TraceFilter = {}, tenantId?: string): Trace[] {
     let sql = 'SELECT * FROM traces WHERE 1=1';
     const params: unknown[] = [];
+
+    if (tenantId) {
+      sql += ' AND tenant_id = ?';
+      params.push(tenantId);
+    }
 
     if (filter.runId) {
       sql += ' AND run_id = ?';
@@ -682,12 +694,13 @@ export class TraceStorage {
     this.db
       .prepare(
         `
-      INSERT INTO agent_usage (id, agent_name, agent_type, session_id, action, target, tokens_used, cost_usd, duration_ms, status, metadata, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO agent_usage (id, tenant_id, agent_name, agent_type, session_id, action, target, tokens_used, cost_usd, duration_ms, status, metadata, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
       )
       .run(
         params.id,
+        params.tenantId || null,
         params.agentName,
         params.agentType || null,
         params.sessionId || null,
@@ -1431,6 +1444,7 @@ export class TraceStorage {
     const r = row as Record<string, unknown>;
     return {
       id: r.id as string,
+      tenantId: (r.tenant_id as string) || undefined,
       agentName: r.agent_name as string,
       agentType: (r.agent_type as string) || undefined,
       sessionId: (r.session_id as string) || undefined,
@@ -1559,13 +1573,18 @@ export class TraceStorage {
   // ── Storage Stats ───────────────────────────────────────────────
 
   getStorageStats(): { totalSizeBytes: number; traceCount: number; runCount: number; oldestTrace: number | null; newestTrace: number | null } {
-    const stat = statSync(this.dbPath);
+    let totalSizeBytes = 0;
+    try {
+      totalSizeBytes = statSync(this.dbPath).size;
+    } catch (_) {
+      totalSizeBytes = 0;
+    }
     const traceCount = this.db.prepare(`SELECT COUNT(*) as c FROM traces`).get() as { c: number };
     const runCount = this.db.prepare(`SELECT COUNT(*) as c FROM runs`).get() as { c: number };
     const oldest = this.db.prepare(`SELECT MIN(created_at) as v FROM traces`).get() as { v: number | null };
     const newest = this.db.prepare(`SELECT MAX(created_at) as v FROM traces`).get() as { v: number | null };
     return {
-      totalSizeBytes: stat.size,
+      totalSizeBytes,
       traceCount: traceCount.c,
       runCount: runCount.c,
       oldestTrace: oldest.v,
