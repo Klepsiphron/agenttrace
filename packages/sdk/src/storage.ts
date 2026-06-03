@@ -1609,15 +1609,16 @@ export class TraceStorage {
     const key = randomBytes(32).toString('hex');
     const keyHash = createHash('sha256').update(key).digest('hex');
     const now = Date.now();
+    const keyPreview = key.slice(0, 8) + '****';
     this.db
       .prepare(
         `
-      INSERT INTO api_keys (id, name, key_hash, permissions, created_at, enabled)
-      VALUES (?, ?, ?, ?, ?, 1)
+      INSERT INTO api_keys (id, name, key_hash, key_preview, permissions, created_at, enabled)
+      VALUES (?, ?, ?, ?, ?, ?, 1)
     `,
       )
-      .run(id, name, keyHash, JSON.stringify(permissions), now);
-    return { id, name, key, preview: key.slice(0, 8) + '****', createdAt: now };
+      .run(id, name, keyHash, keyPreview, JSON.stringify(permissions), now);
+    return { id, name, key, preview: keyPreview, createdAt: now };
   }
 
   getApiKeys(): {
