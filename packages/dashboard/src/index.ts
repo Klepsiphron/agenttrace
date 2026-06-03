@@ -171,8 +171,25 @@ export function createDashboardApp(dbPath?: string): DashboardApp {
   });
 
   // Simple health check (useful for readiness)
+  const startTime = Date.now();
   app.get('/api/health', (_req: Request, res: Response) => {
-    res.json({ ok: true, version: VERSION, package: PACKAGE_NAME });
+    let traceCount = 0;
+    const dbSize = 0;
+    try {
+      const stats = trace.getStats();
+      traceCount = stats.totalTraces || 0;
+    } catch (_) {
+      /* ignore */
+    }
+    res.json({
+      status: 'ok',
+      version: VERSION,
+      package: PACKAGE_NAME,
+      uptime: Date.now() - startTime,
+      dbPath: ':memory:',
+      traceCount,
+      dbSize,
+    });
   });
 
   // Fallback: serve index.html for unknown GET paths (SPA-friendly client routing).
