@@ -14,15 +14,20 @@ import {
   type TraceTreeNode,
   AlertCondition,
   ExportFormat,
-} from '@agenttrace/sdk';
-import { startDashboard } from '@agenttrace/dashboard';
+  runPendingMigrations,
+  getSchemaVersion,
+  score,
+  type Scorer,
+  type ScorerResult,
+} from '@agenttrace-io/sdk';
+import { startDashboard } from '@agenttrace-io/dashboard';
 import { existsSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 export const VERSION = '0.1.0';
 
 /** Published npm package name. */
-export const PACKAGE_NAME = '@agenttrace/cli';
+export const PACKAGE_NAME = '@agenttrace-io/cli';
 
 function getDbPath(): string {
   return process.env.AGENTTRACE_DB_PATH || './agenttrace.db';
@@ -164,6 +169,28 @@ function printTraceTree(node: TraceTreeNode | null | undefined, prefix = '', isL
   });
 }
 
+// Built-in scorers for CLI evaluate (plan mentions length, latency, error-rate etc.)
+const BUILTIN_SCORERS: Scorer[] = [
+  score('output-length', (t: Trace) => {
+    const o = t.output;
+    if (typeof o === 'string') return o.length;
+    if (o && typeof o === 'object') {
+      try {
+        return JSON.stringify(o).length;
+      } catch {
+        return 0;
+      }
+    }
+    return 0;
+  }),
+  score('latency', (t: Trace) => {
+    const l = t.latencyMs ?? 0;
+    // lower latency => higher score (per plan); use inverse scaled
+    return l > 0 ? Math.round(10000 / l) : 10000;
+  }),
+  score('error-rate', (t: Trace) => (t.status === 'success' ? 1 : 0)),
+];
+
 function printUsage(): void {
   console.log(`Usage: agenttrace <command> [options]
 
@@ -174,10 +201,12 @@ Commands:
   traces               List traces (most recent first)
   stats                Show summary statistics
   costs                Show cost breakdown by model (or --daily)
-  export               Export traces to JSON or CSV
+  export               Export traces to JSON, CSV or otel
   benchmark            Run performance benchmark suite (prints JSON results)
   tree                 Show parent/child/related trace tree (multi-agent)
   alerts               Manage alerts: list | test --name N | history
+  evaluate             Run scorers on traces (built-in: length, latency, error; stores scores)
+  migrate              Apply pending migrations, or 'migrate status' to check version
   version              Show CLI version
 
 Options (by command):
@@ -187,7 +216,7 @@ Options (by command):
   traces, export, costs:
     --run-id ID          Filter by run ID
   export:
-    --format json|csv    Output format (default: json)
+    --format json|csv|otel  Output format (default: json)
     --output FILE        Write to file instead of stdout
   costs:
     --daily              Breakdown costs by day instead of by model
@@ -197,9 +226,17 @@ Options (by command):
     list                 List configured alerts
     test --name NAME     Test delivery for alert (forces condition + ignores cooldown)
     history              Show alert trigger history
+  dashboard:
+    --port N             Port to listen on (default 4317)
+    --host H             Host to bind (default 127.0.0.1)
+  evaluate:
+    --run-id ID          Evaluate only traces in this run
+    --trace-id ID        Evaluate a single specific trace
+  migrate:
+    status               Show current schema version without applying
 
 Global:
-  --json               Emit machine-readable JSON (for runs, traces, stats, costs, export)
+  --json               Emit machine-readable JSON (for runs, traces, stats, costs, export, alerts, tree, evaluate, migrate)
   --help               Show this help
 
 Examples:
@@ -207,7 +244,8 @@ Examples:
   agenttrace runs --limit 5 --status success,running
   agenttrace traces --run-id 123e4567 --json
   agenttrace export --format csv --output out.csv --run-id abc
-  agenttrace dashboard
+  agenttrace export --format otel --output spans.json
+  agenttrace dashboard --port 3000
   agenttrace costs
   agenttrace costs --daily --json
   agenttrace costs --run-id abc123
@@ -215,6 +253,10 @@ Examples:
   agenttrace alerts test --name high-error-rate
   agenttrace alerts history
   agenttrace tree --trace-id abc123def
+  agenttrace evaluate --run-id abc
+  agenttrace evaluate --trace-id def --json
+  agenttrace migrate
+  agenttrace migrate status --json
   npx agenttrace version
 `);
 }
@@ -404,7 +446,10 @@ async function runMain(): Promise<void> {
 
     case 'export': {
       const trace = getAgentTrace();
-      const format: ExportFormat = flags.format === 'csv' ? 'csv' : 'json';
+      let format: ExportFormat = 'json';
+      const fmt = flags.format ? String(flags.format).toLowerCase() : '';
+      if (fmt === 'csv') format = 'csv';
+      else if (fmt === 'otel') format = 'otel';
       const runId = (flags['run-id'] || flags.runId || flags['runId']) as string | undefined;
 
       const filter: Record<string, unknown> = {};
@@ -452,6 +497,98 @@ async function runMain(): Promise<void> {
       } else {
         console.log('Trace Tree:');
         printTraceTree(tree);
+      }
+      break;
+    }
+
+    case 'benchmark': {
+      // Stub: full benchmark is in SDK (npx tsx packages/sdk/src/benchmark.ts)
+      if (useJson) {
+        console.log(JSON.stringify({ note: 'Use SDK benchmark directly for full suite' }, null, 2));
+      } else {
+        console.log('Benchmark suite available via SDK. See packages/sdk/src/benchmark.ts');
+      }
+      break;
+    }
+
+    case 'evaluate': {
+      const traceId = (flags['trace-id'] || flags.traceId || flags['traceId']) as
+        | string
+        | undefined;
+      const runId = (flags['run-id'] || flags.runId || flags['runId']) as string | undefined;
+      const tr = getAgentTrace();
+      let results: ScorerResult[] = [];
+      try {
+        if (traceId) {
+          const one = await tr.evaluateTrace(String(traceId), BUILTIN_SCORERS);
+          results = one ? [one] : [];
+        } else {
+          results = await tr.evaluate({
+            scorers: BUILTIN_SCORERS,
+            runId: runId ? String(runId) : undefined,
+          });
+        }
+      } catch (e: unknown) {
+        console.error('Error during evaluate:', e instanceof Error ? e.message : String(e));
+      } finally {
+        tr.close();
+      }
+
+      if (useJson) {
+        console.log(JSON.stringify(results, null, 2));
+      } else if (results.length === 0) {
+        console.log('No traces to evaluate.');
+      } else {
+        console.log(
+          `Evaluated ${results.length} trace(s) using built-in scorers: output-length, latency, error-rate`,
+        );
+        for (const r of results.slice(0, 20)) {
+          const sc = Object.entries(r.scores || {})
+            .map(([k, v]) => `${k}=${typeof v === 'number' ? v.toFixed(2) : v}`)
+            .join(' ');
+          const er = Object.keys(r.errors || {}).length
+            ? ` (errors: ${Object.keys(r.errors).length})`
+            : '';
+          console.log(`  ${(r.traceId || '').substring(0, 8)}: ${sc}${er}`);
+        }
+      }
+      break;
+    }
+
+    case 'migrate': {
+      // detect subcommand (migrate status)
+      const argvArgs = process.argv.slice(2);
+      let migSub: string | undefined;
+      const idx = argvArgs.indexOf('migrate');
+      if (idx !== -1) {
+        for (let k = idx + 1; k < argvArgs.length; k++) {
+          const c = argvArgs[k];
+          if (typeof c === 'string' && !c.startsWith('-')) {
+            migSub = c;
+            break;
+          }
+        }
+      }
+
+      const dbp = getDbPath();
+      if (migSub === 'status') {
+        const ver = existsSync(dbp) ? getSchemaVersion(dbp) : 0;
+        if (useJson) {
+          console.log(JSON.stringify({ version: ver }, null, 2));
+        } else {
+          console.log(`Schema version: ${ver}`);
+        }
+        break;
+      }
+
+      // run pending migrations (creates db if needed)
+      const res = runPendingMigrations(dbp);
+      if (useJson) {
+        console.log(JSON.stringify(res, null, 2));
+      } else if (res.applied > 0) {
+        console.log(`Applied ${res.applied} migration(s). Now at schema version ${res.version}.`);
+      } else {
+        console.log(`No pending migrations. Current schema version: ${res.version}.`);
       }
       break;
     }

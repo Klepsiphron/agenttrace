@@ -1,5 +1,5 @@
 {
-  "name": "@agenttrace/dashboard",
+  "name": "@agenttrace-io/dashboard",
   "version": "0.1.0",
   "description": "Local web dashboard for AgentTrace",
   "license": "MIT",
@@ -25,7 +25,7 @@
   },
   "dependencies": {
     "express": "^5.2.1",
-    "@agenttrace/sdk": "workspace:*"
+    "@agenttrace-io/sdk": "workspace:*"
   },
   "devDependencies": {
     "@types/express": "^5.0.6",

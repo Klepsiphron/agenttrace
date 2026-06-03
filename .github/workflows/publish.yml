@@ -47,21 +47,21 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
 
-      - name: Publish @agenttrace/sdk
+      - name: Publish @agenttrace-io/sdk
         run: |
           cd packages/sdk
           npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: Publish @agenttrace/dashboard
+      - name: Publish @agenttrace-io/dashboard
         run: |
           cd packages/dashboard
           npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: Publish @agenttrace/cli
+      - name: Publish @agenttrace-io/cli
         run: |
           cd packages/cli
           npm publish --access public

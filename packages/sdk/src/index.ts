@@ -25,7 +25,7 @@ import {
 } from './types.js';
 
 export const VERSION = '0.1.0';
-export const PACKAGE_NAME = '@agenttrace/sdk';
+export const PACKAGE_NAME = '@agenttrace-io/sdk';
 
 export type {
   Trace,
@@ -51,6 +51,14 @@ export type {
 export { TraceContext } from './types.js';
 
 export { TraceStorage } from './storage.js';
+
+export {
+  runPendingMigrations,
+  getSchemaVersion,
+  runMigrations,
+  getCurrentVersion,
+  type Migration,
+} from './migrations.js';
 
 // Default cost calculator (approximate 2026 pricing)
 // Rates are in USD per 1000 tokens. Extended with additional models for v0.2.0.

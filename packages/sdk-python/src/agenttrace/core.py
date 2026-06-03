@@ -7,13 +7,18 @@ from __future__ import annotations
 
 import asyncio
 import json
+import math
 import time
+import urllib.error
+import urllib.request
 import uuid
 from collections.abc import Callable
 from typing import Any, Optional, TypeVar, cast
 
 from .storage import TraceStorage
 from .types import (
+    AlertCondition,
+    AlertHistory,
     EvaluateOptions,
     ExportFormat,
     HallucinationDetector,
@@ -171,6 +176,12 @@ class _TraceContext:
         if self.agent.config.get("auto_cleanup", True):
             self.agent.storage.cleanup(self.agent.config.get("max_traces", 10000))
 
+        # Auto-check alerts after each trace (alerts must never cause trace() to fail)
+        try:
+            self.agent.check_alerts()
+        except Exception:
+            pass
+
         self._trace_id = trace_id
 
     def __call__(self, fn: Callable[..., T]) -> Callable[..., T]:
@@ -221,6 +232,11 @@ class _TraceContext:
                 self.agent.storage.create_trace(tr)
                 if self.agent.config.get("auto_cleanup", True):
                     self.agent.storage.cleanup(self.agent.config.get("max_traces", 10000))
+                # Auto-check alerts after each trace (alerts must never cause trace() to fail)
+                try:
+                    self.agent.check_alerts()
+                except Exception:
+                    pass
                 self._trace_id = trace_id
 
         # Preserve metadata
@@ -249,6 +265,7 @@ class AgentTrace:
         )
         self.storage = TraceStorage(self.config["db_path"])
         self._current_run_id: Optional[str] = None
+        self._registered_alerts: list[AlertCondition] = []
 
     # ---- Run management ----
 
@@ -353,6 +370,11 @@ class AgentTrace:
                 self.storage.create_trace(tr)
                 if self.config.get("auto_cleanup", True):
                     self.storage.cleanup(self.config.get("max_traces", 10000))
+                # Auto-check alerts after each trace (alerts must never cause trace() to fail)
+                try:
+                    self.check_alerts()
+                except Exception:
+                    pass
             # never reached
             return cast(T, res)  # type: ignore[return-value]
 
@@ -519,6 +541,194 @@ class AgentTrace:
         """Retrieve stored evaluation scores (optionally for one trace)."""
         return self.storage.get_scores(trace_id)
 
+    # ---- Alerting (v0.2) ----
+
+    def register_alert(self, alert: AlertCondition) -> None:
+        """Register an alert condition. Persists config (without function) and enables auto-checks."""
+        if not alert or not getattr(alert, "name", None) or not callable(getattr(alert, "condition", None)):
+            raise ValueError("Invalid alert: must have name and condition function")
+        # dedupe by name (last wins)
+        self._registered_alerts = [a for a in self._registered_alerts if a.name != alert.name]
+        copy = AlertCondition(
+            name=alert.name,
+            condition=alert.condition,
+            webhook=alert.webhook,
+            email=alert.email,
+            cooldown=getattr(alert, "cooldown", 0) or 0,
+            last_triggered=getattr(alert, "last_triggered", None),
+        )
+        self._registered_alerts.append(copy)
+        # persist without the function; use camelCase in JSON to match TS schema/CLI
+        serializable: dict[str, Any] = {
+            "webhook": copy.webhook,
+            "email": copy.email,
+            "cooldown": copy.cooldown or 0,
+            "lastTriggered": copy.last_triggered,
+        }
+        self.storage.save_alert(copy.name, serializable)
+
+    def check_alerts(self) -> list[AlertHistory]:
+        """Check all registered alerts against current stats.
+        Fires (and records history) for those whose condition is true and cooldown elapsed.
+        Returns the AlertHistory entries that were triggered this check.
+        """
+        results: list[AlertHistory] = []
+        if not self._registered_alerts:
+            return results
+
+        stats = self.get_stats()
+        now = int(time.time() * 1000)
+
+        for alert in list(self._registered_alerts):
+            cooldown_ms = max(0, alert.cooldown or 0) * 1000
+            last = alert.last_triggered or 0
+            if cooldown_ms > 0 and (now - last) < cooldown_ms:
+                continue
+            met = False
+            try:
+                met = bool(alert.condition(stats))
+            except Exception as cond_err:
+                if not self.config.get("silent"):
+                    print(f"[AgentTrace] Alert condition error for {alert.name}: {cond_err}")
+                met = False
+            if met:
+                hist = self._deliver_alert(alert, stats, now)
+                results.append(hist)
+                alert.last_triggered = now
+                to_store: dict[str, Any] = {
+                    "webhook": alert.webhook,
+                    "email": alert.email,
+                    "cooldown": alert.cooldown or 0,
+                    "lastTriggered": alert.last_triggered,
+                }
+                self.storage.save_alert(alert.name, to_store)
+        return results
+
+    def _deliver_alert(
+        self, alert: AlertCondition, stats: TraceStats, now: int
+    ) -> AlertHistory:
+        numeric_stats: dict[str, float] = {
+            "totalRuns": float(stats.total_runs or 0),
+            "totalTraces": float(stats.total_traces or 0),
+            "successRate": float(stats.success_rate or 0),
+            "avgLatencyMs": float(stats.avg_latency_ms or 0),
+            "totalCostUsd": float(stats.total_cost_usd or 0),
+            "totalTokens": float(stats.total_tokens or 0),
+            "avgTokensPerTrace": float(stats.avg_tokens_per_trace or 0),
+        }
+
+        # full stats for webhook payload (topTools etc may be present)
+        payload_stats: dict[str, Any] = {
+            "totalRuns": stats.total_runs or 0,
+            "totalTraces": stats.total_traces or 0,
+            "successRate": stats.success_rate or 0,
+            "avgLatencyMs": stats.avg_latency_ms or 0,
+            "totalCostUsd": stats.total_cost_usd or 0,
+            "totalTokens": stats.total_tokens or 0,
+            "avgTokensPerTrace": stats.avg_tokens_per_trace or 0,
+            "topTools": getattr(stats, "top_tools", []) or [],
+            "topErrors": getattr(stats, "top_errors", []) or [],
+        }
+
+        delivered = False
+        err_msg: Optional[str] = None
+
+        payload: dict[str, Any] = {"alertName": alert.name, "stats": payload_stats, "timestamp": now}
+
+        if alert.webhook:
+            try:
+                data = json.dumps(payload).encode("utf-8")
+                req = urllib.request.Request(
+                    url=alert.webhook,
+                    data=data,
+                    headers={
+                        "Content-Type": "application/json",
+                        "User-Agent": "AgentTrace/0.2",
+                    },
+                    method="POST",
+                )
+                with urllib.request.urlopen(req, timeout=10) as resp:
+                    status = resp.getcode()
+                    delivered = 200 <= status < 300
+                    if not delivered:
+                        err_msg = f"webhook responded {status}"
+            except Exception as e:
+                delivered = False
+                err_msg = getattr(e, "reason", None) or str(e)
+        elif alert.email:
+            delivered = False
+            err_msg = "email delivery not supported in this version"
+        else:
+            delivered = False
+            err_msg = "no delivery channel configured"
+
+        history = AlertHistory(
+            id=str(uuid.uuid4()),
+            alert_name=alert.name,
+            triggered_at=now,
+            stats=numeric_stats,
+            delivered=delivered,
+            error=err_msg,
+        )
+        self.storage.insert_alert_history(
+            {
+                "id": history.id,
+                "alertName": history.alert_name,
+                "triggeredAt": history.triggered_at,
+                "stats": history.stats,
+                "delivered": history.delivered,
+                "error": history.error,
+            }
+        )
+
+        if not self.config.get("silent", False):
+            status = "delivered" if delivered else f"delivery failed{': ' + err_msg if err_msg else ''}"
+            print(f"[AgentTrace] Alert '{alert.name}' triggered. {status}")
+        return history
+
+    def get_alerts(self) -> list[AlertCondition]:
+        """Get currently registered (in-memory) alerts. Falls back to persisted configs (with no-op condition) for CLI."""
+        map_alerts: dict[str, AlertCondition] = {}
+        # load persisted (dummy condition)
+        for s in self.storage.get_stored_alerts():
+            cfg = s.get("config") or {}
+            map_alerts[s["name"]] = AlertCondition(
+                name=s["name"],
+                condition=lambda _s: False,
+                webhook=cfg.get("webhook"),
+                email=cfg.get("email"),
+                cooldown=cfg.get("cooldown") if isinstance(cfg.get("cooldown"), (int, float)) else 0,
+                last_triggered=cfg.get("lastTriggered") or cfg.get("last_triggered"),
+            )
+        # overlay runtime registered (have real conditions)
+        for r in self._registered_alerts:
+            map_alerts[r.name] = AlertCondition(
+                name=r.name,
+                condition=r.condition,
+                webhook=r.webhook,
+                email=r.email,
+                cooldown=r.cooldown or 0,
+                last_triggered=r.last_triggered,
+            )
+        return list(map_alerts.values())
+
+    def get_alert_history(self) -> list[AlertHistory]:
+        """Get alert firing history from storage."""
+        rows = self.storage.get_alert_history()
+        histories: list[AlertHistory] = []
+        for rec in rows:
+            histories.append(
+                AlertHistory(
+                    id=rec["id"],
+                    alert_name=rec.get("alertName") or rec.get("alert_name"),
+                    triggered_at=rec.get("triggeredAt") or rec.get("triggered_at"),
+                    stats=rec.get("stats") or {},
+                    delivered=bool(rec.get("delivered")),
+                    error=rec.get("error"),
+                )
+            )
+        return histories
+
     def _score_loop(
         self,
         traces: list[Trace],
@@ -552,7 +762,7 @@ class AgentTrace:
                             val = asyncio.run(val)  # py 3.7+
                     except Exception:
                         val = 0.0
-                if isinstance(val, (int, float)) and (val == val):  # finite
+                if isinstance(val, (int, float)) and math.isfinite(float(val)):
                     scores[scorer.name] = float(val)
                     sid = str(uuid.uuid4())
                     self.storage.create_score(sid, trace_id, scorer.name, float(val))

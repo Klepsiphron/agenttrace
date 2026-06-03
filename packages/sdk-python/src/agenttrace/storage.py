@@ -8,6 +8,7 @@ from __future__ import annotations
 import json
 import sqlite3
 import time
+import uuid
 from pathlib import Path
 from typing import Any, Optional
 
@@ -19,6 +20,7 @@ from .types import (
     Trace,
     TraceFilter,
     TraceStats,
+    TraceTreeNode,
 )
 
 
@@ -75,6 +77,7 @@ class TraceStorage:
                 cost_usd REAL DEFAULT 0,
                 error TEXT,
                 metadata TEXT DEFAULT '{}',
+                parent_id TEXT,
                 created_at INTEGER NOT NULL,
                 updated_at INTEGER NOT NULL,
                 FOREIGN KEY (run_id) REFERENCES runs(id) ON DELETE CASCADE
@@ -97,6 +100,7 @@ class TraceStorage:
             CREATE INDEX IF NOT EXISTS idx_traces_status ON traces(status);
             CREATE INDEX IF NOT EXISTS idx_traces_created_at ON traces(created_at);
             CREATE INDEX IF NOT EXISTS idx_traces_cost ON traces(cost_usd);
+            CREATE INDEX IF NOT EXISTS idx_traces_parent_id ON traces(parent_id);
             CREATE INDEX IF NOT EXISTS idx_tool_calls_trace_id ON tool_calls(trace_id);
             CREATE INDEX IF NOT EXISTS idx_tool_calls_name ON tool_calls(name);
 
@@ -111,6 +115,48 @@ class TraceStorage:
             CREATE INDEX IF NOT EXISTS idx_scores_trace_id ON scores(trace_id);
             CREATE INDEX IF NOT EXISTS idx_scores_name ON scores(name);
 
+            CREATE TABLE IF NOT EXISTS alerts (
+                id TEXT PRIMARY KEY,
+                name TEXT UNIQUE NOT NULL,
+                config TEXT NOT NULL,
+                created_at INTEGER NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS alert_history (
+                id TEXT PRIMARY KEY,
+                alert_name TEXT NOT NULL,
+                triggered_at INTEGER NOT NULL,
+                stats TEXT NOT NULL,
+                delivered INTEGER DEFAULT 0,
+                error TEXT,
+                created_at INTEGER NOT NULL
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_alerts_name ON alerts(name);
+            CREATE INDEX IF NOT EXISTS idx_alert_history_alert_name ON alert_history(alert_name);
+            CREATE INDEX IF NOT EXISTS idx_alert_history_triggered_at ON alert_history(triggered_at);
+
+            CREATE TABLE IF NOT EXISTS trace_links (
+                id TEXT PRIMARY KEY,
+                source_trace_id TEXT NOT NULL,
+                target_trace_id TEXT NOT NULL,
+                relation TEXT NOT NULL DEFAULT 'related',
+                created_at INTEGER NOT NULL,
+                FOREIGN KEY (source_trace_id) REFERENCES traces(id) ON DELETE CASCADE,
+                FOREIGN KEY (target_trace_id) REFERENCES traces(id) ON DELETE CASCADE
+            );
+            CREATE INDEX IF NOT EXISTS idx_trace_links_source ON trace_links(source_trace_id);
+            CREATE INDEX IF NOT EXISTS idx_trace_links_target ON trace_links(target_trace_id);
+
+            CREATE TABLE IF NOT EXISTS trace_context (
+                id TEXT PRIMARY KEY,
+                trace_id TEXT NOT NULL,
+                parent_span_id TEXT,
+                metadata TEXT DEFAULT '{}',
+                created_at INTEGER NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_trace_context_trace_id ON trace_context(trace_id);
+
             CREATE TABLE IF NOT EXISTS version (
                 key TEXT PRIMARY KEY,
                 value TEXT NOT NULL
@@ -119,15 +165,32 @@ class TraceStorage:
         )
         self.conn.commit()
 
+        # Ensure parent_id column exists for dbs created before multi-agent support
+        try:
+            self.conn.execute("ALTER TABLE traces ADD COLUMN parent_id TEXT")
+            self.conn.commit()
+        except sqlite3.OperationalError:
+            pass  # column already exists
+
         # Migration tracking
         row = self.conn.execute(
             "SELECT value FROM version WHERE key = ?", ("schema_version",)
         ).fetchone()
         if not row:
             self.conn.execute(
-                "INSERT INTO version (key, value) VALUES (?, ?)", ("schema_version", "1")
+                "INSERT INTO version (key, value) VALUES (?, ?)", ("schema_version", "4")
             )
             self.conn.commit()
+        else:
+            try:
+                cur_ver = int(row[0]) if row[0] and str(row[0]).isdigit() else 1
+                if cur_ver < 4:
+                    self.conn.execute(
+                        "INSERT OR REPLACE INTO version (key, value) VALUES (?, ?)", ("schema_version", "4")
+                    )
+                    self.conn.commit()
+            except Exception:
+                pass
 
     # ---- Run operations ----
 
@@ -245,6 +308,7 @@ class TraceStorage:
                 "costUsd": trace.cost_usd,
                 "error": trace.error,
                 "metadata": trace.metadata,
+                "parentId": trace.parent_id,
             }
             tokens = trace.tokens
             tool_calls = trace.tool_calls
@@ -274,14 +338,15 @@ class TraceStorage:
             "model": getattr(tokens, "model", None),
             "provider": getattr(tokens, "provider", None),
         }
+        parent_id = t.get("parentId") or t.get("parent_id")
 
         self.conn.execute(
             """
             INSERT INTO traces (
                 id, run_id, name, status, input, output,
                 prompt_tokens, completion_tokens, total_tokens, model, provider,
-                latency_ms, cost_usd, error, metadata, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                latency_ms, cost_usd, error, metadata, parent_id, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 t["id"],
@@ -299,6 +364,7 @@ class TraceStorage:
                 t.get("costUsd") or t.get("cost_usd", 0.0),
                 t.get("error"),
                 meta_json,
+                parent_id,
                 now,
                 now,
             ),
@@ -536,6 +602,212 @@ class TraceStorage:
             for r in rows
         ]
 
+    # ---- Multi-agent tracing (parent/child + links + trace_context) ----
+
+    def set_trace_parent(self, trace_id: str, parent_id: str) -> None:
+        now = int(time.time() * 1000)
+        self.conn.execute(
+            "UPDATE traces SET parent_id = ?, updated_at = ? WHERE id = ?",
+            (parent_id, now, trace_id),
+        )
+        self.conn.commit()
+
+    def get_trace_parent_id(self, trace_id: str) -> Optional[str]:
+        row = self.conn.execute(
+            "SELECT parent_id FROM traces WHERE id = ?", (trace_id,)
+        ).fetchone()
+        if not row:
+            return None
+        return row["parent_id"]
+
+    def get_child_trace_ids(self, parent_id: str) -> list[str]:
+        rows = self.conn.execute(
+            "SELECT id FROM traces WHERE parent_id = ? ORDER BY created_at ASC",
+            (parent_id,),
+        ).fetchall()
+        return [r["id"] for r in rows]
+
+    def get_linked_trace_ids(self, trace_id: str) -> list[str]:
+        rows = self.conn.execute(
+            """
+            SELECT DISTINCT target_trace_id AS id FROM trace_links WHERE source_trace_id = ? AND relation = 'related'
+            UNION
+            SELECT DISTINCT source_trace_id AS id FROM trace_links WHERE target_trace_id = ? AND relation = 'related'
+            """,
+            (trace_id, trace_id),
+        ).fetchall()
+        return [r["id"] for r in rows if r["id"] != trace_id]
+
+    def link_traces(self, trace_ids: list[str]) -> None:
+        if not trace_ids or len(trace_ids) < 2:
+            return
+        now = int(time.time() * 1000)
+        for i in range(len(trace_ids)):
+            for j in range(i + 1, len(trace_ids)):
+                lid = str(uuid.uuid4())
+                self.conn.execute(
+                    """
+                    INSERT OR IGNORE INTO trace_links (id, source_trace_id, target_trace_id, relation, created_at)
+                    VALUES (?, ?, ?, 'related', ?)
+                    """,
+                    (lid, trace_ids[i], trace_ids[j], now),
+                )
+        self.conn.commit()
+
+    def get_trace_tree(self, trace_id: str) -> TraceTreeNode:
+        # Walk up parent chain to find ultimate root (cycle safe)
+        root_id = trace_id
+        up_seen: set[str] = set()
+        while True:
+            if root_id in up_seen:
+                break
+            up_seen.add(root_id)
+            p = self.get_trace_parent_id(root_id)
+            if not p:
+                break
+            root_id = p
+
+        visited: set[str] = set()
+
+        def build(id: str) -> Optional[TraceTreeNode]:
+            if id in visited:
+                return None
+            visited.add(id)
+            trace = self.get_trace(id)
+            if not trace:
+                return None
+            child_id_set: set[str] = set(self.get_child_trace_ids(id))
+            for l in self.get_linked_trace_ids(id):
+                child_id_set.add(l)
+            children: list[TraceTreeNode] = []
+            for cid in sorted(child_id_set):
+                node = build(cid)
+                if node:
+                    children.append(node)
+            return TraceTreeNode(trace=trace, children=children)
+
+        root_node = build(root_id)
+        if root_node:
+            return root_node
+
+        # fallback for the requested id itself
+        t = self.get_trace(trace_id)
+        if not t:
+            raise RuntimeError(f"Trace {trace_id} not found")
+        return TraceTreeNode(trace=t, children=[])
+
+    def create_trace_context(
+        self, trace_id: str, parent_span_id: Optional[str] = None, metadata: Optional[dict[str, Any]] = None
+    ) -> str:
+        """Store a TraceContext record associated with a trace. Returns context record id."""
+        now = int(time.time() * 1000)
+        ctx_id = str(uuid.uuid4())
+        meta_json = self._safe_json(metadata or {})
+        self.conn.execute(
+            """
+            INSERT OR REPLACE INTO trace_context (id, trace_id, parent_span_id, metadata, created_at)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (ctx_id, trace_id, parent_span_id, meta_json, now),
+        )
+        self.conn.commit()
+        return ctx_id
+
+    def get_trace_context(self, trace_id: str) -> Optional[dict[str, Any]]:
+        """Retrieve latest trace context for a trace_id (camelCase keys like scores)."""
+        row = self.conn.execute(
+            "SELECT * FROM trace_context WHERE trace_id = ? ORDER BY created_at DESC LIMIT 1",
+            (trace_id,),
+        ).fetchone()
+        if not row:
+            return None
+        d = {k: row[k] for k in row.keys()}
+        return {
+            "id": d.get("id"),
+            "traceId": d.get("trace_id"),
+            "parentSpanId": d.get("parent_span_id"),
+            "metadata": json.loads(d.get("metadata") or "{}"),
+            "createdAt": d.get("created_at"),
+        }
+
+    # ---- Alert operations (v0.2 alerting & webhooks) ----
+
+    def save_alert(self, name: str, config: dict[str, Any]) -> None:
+        """Save (or update) an alert config. Mirrors TS saveAlert (id=name, ON CONFLICT update)."""
+        now = int(time.time() * 1000)
+        aid = name
+        cfg_json = json.dumps(config or {})
+        self.conn.execute(
+            """
+            INSERT INTO alerts (id, name, config, created_at)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(name) DO UPDATE SET config = excluded.config
+            """,
+            (aid, name, cfg_json, now),
+        )
+        self.conn.commit()
+
+    def get_stored_alerts(self) -> list[dict[str, Any]]:
+        """Return persisted alerts (without condition fn). Config has camelCase keys like TS."""
+        rows = self.conn.execute("SELECT * FROM alerts ORDER BY created_at DESC").fetchall()
+        result: list[dict[str, Any]] = []
+        for r in rows:
+            cfg: dict[str, Any] = {}
+            try:
+                cfg = json.loads(r["config"] or "{}")
+            except Exception:
+                cfg = {}
+            result.append(
+                {
+                    "name": r["name"],
+                    "config": cfg,
+                    "createdAt": r["created_at"],
+                }
+            )
+        return result
+
+    def insert_alert_history(self, entry: dict[str, Any]) -> None:
+        """Insert a fired alert record. Accepts camel or snake keys."""
+        now = int(time.time() * 1000)
+        self.conn.execute(
+            """
+            INSERT INTO alert_history (id, alert_name, triggered_at, stats, delivered, error, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                entry.get("id"),
+                entry.get("alertName") or entry.get("alert_name"),
+                entry.get("triggeredAt") or entry.get("triggered_at"),
+                json.dumps(entry.get("stats") or {}),
+                1 if entry.get("delivered") else 0,
+                entry.get("error"),
+                now,
+            ),
+        )
+        self.conn.commit()
+
+    def get_alert_history(self) -> list[dict[str, Any]]:
+        """Return alert history records as dicts with camelCase keys (for parity with TS/JS)."""
+        rows = self.conn.execute("SELECT * FROM alert_history ORDER BY triggered_at DESC").fetchall()
+        result: list[dict[str, Any]] = []
+        for r in rows:
+            stats: dict[str, Any] = {}
+            try:
+                stats = json.loads(r["stats"] or "{}")
+            except Exception:
+                stats = {}
+            result.append(
+                {
+                    "id": r["id"],
+                    "alertName": r["alert_name"],
+                    "triggeredAt": r["triggered_at"],
+                    "stats": stats,
+                    "delivered": (r["delivered"] == 1),
+                    "error": r["error"] or None,
+                }
+            )
+        return result
+
     # ---- Helpers ----
 
     def _safe_json(self, obj: Any) -> str | None:
@@ -588,6 +860,9 @@ class TraceStorage:
             for tc in tool_rows
         ]
 
+        drow = {k: row[k] for k in row.keys()}
+        parent_id = drow.get("parent_id")
+
         return Trace(
             id=row["id"],
             run_id=row["run_id"],
@@ -609,6 +884,7 @@ class TraceStorage:
             metadata=json.loads(row["metadata"] or "{}"),
             created_at=row["created_at"],
             updated_at=row["updated_at"],
+            parent_id=parent_id,
         )
 
     def close(self) -> None:

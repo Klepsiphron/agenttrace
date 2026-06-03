@@ -5,10 +5,10 @@
 import express, { Request, Response, Express } from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { AgentTrace, DashboardConfig, ExportFormat } from '@agenttrace/sdk';
+import { AgentTrace, DashboardConfig, ExportFormat, type Scorer } from '@agenttrace-io/sdk';
 
 export const VERSION = '0.0.0';
-export const PACKAGE_NAME = '@agenttrace/dashboard';
+export const PACKAGE_NAME = '@agenttrace-io/dashboard';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -165,6 +165,46 @@ export function createDashboardApp(dbPath?: string): DashboardApp {
       res.setHeader('Content-Type', mime);
       res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
       res.send(data);
+    } catch (err) {
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
+  app.get('/api/alerts', (_req: Request, res: Response) => {
+    try {
+      const alerts = trace.getAlerts();
+      res.json(alerts);
+    } catch (err) {
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
+  app.post('/api/evaluate', async (req: Request, res: Response) => {
+    try {
+      const body = (req.body || {}) as {
+        runId?: string;
+        traceIds?: string[];
+      };
+      // Built-in scorer (functions cannot be sent over HTTP JSON; this enables the API surface for tests/UI)
+      const defaultScorer: Scorer = {
+        name: 'length',
+        fn: (t) => {
+          const out = t.output;
+          if (out == null) return 0;
+          if (typeof out === 'string') return out.length;
+          try {
+            return JSON.stringify(out).length;
+          } catch {
+            return 0;
+          }
+        },
+      };
+      const results = await trace.evaluate({
+        scorers: [defaultScorer],
+        runId: body.runId,
+        traceIds: body.traceIds,
+      });
+      res.json(results);
     } catch (err) {
       res.status(500).json({ error: String(err) });
     }

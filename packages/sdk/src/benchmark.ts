@@ -32,6 +32,7 @@ export interface InsertionResult {
   count: number;
   timeMs: number;
   tracesPerSecond: number;
+  latencies: LatencyStats;
 }
 
 export interface QueryPerf {
@@ -39,6 +40,7 @@ export interface QueryPerf {
   filter: TraceFilter;
   count: number;
   timeMs: number;
+  latencies: LatencyStats;
 }
 
 export interface QueriesResult {
@@ -69,6 +71,15 @@ export interface ConcurrentResult {
   count: number;
   timeMs: number;
   tracesPerSecond: number;
+}
+
+export interface LatencyStats {
+  count: number;
+  mean: number;
+  p50: number;
+  p95: number;
+  p99: number;
+  max: number;
 }
 
 function makeTraceData(
@@ -123,11 +134,34 @@ function makeTraceData(
   };
 }
 
+function computeLatencies(times: number[]): LatencyStats {
+  if (times.length === 0) {
+    return { count: 0, mean: 0, p50: 0, p95: 0, p99: 0, max: 0 };
+  }
+  const sorted = [...times].sort((a, b) => a - b);
+  const sum = times.reduce((a, b) => a + b, 0);
+  const mean = sum / times.length;
+  const getP = (p: number): number => {
+    const idx = Math.min(sorted.length - 1, Math.max(0, Math.ceil((p / 100) * sorted.length) - 1));
+    return sorted[idx]!;
+  };
+  return {
+    count: times.length,
+    mean: Math.round(mean * 100) / 100,
+    p50: Math.round(getP(50) * 100) / 100,
+    p95: Math.round(getP(95) * 100) / 100,
+    p99: Math.round(getP(99) * 100) / 100,
+    max: Math.round(Math.max(...times) * 100) / 100,
+  };
+}
+
 async function benchInsertion(count = 5000): Promise<InsertionResult> {
   const agent = new AgentTrace({ dbPath: ':memory:', silent: true, autoCleanup: false });
   agent.startRun('bench-insertion');
+  const latencies: number[] = [];
   const t0 = performance.now();
   for (let i = 0; i < count; i++) {
+    const t1 = performance.now();
     await agent.trace(`ins-${i}`, async () => ({ ok: i }), {
       input: { i },
       tokens: {
@@ -138,6 +172,7 @@ async function benchInsertion(count = 5000): Promise<InsertionResult> {
       },
       metadata: { bench: true, i: i % 200 },
     });
+    latencies.push(performance.now() - t1);
   }
   const dur = performance.now() - t0;
   const rate = count / (dur / 1000);
@@ -146,6 +181,7 @@ async function benchInsertion(count = 5000): Promise<InsertionResult> {
     count,
     timeMs: Math.round(dur * 100) / 100,
     tracesPerSecond: Math.round(rate),
+    latencies: computeLatencies(latencies),
   };
 }
 
@@ -160,99 +196,70 @@ function populateDataset(size: number): { agent: AgentTrace; runId: string } {
   return { agent, runId };
 }
 
+function timeQuery(
+  name: string,
+  filter: TraceFilter,
+  fn: () => Trace[],
+  reps = 50,
+): QueryPerf {
+  const times: number[] = [];
+  let lastRes: Trace[] = [];
+  for (let r = 0; r < reps; r++) {
+    const t0 = performance.now();
+    lastRes = fn();
+    times.push(performance.now() - t0);
+  }
+  const meanTime = times.reduce((a, b) => a + b, 0) / times.length;
+  return {
+    name,
+    filter,
+    count: lastRes.length,
+    timeMs: Math.round(meanTime * 100) / 100,
+    latencies: computeLatencies(times),
+  };
+}
+
 async function benchQueries(agent: AgentTrace): Promise<QueriesResult> {
   const queries: QueryPerf[] = [];
 
-  // no filter (all)
-  let t0 = performance.now();
-  let res = agent.getTraces();
-  let t = performance.now() - t0;
-  queries.push({
-    name: 'noFilter',
-    filter: {},
-    count: res.length,
-    timeMs: Math.round(t * 100) / 100,
-  });
+  // no filter (all) - 50 reps for p50/p95/p99
+  queries.push(timeQuery('noFilter', {}, () => agent.getTraces()));
 
   // by status success
-  t0 = performance.now();
-  res = agent.getTraces({ status: ['success'] });
-  t = performance.now() - t0;
-  queries.push({
-    name: 'byStatusSuccess',
-    filter: { status: ['success'] },
-    count: res.length,
-    timeMs: Math.round(t * 100) / 100,
-  });
+  queries.push(timeQuery('byStatusSuccess', { status: ['success'] }, () => agent.getTraces({ status: ['success'] })));
 
   // by status error
-  t0 = performance.now();
-  res = agent.getTraces({ status: ['error'] });
-  t = performance.now() - t0;
-  queries.push({
-    name: 'byStatusError',
-    filter: { status: ['error'] },
-    count: res.length,
-    timeMs: Math.round(t * 100) / 100,
-  });
+  queries.push(timeQuery('byStatusError', { status: ['error'] }, () => agent.getTraces({ status: ['error'] })));
 
   // name like
-  t0 = performance.now();
-  res = agent.getTraces({ name: 'op-1' }); // LIKE %op-1%
-  t = performance.now() - t0;
-  queries.push({
-    name: 'byNameLike',
-    filter: { name: 'op-1' },
-    count: res.length,
-    timeMs: Math.round(t * 100) / 100,
-  });
+  queries.push(timeQuery('byNameLike', { name: 'op-1' }, () => agent.getTraces({ name: 'op-1' }))); // LIKE %op-1%
 
   // cost range (mid)
-  t0 = performance.now();
-  res = agent.getTraces({ minCost: 0.0002, maxCost: 0.0005 });
-  t = performance.now() - t0;
-  queries.push({
-    name: 'byCostRange',
-    filter: { minCost: 0.0002, maxCost: 0.0005 },
-    count: res.length,
-    timeMs: Math.round(t * 100) / 100,
-  });
+  queries.push(
+    timeQuery('byCostRange', { minCost: 0.0002, maxCost: 0.0005 }, () =>
+      agent.getTraces({ minCost: 0.0002, maxCost: 0.0005 }),
+    ),
+  );
 
   // latency range
-  t0 = performance.now();
-  res = agent.getTraces({ minLatency: 100, maxLatency: 300 });
-  t = performance.now() - t0;
-  queries.push({
-    name: 'byLatencyRange',
-    filter: { minLatency: 100, maxLatency: 300 },
-    count: res.length,
-    timeMs: Math.round(t * 100) / 100,
-  });
+  queries.push(
+    timeQuery('byLatencyRange', { minLatency: 100, maxLatency: 300 }, () =>
+      agent.getTraces({ minLatency: 100, maxLatency: 300 }),
+    ),
+  );
 
   // limit + offset (pagination)
-  t0 = performance.now();
-  res = agent.getTraces({ limit: 100, offset: 5000 });
-  t = performance.now() - t0;
-  queries.push({
-    name: 'limitOffset',
-    filter: { limit: 100, offset: 5000 },
-    count: res.length,
-    timeMs: Math.round(t * 100) / 100,
-  });
+  queries.push(
+    timeQuery('limitOffset', { limit: 100, offset: 5000 }, () =>
+      agent.getTraces({ limit: 100, offset: 5000 }),
+    ),
+  );
 
   // by runId
   const runs = agent.getRuns(1);
   const runId = runs[0]?.id;
   if (runId) {
-    t0 = performance.now();
-    res = agent.getTraces({ runId });
-    t = performance.now() - t0;
-    queries.push({
-      name: 'byRunId',
-      filter: { runId },
-      count: res.length,
-      timeMs: Math.round(t * 100) / 100,
-    });
+    queries.push(timeQuery('byRunId', { runId }, () => agent.getTraces({ runId })));
   }
 
   return {
