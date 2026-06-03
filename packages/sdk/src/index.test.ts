@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import type { Trace, TraceStats, Run, TokenUsage } from './types.js';
+import type { Trace, TraceStats, Run, TokenUsage, Scorer } from './types.js';
 
 const { mockStorage, MockTraceStorage } = vi.hoisted(() => {
   const mockStorage = {
@@ -41,7 +41,7 @@ vi.mock('./storage.js', () => ({
   TraceStorage: MockTraceStorage,
 }));
 
-import { AgentTrace, init, PACKAGE_NAME, VERSION } from './index.js';
+import { AgentTrace, init, PACKAGE_NAME, VERSION, score, alert } from './index.js';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -656,6 +656,137 @@ describe('evaluate() and evaluateTrace()', () => {
     expect(results).toHaveLength(5);
     // called 5 times (once per trace)
     expect(mockStorage.createScore).toHaveBeenCalledTimes(5);
+    agent.close();
+  });
+});
+
+// ---- Alerting tests (added for v0.2; does not modify any prior tests) ----
+describe('alert()', () => {
+  it('creates an AlertCondition', () => {
+    const cond = (s: any) => s.totalTraces > 10;
+    const a = alert({ name: 'high-volume', condition: cond, cooldown: 120, webhook: 'https://ex/hook' });
+    expect(a.name).toBe('high-volume');
+    expect(typeof a.condition).toBe('function');
+    expect(a.condition({ totalTraces: 5 } as any)).toBe(false);
+    expect(a.cooldown).toBe(120);
+    expect(a.webhook).toBe('https://ex/hook');
+    expect(a.lastTriggered).toBeUndefined();
+  });
+});
+
+describe('registerAlert() and getAlerts()', () => {
+  it('registerAlert() stores alert and getAlerts returns it', () => {
+    mockStorage.saveAlert = vi.fn();
+    mockStorage.getStoredAlerts = vi.fn(() => []);
+    const agent = new AgentTrace({ silent: true });
+    const cond = (s: any) => (s.totalTraces || 0) > 0;
+    const al = alert({ name: 'vol', condition: cond, cooldown: 30 });
+    agent.registerAlert(al);
+    expect(mockStorage.saveAlert).toHaveBeenCalledWith(
+      'vol',
+      expect.objectContaining({ cooldown: 30 }),
+    );
+    const got = agent.getAlerts();
+    expect(got.some((g) => g.name === 'vol')).toBe(true);
+    agent.close();
+  });
+});
+
+describe('checkAlerts()', () => {
+  it('checkAlerts() fires when condition is met', async () => {
+    mockStorage.saveAlert = vi.fn();
+    mockStorage.getStoredAlerts = vi.fn(() => []);
+    mockStorage.insertAlertHistory = vi.fn();
+    mockStorage.getAlertHistory = vi.fn(() => []);
+    const agent = new AgentTrace({ silent: true });
+    const al = alert({
+      name: 'always',
+      condition: (s: any) => true,
+      cooldown: 0,
+    });
+    agent.registerAlert(al);
+    mockStorage.getStats.mockReturnValue({ totalTraces: 1 } as any);
+    const fired = await agent.checkAlerts();
+    expect(fired.length).toBe(1);
+    expect(fired[0].alertName).toBe('always');
+    expect(fired[0].delivered).toBe(false); // no webhook
+    expect(mockStorage.insertAlertHistory).toHaveBeenCalled();
+    agent.close();
+  });
+
+  it('Cooldown prevents rapid re-triggering', async () => {
+    mockStorage.saveAlert = vi.fn();
+    mockStorage.getStoredAlerts = vi.fn(() => []);
+    mockStorage.insertAlertHistory = vi.fn();
+    mockStorage.getAlertHistory = vi.fn(() => []);
+    const agent = new AgentTrace({ silent: true });
+    const al = alert({
+      name: 'cd',
+      condition: () => true,
+      cooldown: 9999,
+    });
+    agent.registerAlert(al);
+    mockStorage.getStats.mockReturnValue({ totalTraces: 1 } as any);
+    const first = await agent.checkAlerts();
+    expect(first.length).toBe(1);
+    const second = await agent.checkAlerts();
+    expect(second.length).toBe(0);
+    agent.close();
+  });
+
+  it('Webhook delivery is attempted and logged', async () => {
+    mockStorage.saveAlert = vi.fn();
+    mockStorage.getStoredAlerts = vi.fn(() => []);
+    mockStorage.insertAlertHistory = vi.fn((h: any) => h);
+    mockStorage.getAlertHistory = vi.fn(() => []);
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200 });
+    const orig = (global as any).fetch;
+    (global as any).fetch = fetchMock;
+    try {
+      const agent = new AgentTrace({ silent: true });
+      const al = alert({
+        name: 'wh',
+        condition: () => true,
+        webhook: 'https://hooks.example/test',
+        cooldown: 0,
+      });
+      agent.registerAlert(al);
+      mockStorage.getStats.mockReturnValue({ totalTraces: 3 } as any);
+      const res = await agent.checkAlerts();
+      expect(res.length).toBe(1);
+      expect(res[0].delivered).toBe(true);
+      expect(fetchMock).toHaveBeenCalledWith(
+        'https://hooks.example/test',
+        expect.objectContaining({ method: 'POST', headers: expect.any(Object) }),
+      );
+      expect(mockStorage.insertAlertHistory).toHaveBeenCalledWith(
+        expect.objectContaining({ alertName: 'wh', delivered: true }),
+      );
+      agent.close();
+    } finally {
+      (global as any).fetch = orig;
+    }
+  });
+});
+
+describe('auto alert check after trace', () => {
+  it('triggers alert check automatically after trace() when condition met', async () => {
+    mockStorage.saveAlert = vi.fn();
+    mockStorage.getStoredAlerts = vi.fn(() => []);
+    mockStorage.insertAlertHistory = vi.fn();
+    mockStorage.getAlertHistory = vi.fn(() => []);
+    mockStorage.createTrace.mockImplementation((t: any) => ({
+      ...t,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    }));
+    const agent = new AgentTrace({ silent: true });
+    agent.startRun('arun');
+    const al = alert({ name: 'auto1', condition: (s: any) => true, cooldown: 0 });
+    agent.registerAlert(al);
+    mockStorage.getStats.mockReturnValue({ totalTraces: 1 } as any);
+    await agent.trace('op', async () => 'x');
+    expect(mockStorage.insertAlertHistory).toHaveBeenCalled();
     agent.close();
   });
 });

@@ -248,7 +248,7 @@ async function main(): Promise<void> {
     const useJson = !!flags.json;
 
     // detect subcommand for alerts (e.g. alerts list, alerts test)
-    let _alertsSub: string | undefined;
+    let alertsSub: string | undefined;
     if (command === 'alerts') {
       const argvArgs = process.argv.slice(2);
       const idx = argvArgs.indexOf('alerts');
@@ -256,7 +256,7 @@ async function main(): Promise<void> {
         for (let k = idx + 1; k < argvArgs.length; k++) {
           const c = argvArgs[k];
           if (typeof c === 'string' && !c.startsWith('-')) {
-            _alertsSub = c;
+            alertsSub = c;
             break;
           }
         }
@@ -493,6 +493,7 @@ async function main(): Promise<void> {
         printUsage();
         agent.close();
         process.exit(1);
+        break;
       }
 
       case 'version': {
