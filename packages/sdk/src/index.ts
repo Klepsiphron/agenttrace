@@ -788,7 +788,7 @@ export class AgentTrace {
   /**
    * Return basic storage stats for the backing DB.
    */
-  getStorageStats(): { totalSize: number; traceCount: number; oldestTrace: number; newestTrace: number } {
+  getStorageStats(): { totalSizeBytes: number; traceCount: number; runCount: number; oldestTrace: number | null; newestTrace: number | null } {
     return this.storage.getStorageStats();
   }
 
