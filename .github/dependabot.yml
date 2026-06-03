@@ -1,19 +1,25 @@
-{
-  'version': 2,
-  'updates':
-    [
-      {
-        'package-ecosystem': 'npm',
-        'directory': '/',
-        'schedule': { 'interval': 'weekly' },
-        'open-pull-requests-limit': 5,
-        'labels': ['dependencies'],
-      },
-      {
-        'package-ecosystem': 'github-actions',
-        'directory': '/',
-        'schedule': { 'interval': 'weekly' },
-        'labels': ['dependencies', 'github-actions'],
-      },
-    ],
-}
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+    groups:
+      eslint-related:
+        patterns:
+          - "eslint"
+          - "@eslint/*"
+          - "globals"
+          - "typescript-eslint"
+          - "@typescript-eslint/*"
+          - "eslint-config-prettier"
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "github-actions"

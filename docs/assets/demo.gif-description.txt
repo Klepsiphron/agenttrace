@@ -142,7 +142,7 @@ Result lands at `docs/assets/demo.gif` (or wherever Output points).
 
 4. Inspect:
    ```bash
-   npx agenttrace runs
+   npx agenttrace-io runs
    npx agenttrace-io stats
    ```
 
@@ -184,7 +184,7 @@ Result lands at `docs/assets/demo.gif` (or wherever Output points).
 - Record at 2x resolution then downscale for sharpness.
 - Use consistent typing speed (not instant paste).
 - Keep total runtime 6–9s.
-- End on the dashboard or a clean `npx agenttrace runs` table.
+- End on the dashboard or a clean `npx agenttrace-io runs` table.
 - After recording, optimize:
   ```bash
   # gifsicle (lossless-ish)
