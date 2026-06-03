@@ -9,7 +9,7 @@ Add configurable alerts that trigger when certain conditions are met (high error
 ### TypeScript
 
 ```typescript
-import { init, trace, alert } from '@agenttrace/sdk';
+import { init, trace, alert } from '@agenttrace-io/sdk';
 
 const agent = init();
 

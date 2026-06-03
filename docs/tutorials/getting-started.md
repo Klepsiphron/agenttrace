@@ -107,9 +107,9 @@ After running your code (which populates `agenttrace.db`):
 
 ```bash
 # From project root
-npx agenttrace dashboard
+npx agenttrace-io dashboard
 # or
-npx @agenttrace/cli dashboard --port 3000
+npx @agenttrace-io/cli dashboard --port 3000
 ```
 
 Open http://localhost:3000 — you'll see runs, traces, latency, costs, tool calls, and errors.
@@ -117,9 +117,9 @@ Open http://localhost:3000 — you'll see runs, traces, latency, costs, tool cal
 Use the CLI to inspect without the UI:
 
 ```bash
-npx agenttrace runs --limit 5
-npx agenttrace traces --limit 20
-npx agenttrace stats
+npx agenttrace-io runs --limit 5
+npx agenttrace-io traces --limit 20
+npx agenttrace-io stats
 ```
 
 ## Export traces
@@ -128,13 +128,13 @@ npx agenttrace stats
 
 ```bash
 # All traces as JSON
-npx agenttrace export --format json --output traces.json
+npx agenttrace-io export --format json --output traces.json
 
 # Just one run
-npx agenttrace export --format csv --run-id <run-uuid> --output run.csv
+npx agenttrace-io export --format csv --run-id <run-uuid> --output run.csv
 
 # OpenTelemetry format (OTLP JSON)
-npx agenttrace export --format otel --output otel.json
+npx agenttrace-io export --format otel --output otel.json
 ```
 
 ### Via SDK code
@@ -142,7 +142,7 @@ npx agenttrace export --format otel --output otel.json
 #### TypeScript
 
 ```typescript
-import { init } from '@agenttrace/sdk';
+import { init } from '@agenttrace-io/sdk';
 const agent = init();
 
 const json = agent.export('json', { runId: 'optional-run-id' });

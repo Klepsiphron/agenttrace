@@ -52,7 +52,7 @@ AgentTrace traces every token, tool call, and LLM invocation in your AI agents.
 Everything stores locally in SQLite. No accounts, no cloud, no telemetry.
 
 Features:
-- TypeScript SDK (@agenttrace/sdk) -- npm install and go
+- TypeScript SDK (@agenttrace-io/sdk) -- npm install and go
 - Python SDK (coming in v0.2)
 - CLI: agenttrace runs, agenttrace stats, agenttrace export
 - Local web dashboard on localhost
@@ -79,7 +79,7 @@ Just open-sourced AgentTrace 🔍
 AI agent observability that runs entirely locally.
 No cloud. No accounts. No telemetry.
 
-npm install @agenttrace/sdk
+npm install @agenttrace-io/sdk
 → trace any async function
 → see tokens, cost, latency, tool calls
 → dashboard at localhost

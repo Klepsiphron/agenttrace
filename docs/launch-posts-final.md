@@ -19,8 +19,8 @@ agents. Everything stores locally in SQLite. No accounts, no cloud, no
 telemetry.
 
 Features:
-- TypeScript SDK (npm install @agenttrace/sdk)
-- Python SDK (pip install agenttrace)
+- TypeScript SDK (npm install @agenttrace-io/sdk)
+- Python SDK (pip install agenttrace-io)
 - CLI: agenttrace runs, agenttrace stats, agenttrace export
 - Local web dashboard on localhost
 - Automatic cost calculation for GPT-4o, Claude 4, Gemini, Llama
@@ -110,7 +110,7 @@ github.com/Klepsiphron/agenttrace
 **Body:**
 
 ```
-npm install @agenttrace/sdk - trace any async function, see tokens,
+npm install @agenttrace-io/sdk - trace any async function, see tokens,
 cost, latency, tool calls. Everything stores in SQLite locally.
 No cloud dependency. 50 tests, fully typed.
 

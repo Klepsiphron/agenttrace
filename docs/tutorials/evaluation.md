@@ -9,7 +9,7 @@ A scorer receives a full `Trace` and returns a number (higher is usually better;
 ### TypeScript
 
 ```typescript
-import { init, trace, score } from '@agenttrace/sdk';
+import { init, trace, score } from '@agenttrace-io/sdk';
 
 const agent = init();
 
@@ -128,7 +128,7 @@ Scores live in the DB. Retrieve them:
 
 ```typescript
 // via storage (or add a thin wrapper if desired)
-import { TraceStorage } from '@agenttrace/sdk';
+import { TraceStorage } from '@agenttrace-io/sdk';
 const storage = new TraceStorage('./agenttrace.db');
 const all = storage.getScores();
 const forTrace = storage.getScores('trace-id');

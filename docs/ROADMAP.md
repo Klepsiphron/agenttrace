@@ -24,8 +24,8 @@
 - [ ] Documentation site -- proper docs with search, examples, API reference
 - [ ] README demo GIF -- visual proof for landing page
 - [ ] GitHub Sponsors -- enable sponsorship
-- [ ] npm publishing -- `npm install @agenttrace/sdk` works (needs NPM_TOKEN)
-- [ ] PyPI publishing -- `pip install agenttrace` works (needs PYPI_TOKEN)
+- [ ] npm publishing -- `npm install @agenttrace-io/sdk` works (needs NPM_TOKEN)
+- [ ] PyPI publishing -- `pip install agenttrace-io` works (needs PYPI_TOKEN)
 
 ## v0.3.0 📋 Planned -- Growth
 

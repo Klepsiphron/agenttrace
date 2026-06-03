@@ -9,7 +9,7 @@ Add basic trace evaluation/scoring to AgentTrace. Users can define scorers (func
 ### TypeScript
 
 ```typescript
-import { init, trace, score } from '@agenttrace/sdk';
+import { init, trace, score } from '@agenttrace-io/sdk';
 
 const agent = init();
 

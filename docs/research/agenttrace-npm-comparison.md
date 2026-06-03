@@ -9,7 +9,7 @@
 - Direct package inspection via npm pack + tarball extraction + raw GitHub file reads (README, agenttrace.py ~1028 LOC, cli.py, pyproject.toml, frontend server/routes/repositories)
 - Name checks via the exact curls specified
 
-**Note:** This document is research-only. Do not commit. It covers the local Python tracing library (the bulk of the public GitHub) and the published `@agenttrace/sdk` npm client (a server-oriented event pusher). Our project is the monorepo at the workspace root providing `@agenttrace/*` packages and `agenttrace` PyPI.
+**Note:** This document is research-only. Do not commit. It covers the local Python tracing library (the bulk of the public GitHub) and the published `@agenttrace/sdk` npm client (a server-oriented event pusher). Our project is the monorepo at the workspace root providing `@agenttrace-io/*` packages and `agenttrace-io` PyPI.
 
 ---
 
@@ -100,7 +100,7 @@ curl -s https://pypi.org/pypi/agenttrace-io/json
 - **npm `@agenttrace-io/sdk`**: "Not found" means the scoped package name is **available** for publishing (no existing package at that path).
 - **PyPI `agenttrace-io`**: "Not Found" means the distribution name is **available**.
 - Additional: Direct GET on npm scope `@agenttrace-io` returns MethodNotAllowed (normal for scopes; you query specific packages). No evidence of existing `@agenttrace-io` org/packages in search results or metadata.
-- For contrast (not requested but relevant): `agenttrace` is **taken on both** (PyPI v0.1.2 by TensorStax; npm `@agenttrace/sdk` exists and is the one analyzed). Our project already publishes under `agenttrace` (PyPI) and `@agenttrace/sdk` (npm), creating direct name collision risk for users.
+- For contrast (not requested but relevant): `agenttrace` is **taken on both** (PyPI v0.1.2 by TensorStax; npm `@agenttrace/sdk` exists and is the one analyzed). Our project publishes under `agenttrace-io` (PyPI) and `@agenttrace-io/*` (npm), to avoid collision with existing `agenttrace` on PyPI and competitor's `@agenttrace/sdk`.
 
 **Recommendation in doc context:** `@agenttrace-io` (and variants like `@agenttrace-io/sdk`, `agenttrace-io`) appears clear for a scoped "io" org/brand if we want to differentiate (e.g., for a hosted sibling or to avoid collision). However, "agenttrace" namespace is already contested on PyPI.
 
@@ -125,7 +125,7 @@ curl -s https://pypi.org/pypi/agenttrace-io/json
 | **Evaluations**            | First-class `TracerEval` (data+task+scores at run time, trials, tool schema tracking, stores eval\_\* tables, scorer source snapshot) | Post-hoc `evaluate({scorers, runId/traceIds})` + `score(name, fn)`; stores in `scores` table; concurrency control                       |
 | **Tool calls**             | Optional schema validation during trace (if tools+input_schema); captured in data                                                     | `ToolCall[]` structured (name, input, output, latency, success, error, ts); recorded at trace time (middleware support)                 |
 | **Storage**                | SQLite (flat traces + eval tables); in-mem buffer                                                                                     | SQLite (WAL + FKs); normalized runs + traces + tool_calls + scores + alerts + history; run stat rollups; auto cleanup maxTraces         |
-| **Dashboard/UI**           | Separate `frontend/` (Express 3033 + React/Vite 5173); must `npm run` + install; reads same DB                                        | Integrated `@agenttrace/dashboard` (npx agenttrace dashboard or via cli); static + API in one; also full CLI tables                     |
+| **Dashboard/UI**           | Separate `frontend/` (Express 3033 + React/Vite 5173); must `npm run` + install; reads same DB                                        | Integrated `@agenttrace-io/dashboard` (npx agenttrace-io dashboard or via cli); static + API in one; also full CLI tables                     |
 | **CLI**                    | Minimal: only "start" for frontend                                                                                                    | Full: runs, stats, export (json/csv/otel), dashboard, init, version; colored tables                                                     |
 | **Export**                 | Via UI or direct DB query                                                                                                             | `export('json'                                                                                                                          | 'csv' | 'otel')`; full OTLP JSON spans generated client-side (no deps) |
 | **Alerting / webhooks**    | Heartbeats in npm SDK (for server-side agent-down detection)                                                                          | Built-in `registerAlert({name, condition(stats)=>bool, webhook, cooldown})`; auto-check on traces; delivery history; persisted          |
@@ -134,7 +134,7 @@ curl -s https://pypi.org/pypi/agenttrace-io/json
 | **Costs / pricing**        | Shared lib has calculateCost + model list                                                                                             | Deeply integrated (per trace, breakdowns by model/day, getCostBreakdown)                                                                |
 | **OTEL**                   | None                                                                                                                                  | Native `export('otel')` + resource/span attrs with agenttrace.\* namespace                                                              |
 | **Local-only guarantee**   | Yes for Python lib; npm SDK is client-to-server                                                                                       | Yes, everywhere (SQLite file, never leaves machine unless user exports or configures webhook)                                           |
-| **Zero-config UI**         | Requires Node + npm install in frontend/                                                                                              | `npx agenttrace dashboard` (pulls @agenttrace/\*); or programmatic                                                                      |
+| **Zero-config UI**         | Requires Node + npm install in frontend/                                                                                              | `npx agenttrace-io dashboard` (pulls @agenttrace-io/\*); or programmatic                                                                      |
 | **Version (core)**         | 0.1.2 (Py), 0.1.0 (npm)                                                                                                               | 0.1.0 (all packages)                                                                                                                    |
 | **License**                | MIT (GitHub), Apache-2.0 (npm SDK)                                                                                                    | MIT (all)                                                                                                                               |
 
@@ -179,7 +179,7 @@ curl -s https://pypi.org/pypi/agenttrace-io/json
 
 ## 5. What Unique Value We Provide
 
-- **True local-first, integrated toolchain (no extra servers/runtimes for basics):** `npm install @agenttrace/sdk && npx agenttrace dashboard` (or pip + npx) gives traces + queryable DB + UI + CLI immediately. Their dashboard requires `cd frontend; npm install; npm run start`. Our storage, queries, costs, and UI are in the published packages.
+- **True local-first, integrated toolchain (no extra servers/runtimes for basics):** `npm install @agenttrace-io/sdk && npx agenttrace-io dashboard` (or pip + npx) gives traces + queryable DB + UI + CLI immediately. Their dashboard requires `cd frontend; npm install; npm run start`. Our storage, queries, costs, and UI are in the published packages.
 - **Cross-ecosystem symmetry:** Drop-in for TS/JS (LangGraph etc.) and Python (CrewAI etc.) teams with consistent mental model, types, and storage. Theirs is Python-primary.
 - **Production + cost observability built-in:** Automatic USD costs for 15+ models (with easy extension), per-run/per-day breakdowns, token tracking, latency. Critical for agent spend monitoring; absent from their core.
 - **Framework auto-instrumentation:** Real middlewares that hook into LangGraph execution model and CrewAI event bus, extracting tokens heuristically from common LLM response shapes. Reduces boilerplate vs manual decorators around every call.
@@ -193,7 +193,7 @@ curl -s https://pypi.org/pypi/agenttrace-io/json
 - **Privacy + simplicity positioning:** Matches their "local" but delivers more out-of-box (costs, CLI, middlewares, OTEL, alerts) without requiring a separate UI server process for viewing. Our comparison.md already positions vs Langfuse/LangSmith on these axes; the tensorstax project is another local-ish peer that we differentiate from via integration depth and cost/standards support.
 - **Avoiding name collision pitfalls:** By documenting this, we can choose clear branding (e.g., lean into @agenttrace-io if expanding).
 
-**Market/context:** Both projects are small/new (theirs ~63 GitHub stars, low npm downloads for the SDK). Direct PyPI name collision on "agenttrace" already exists — users installing "agenttrace" get theirs. Our TS packages under @agenttrace/\* are distinct. The npm @agenttrace/sdk (server client) + our @agenttrace/sdk (local) would also collide if a user encounters both.
+**Market/context:** Both projects are small/new (theirs ~63 GitHub stars, low npm downloads for the SDK). Direct PyPI name collision on "agenttrace" already exists — users installing "agenttrace" get theirs. Our TS packages under @agenttrace-io/\* are distinct. The npm @agenttrace/sdk (server client) + our @agenttrace-io/sdk (local) would also collide if a user encounters both.
 
 ---
 
