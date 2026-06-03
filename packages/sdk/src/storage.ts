@@ -34,7 +34,6 @@ export class TraceStorage {
   constructor(dbPath: string = './agenttrace.db', tenantId?: string) {
     this.dbPath = dbPath;
     this.tenantId = tenantId || '';
-    console.error(`[DEBUG TraceStorage ctor] dbPath='${dbPath}' tenantIdIn='${tenantId}' this.tenantId='${this.tenantId}'`);
     this.db = new Database(dbPath);
     this.db.pragma('journal_mode = WAL');
     this.db.pragma('foreign_keys = ON');
@@ -198,6 +197,14 @@ export class TraceStorage {
       );
       CREATE INDEX IF NOT EXISTS idx_api_keys_created_at ON api_keys(created_at);
 
+      CREATE TABLE IF NOT EXISTS projects (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        api_key TEXT NOT NULL UNIQUE,
+        created_at INTEGER NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_projects_api_key ON projects(api_key);
+
       CREATE TABLE IF NOT EXISTS settings (
         key TEXT PRIMARY KEY,
         value TEXT NOT NULL
@@ -315,8 +322,6 @@ export class TraceStorage {
     }
     sql += ' ORDER BY started_at DESC LIMIT ?';
     params.push(limit);
-    // DEBUG
-    console.error(`[DEBUG getRuns] tenantId='${tenantId}' dbPath='${this.dbPath}' sql='${sql}' params=${JSON.stringify(params)}`);
     const rows = this.db.prepare(sql).all(...params) as unknown[];
     return rows.map((r) => this.rowToRun(r));
   }
@@ -446,8 +451,6 @@ export class TraceStorage {
     }
 
     if (filter.runId) {
-    // DEBUG getTraces
-    console.error(`[DEBUG getTraces] tenantId='${tenantId}' db='${this.dbPath}' filter=${JSON.stringify(filter)}`);
       sql += ' AND run_id = ?';
       params.push(filter.runId);
     }
@@ -1618,12 +1621,13 @@ export class TraceStorage {
   createApiKey(
     name: string,
     permissions: string[] = ['read', 'write'],
+    key?: string,
   ): { id: string; name: string; key: string; preview: string; createdAt: number } {
     const id = randomUUID();
-    const key = randomBytes(32).toString('hex');
-    const keyHash = createHash('sha256').update(key).digest('hex');
+    const secretKey = key || randomBytes(32).toString('hex');
+    const keyHash = createHash('sha256').update(secretKey).digest('hex');
     const now = Date.now();
-    const keyPreview = key.slice(0, 8) + '****';
+    const keyPreview = secretKey.slice(0, 8) + '****';
     this.db
       .prepare(
         `
@@ -1632,7 +1636,7 @@ export class TraceStorage {
     `,
       )
       .run(id, name, keyHash, keyPreview, JSON.stringify(permissions), now);
-    return { id, name, key, preview: keyPreview, createdAt: now };
+    return { id, name, key: secretKey, preview: keyPreview, createdAt: now };
   }
 
   getApiKeys(): {
