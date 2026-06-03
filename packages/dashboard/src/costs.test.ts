@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach, vi } from 'vitest';
+import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import * as os from 'node:os';
 import * as fs from 'node:fs';
 import { createDashboardApp } from './index.ts';
@@ -6,22 +6,24 @@ import * as http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import type { Express } from 'express';
 
-vi.mock('node:os', async (importOriginal) => {
-  const actual = await importOriginal<any>();
-  return {
-    ...actual,
-    totalmem: vi.fn(() => 16 * 1024 * 1024 * 1024),
-    freemem: vi.fn(() => 8 * 1024 * 1024 * 1024),
-  };
-});
+let _memTotal = 16 * 1024 * 1024 * 1024;
+let _memFree = 8 * 1024 * 1024 * 1024;
+vi.mock('node:os', () => ({
+  totalmem: vi.fn(() => _memTotal),
+  freemem: vi.fn(() => _memFree),
+  default: {
+    totalmem: vi.fn(() => _memTotal),
+    freemem: vi.fn(() => _memFree),
+  },
+}));
 
-vi.mock('node:fs', async (importOriginal) => {
-  const actual = await importOriginal<any>();
-  return {
-    ...actual,
-    statfsSync: vi.fn(() => ({ bsize: 4096, blocks: 10000, bfree: 500, bavail: 500 })),
-  };
-});
+let _diskBfree = 500;
+vi.mock('node:fs', () => ({
+  statfsSync: vi.fn(() => ({ bsize: 4096, blocks: 10000, bfree: _diskBfree, bavail: _diskBfree })),
+  default: {
+    statfsSync: vi.fn(() => ({ bsize: 4096, blocks: 10000, bfree: _diskBfree, bavail: _diskBfree })),
+  },
+}));
 
 function getServerPort(server: http.Server): number {
   const addr = server.address();
@@ -34,6 +36,12 @@ function getServerPort(server: http.Server): number {
 describe('dashboard cost API endpoints (new tests)', () => {
   let servers: http.Server[] = [];
   let closes: Array<() => void> = [];
+
+  beforeEach(() => {
+    _memTotal = 16 * 1024 * 1024 * 1024;
+    _memFree = 8 * 1024 * 1024 * 1024;
+    _diskBfree = 500000;
+  });
 
   afterEach(() => {
     servers.forEach((s) => {
@@ -250,8 +258,8 @@ describe('dashboard cost API endpoints (new tests)', () => {
   it('returns degraded (still 200) on resource warning (80-90%)', async () => {
     const total = 10000;
     const used = 8600; // 86%
-    vi.mocked(os.totalmem).mockReturnValue(total);
-    vi.mocked(os.freemem).mockReturnValue(total - used);
+    _memTotal = total;
+    _memFree = total - used;
 
     const { app, close } = createDashboardApp(':memory:');
     closes.push(close);
@@ -268,8 +276,8 @@ describe('dashboard cost API endpoints (new tests)', () => {
   it('returns unhealthy + 503 on critical memory (>=90%)', async () => {
     const total = 10000;
     const used = 9500; // 95% critical
-    vi.mocked(os.totalmem).mockReturnValue(total);
-    vi.mocked(os.freemem).mockReturnValue(total - used);
+    _memTotal = total;
+    _memFree = total - used;
 
     const { app, close } = createDashboardApp(':memory:');
     closes.push(close);
@@ -284,15 +292,7 @@ describe('dashboard cost API endpoints (new tests)', () => {
 
   it('detects disk critical and reports unhealthy (via fs.statfsSync)', async () => {
     // simulate low disk (95% used) BEFORE creating app (so getDiskSpace sees it)
-    vi.mocked(fs.statfsSync).mockReturnValue({
-      type: 0,
-      bsize: 4096,
-      blocks: 10000,
-      bfree: 500,
-      bavail: 500,
-      files: 1000,
-      ffree: 1000,
-    } as any);
+    _diskBfree = 500;
 
     const { app, close } = createDashboardApp(':memory:');
     closes.push(close);
