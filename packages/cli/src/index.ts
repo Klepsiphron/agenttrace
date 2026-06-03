@@ -12,8 +12,8 @@ import {
   type TraceStats,
   type CostBreakdown,
   type TraceTreeNode,
-  AlertCondition,
-  ExportFormat,
+  type AlertCondition,
+  type ExportFormat,
   runPendingMigrations,
   getSchemaVersion,
   score,
@@ -798,11 +798,11 @@ async function runMain(): Promise<void> {
   }
 }
 
-function main(): void {
+function main(): Promise<void> | void {
   try {
     const result = runMain();
     if (result && typeof (result as Promise<unknown>).then === 'function') {
-      (result as Promise<void>).catch((err: unknown) => {
+      return (result as Promise<void>).catch((err: unknown) => {
         console.error('Error:', err instanceof Error ? err.message : String(err));
         process.exit(1);
       });

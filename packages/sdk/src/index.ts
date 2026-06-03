@@ -307,9 +307,21 @@ export class AgentTrace {
       const ctxMeta = options.context ? options.context.metadata || {} : {};
       const mergedMeta = { ...ctxMeta, ...baseMeta };
 
+      const runId =
+        this.currentRunId ||
+        (() => {
+          const rid = randomUUID();
+          try {
+            this.storage.createRun({ id: rid, name: 'auto', startedAt: Date.now(), metadata: {} });
+          } catch (_) {
+            /* run may already exist */
+          }
+          return rid;
+        })();
+
       const trace: Omit<Trace, 'createdAt' | 'updatedAt'> = {
         id: traceId,
-        runId: this.currentRunId || randomUUID(),
+        runId,
         name,
         status,
         input: options.input ?? null,
