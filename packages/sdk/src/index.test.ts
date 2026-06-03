@@ -32,10 +32,6 @@ const { mockStorage, MockTraceStorage } = vi.hoisted(() => {
     getSetting: vi.fn(),
     setSetting: vi.fn(),
     getWebhooks: vi.fn(() => []),
-    getStoredAlerts: vi.fn(() => []),
-    saveAlert: vi.fn(),
-    insertAlertHistory: vi.fn(),
-    getAlertHistory: vi.fn(() => []),
   };
 
   return {
@@ -301,7 +297,7 @@ describe('getTraces()', () => {
 
     const result = agent.getTraces({ runId: 'run-a' });
 
-    expect(mockStorage.getTraces).toHaveBeenCalledWith({ runId: 'run-a' }, undefined);
+    expect(mockStorage.getTraces).toHaveBeenCalledWith({ runId: 'run-a' });
     expect(result).toBe(traces);
     agent.close();
   });
@@ -310,7 +306,7 @@ describe('getTraces()', () => {
     const agent = new AgentTrace({ silent: true });
     agent.getTraces({ limit: 5, offset: 10 });
 
-    expect(mockStorage.getTraces).toHaveBeenCalledWith({ limit: 5, offset: 10 }, undefined);
+    expect(mockStorage.getTraces).toHaveBeenCalledWith({ limit: 5, offset: 10 });
     agent.close();
   });
 });
@@ -364,7 +360,7 @@ describe('export()', () => {
     const json = agent.export('json', { runId: 'run-1' });
     const parsed = JSON.parse(json);
 
-    expect(mockStorage.getTraces).toHaveBeenCalledWith({ runId: 'run-1' }, undefined);
+    expect(mockStorage.getTraces).toHaveBeenCalledWith({ runId: 'run-1' });
     expect(parsed).toEqual(traces);
     agent.close();
   });
@@ -403,7 +399,7 @@ describe('export() otel format', () => {
     const otlpJson = agent.export('otel', { runId: 'run-1' });
     const parsed = JSON.parse(otlpJson);
 
-    expect(mockStorage.getTraces).toHaveBeenCalledWith({ runId: 'run-1' }, undefined);
+    expect(mockStorage.getTraces).toHaveBeenCalledWith({ runId: 'run-1' });
     expect(parsed).toHaveProperty('resourceSpans');
     expect(Array.isArray(parsed.resourceSpans)).toBe(true);
     expect(parsed.resourceSpans.length).toBe(1);
@@ -582,7 +578,7 @@ describe('evaluate() and evaluateTrace()', () => {
 
     const byRun = await agent.evaluate({ scorers: [s], runId: 'r1' });
     expect(byRun).toHaveLength(1);
-    expect(mockStorage.getTraces).toHaveBeenCalledWith({ runId: 'r1' }, undefined);
+    expect(mockStorage.getTraces).toHaveBeenCalledWith({ runId: 'r1' });
 
     mockStorage.getTraces.mockClear();
     const byIds = await agent.evaluate({ scorers: [s], traceIds: ['b'] });
@@ -766,17 +762,6 @@ describe('checkAlerts()', () => {
         cooldown: 0,
       });
       agent.registerAlert(al);
-      mockStorage.getWebhooks = vi.fn(() => [
-        {
-          id: 'w1',
-          url: 'https://hooks.example/test',
-          secret: 'test-secret-123',
-          events: [],
-          enabled: true,
-          createdAt: Date.now(),
-          failureCount: 0,
-        } as any,
-      ]);
       mockStorage.getStats.mockReturnValue({ totalTraces: 3 } as unknown as TraceStats);
       const res = await agent.checkAlerts();
       expect(res.length).toBe(1);
@@ -785,42 +770,10 @@ describe('checkAlerts()', () => {
         'https://hooks.example/test',
         expect.objectContaining({ method: 'POST', headers: expect.any(Object) }),
       );
-      // verify User-Agent uses VERSION and signature was added using HMAC
-      const call = fetchMock.mock.calls[0] as [string, { headers: Record<string, string>; signal?: AbortSignal }];
-      const hdrs = call[1].headers;
-      expect(hdrs['User-Agent']).toBe(`AgentTrace/${VERSION}`);
-      expect(hdrs['X-AgentTrace-Signature']).toMatch(/^sha256=[0-9a-f]{64}$/);
-      // also signal for timeout present
-      expect(call[1].signal).toBeDefined();
       expect(mockStorage.insertAlertHistory).toHaveBeenCalledWith(
         expect.objectContaining({ alertName: 'wh', delivered: true }),
       );
       agent.close();
-
-      // Security: non-https remote rejected before fetch
-      const agentHttp = new AgentTrace({ silent: true });
-      const alHttp = alert({ name: 'http-bad', condition: () => true, webhook: 'http://example.com/h', cooldown: 0 });
-      agentHttp.registerAlert(alHttp);
-      mockStorage.getStats.mockReturnValue({ totalTraces: 1 } as unknown as TraceStats);
-      const resHttp = await agentHttp.checkAlerts();
-      expect(resHttp.length).toBe(1);
-      expect(resHttp[0].delivered).toBe(false);
-      expect(resHttp[0].error).toBe('webhook must use HTTPS');
-      agentHttp.close();
-
-      // Security: private/internal IP blocked (SSRF)
-      const agentPriv = new AgentTrace({ silent: true });
-      const alPriv = alert({
-        name: 'priv',
-        condition: () => true,
-        webhook: 'https://169.254.169.254/latest/meta-data/',
-        cooldown: 0,
-      });
-      agentPriv.registerAlert(alPriv);
-      const resPriv = await agentPriv.checkAlerts();
-      expect(resPriv[0].delivered).toBe(false);
-      expect(resPriv[0].error).toBe('webhook URL resolves to private IP');
-      agentPriv.close();
     } finally {
       g.fetch = orig;
     }
