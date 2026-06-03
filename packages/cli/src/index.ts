@@ -5,7 +5,7 @@
  * Command-line interface for querying traces, runs, stats and exports
  */
 
-import { AgentTrace, type Run, type Trace, type TraceStats, ExportFormat } from '@agenttrace/sdk';
+import { AgentTrace, type Run, type Trace, type TraceStats, type CostBreakdown, ExportFormat } from '@agenttrace/sdk';
 import { startDashboard } from '@agenttrace/dashboard';
 import { existsSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';

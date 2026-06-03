@@ -50,6 +50,16 @@ export function createDashboardApp(dbPath?: string): DashboardApp {
     }
   });
 
+  app.get('/api/costs', (req: Request, res: Response) => {
+    try {
+      const runId = (req.query['run-id'] || req.query.runId || req.query['runId']) as string | undefined;
+      const breakdown = trace.getCostBreakdown({ runId: runId ? String(runId) : undefined });
+      res.json(breakdown);
+    } catch (err) {
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
   app.get('/api/runs', (req: Request, res: Response) => {
     try {
       const limit = req.query.limit ? parseInt(String(req.query.limit), 10) : 200;

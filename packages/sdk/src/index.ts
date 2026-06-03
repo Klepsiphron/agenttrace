@@ -18,6 +18,7 @@ import {
   Scorer,
   ScorerResult,
   EvaluateOptions,
+  CostBreakdown,
 } from './types.js';
 
 export const VERSION = '0.1.0';
@@ -38,23 +39,45 @@ export type {
   Scorer,
   ScorerResult,
   EvaluateOptions,
+  CostBreakdown,
 } from './types.js';
 
 export { TraceStorage } from './storage.js';
 
 // Default cost calculator (approximate 2026 pricing)
-function defaultCostCalculator(tokens: TokenUsage, model?: string): number {
-  const rates: Record<string, { prompt: number; completion: number }> = {
-    'gpt-4o': { prompt: 0.0025, completion: 0.01 },
-    'gpt-4o-mini': { prompt: 0.00015, completion: 0.0006 },
-    'claude-sonnet-4': { prompt: 0.003, completion: 0.015 },
-    'claude-haiku-4': { prompt: 0.00025, completion: 0.00125 },
-    'gemini-2.0-flash': { prompt: 0.0001, completion: 0.0004 },
-    'llama-3.1-70b': { prompt: 0.0009, completion: 0.0009 },
-  };
+// Rates are in USD per 1000 tokens. Extended with additional models for v0.2.0.
+const modelRates: Record<string, { prompt: number; completion: number }> = {
+  'gpt-4o': { prompt: 0.0025, completion: 0.01 },
+  'gpt-4o-mini': { prompt: 0.00015, completion: 0.0006 },
+  'claude-sonnet-4': { prompt: 0.003, completion: 0.015 },
+  'claude-haiku-4': { prompt: 0.00025, completion: 0.00125 },
+  'gemini-2.0-flash': { prompt: 0.0001, completion: 0.0004 },
+  'llama-3.1-70b': { prompt: 0.0009, completion: 0.0009 },
+  // Added models (approximate current pricing researched 2026)
+  'claude-opus-4': { prompt: 0.005, completion: 0.025 },
+  'claude-sonnet-4.5': { prompt: 0.003, completion: 0.015 },
+  'claude-haiku-4.5': { prompt: 0.001, completion: 0.005 },
+  'gpt-4.1': { prompt: 0.002, completion: 0.008 },
+  'gpt-4.1-mini': { prompt: 0.0004, completion: 0.0016 },
+  'gpt-4.1-nano': { prompt: 0.0001, completion: 0.0004 },
+  'gemini-2.5-pro': { prompt: 0.00125, completion: 0.01 },
+  'gemini-2.5-flash': { prompt: 0.0003, completion: 0.0025 },
+  'llama-4-scout': { prompt: 0.00008, completion: 0.0003 },
+  'llama-4-maverick': { prompt: 0.00015, completion: 0.0006 },
+};
 
-  const rate = rates[model || ''] || { prompt: 0.001, completion: 0.002 };
+function defaultCostCalculator(tokens: TokenUsage, model?: string): number {
+  const rate = modelRates[model || ''] || { prompt: 0.001, completion: 0.002 };
   return (tokens.promptTokens * rate.prompt + tokens.completionTokens * rate.completion) / 1000;
+}
+
+/**
+ * Register or override pricing rates for a model in the default cost calculator (used at runtime).
+ * Rates are USD per 1,000 tokens (matching the calculator convention).
+ * Example: registerModelRate('my-model', 0.001, 0.002)  => $1/M prompt, $2/M completion
+ */
+export function registerModelRate(model: string, promptRatePerK: number, completionRatePerK: number): void {
+  modelRates[model] = { prompt: promptRatePerK, completion: completionRatePerK };
 }
 
 // ---- OpenTelemetry (OTLP JSON) export helpers (no external deps) ----
@@ -308,6 +331,13 @@ export class AgentTrace {
    */
   getStats(): TraceStats {
     return this.storage.getStats();
+  }
+
+  /**
+   * Get cost breakdown (by model, by day, total). Supports optional run filter.
+   */
+  getCostBreakdown(filter: { runId?: string } = {}): CostBreakdown {
+    return this.storage.getCostBreakdown(filter.runId);
   }
 
   /**

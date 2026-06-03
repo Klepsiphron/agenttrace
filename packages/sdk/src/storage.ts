@@ -5,7 +5,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- SQLite row mapping uses loose any (pre-existing pattern in file) */
 
 import Database from 'better-sqlite3';
-import { Trace, Run, TraceFilter, TraceStats, TokenUsage } from './types.js';
+import { Trace, Run, TraceFilter, TraceStats, TokenUsage, CostBreakdown } from './types.js';
 
 export class TraceStorage {
   private db: Database;
@@ -369,12 +369,26 @@ export class TraceStorage {
       )
       .all() as any[];
 
+    const costByModelRows = this.db
+      .prepare(
+        `
+      SELECT COALESCE(model, 'unknown') as model, SUM(cost_usd) as cost
+      FROM traces GROUP BY model
+    `,
+      )
+      .all() as any[];
+    const costByModel: Record<string, number> = {};
+    for (const r of costByModelRows) {
+      costByModel[r.model] = r.cost || 0;
+    }
+
     return {
       totalRuns: totalRuns.c,
       totalTraces: totalTraces.c,
       successRate: totalTraces.c > 0 ? successCount.c / totalTraces.c : 0,
       avgLatencyMs: avgLatency.v || 0,
       totalCostUsd: totalCost.v || 0,
+      costByModel,
       totalTokens: totalTokens.v || 0,
       avgTokensPerTrace: totalTraces.c > 0 ? totalTokens.v / totalTraces.c : 0,
       topTools: topTools.map((t) => ({
@@ -383,6 +397,43 @@ export class TraceStorage {
         avgLatencyMs: t.avgLatencyMs,
       })),
       topErrors: topErrors.map((e) => ({ error: e.error, count: e.count })),
+    };
+  }
+
+  getCostBreakdown(runId?: string): CostBreakdown {
+    let where = '';
+    const params: any[] = [];
+    if (runId) {
+      where = ' WHERE run_id = ?';
+      params.push(runId);
+    }
+
+    const totalCost = this.db.prepare(`SELECT SUM(cost_usd) as v FROM traces${where}`).get(...params) as any;
+
+    const costByModelRows = this.db
+      .prepare(`SELECT COALESCE(model, 'unknown') as model, SUM(cost_usd) as cost FROM traces${where} GROUP BY model`)
+      .all(...params) as any[];
+    const costByModel: Record<string, number> = {};
+    for (const r of costByModelRows) {
+      costByModel[r.model] = r.cost || 0;
+    }
+
+    const byDayRows = this.db
+      .prepare(
+        `SELECT strftime('%Y-%m-%d', created_at / 1000, 'unixepoch') as day, SUM(cost_usd) as cost FROM traces${where} GROUP BY day ORDER BY day`,
+      )
+      .all(...params) as any[];
+    const costByDay: Record<string, number> = {};
+    for (const r of byDayRows) {
+      if (r.day) {
+        costByDay[r.day] = r.cost || 0;
+      }
+    }
+
+    return {
+      totalCostUsd: totalCost.v || 0,
+      costByModel,
+      costByDay,
     };
   }
 

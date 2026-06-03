@@ -96,10 +96,18 @@ export interface TraceStats {
   successRate: number;
   avgLatencyMs: number;
   totalCostUsd: number;
+  costByModel?: Record<string, number>;
   totalTokens: number;
   avgTokensPerTrace: number;
   topTools: { name: string; count: number; avgLatencyMs: number }[];
   topErrors: { error: string; count: number }[];
+}
+
+/** Cost breakdown returned by getCostBreakdown and /api/costs */
+export interface CostBreakdown {
+  totalCostUsd: number;
+  costByModel: Record<string, number>;
+  costByDay: Record<string, number>;
 }
 
 /** Agent framework integrations */
