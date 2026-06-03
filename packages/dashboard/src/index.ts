@@ -154,7 +154,18 @@ export function createDashboardApp(dbPath?: string): DashboardApp {
   const startTime = Date.now();
 
   // Parse JSON bodies
-  app.use(express.json());
+  app.use(express.json({ limit: '1mb' }));
+
+  app.use((req, res, next) => {
+    res.setHeader('Access-Control-Allow-Origin', req.headers.origin || 'http://localhost:3000');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key');
+    if (req.method === 'OPTIONS') {
+      res.sendStatus(204);
+      return;
+    }
+    next();
+  });
 
   // Serve the static frontend without auth (assets, index.html)
   app.use(express.static(PUBLIC_DIR, { index: 'index.html' }));
