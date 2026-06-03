@@ -1,5 +1,5 @@
 {
-  "name": "@agenttrace-io/dashboard",
+  "name": "@agenttrace/dashboard",
   "version": "0.1.0",
   "description": "Local web dashboard for AgentTrace",
   "license": "MIT",
