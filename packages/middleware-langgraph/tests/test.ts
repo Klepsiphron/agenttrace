@@ -9,7 +9,9 @@ function makeTempDb(): { path: string; cleanup: () => void } {
     try {
       // best effort remove; storage will handle
       void 0;
-    } catch (_) { /* ignore */ }
+    } catch (_) {
+      /* ignore */
+    }
   };
   return { path, cleanup };
 }
@@ -36,8 +38,16 @@ describe('AgentTraceMiddleware', () => {
   });
 
   afterEach(() => {
-    try { mw.close(); } catch (_) { /* ignore */ }
-    try { inspector.close(); } catch (_) { /* ignore */ }
+    try {
+      mw.close();
+    } catch (_) {
+      /* ignore */
+    }
+    try {
+      inspector.close();
+    } catch (_) {
+      /* ignore */
+    }
     cleanup();
   });
 

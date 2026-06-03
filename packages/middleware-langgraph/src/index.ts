@@ -28,9 +28,23 @@ export interface LangGraphNodeConfig {
  * or graph middleware support in your LangGraph version).
  */
 export interface NodeMiddleware {
-  beforeNode?(nodeName: string, state: unknown, config?: LangGraphNodeConfig): unknown | Promise<unknown>;
-  afterNode?(nodeName: string, state: unknown, result: unknown, config?: LangGraphNodeConfig): unknown | Promise<unknown>;
-  onError?(nodeName: string, state: unknown, error: Error, config?: LangGraphNodeConfig): void | Promise<void>;
+  beforeNode?(
+    nodeName: string,
+    state: unknown,
+    config?: LangGraphNodeConfig,
+  ): unknown | Promise<unknown>;
+  afterNode?(
+    nodeName: string,
+    state: unknown,
+    result: unknown,
+    config?: LangGraphNodeConfig,
+  ): unknown | Promise<unknown>;
+  onError?(
+    nodeName: string,
+    state: unknown,
+    error: Error,
+    config?: LangGraphNodeConfig,
+  ): void | Promise<void>;
 }
 
 /** Shape of AgentTrace's internal (required/defaulted) config. */
@@ -65,7 +79,11 @@ export class AgentTraceMiddleware implements NodeMiddleware {
     return this.agent;
   }
 
-  beforeNode(nodeName: string, state: unknown, _config?: LangGraphNodeConfig): unknown | Promise<unknown> {
+  beforeNode(
+    nodeName: string,
+    state: unknown,
+    _config?: LangGraphNodeConfig,
+  ): unknown | Promise<unknown> {
     if (!this.pending[nodeName]) {
       this.pending[nodeName] = [];
     }
@@ -76,7 +94,12 @@ export class AgentTraceMiddleware implements NodeMiddleware {
     return state;
   }
 
-  afterNode(nodeName: string, state: unknown, result: unknown, _config?: LangGraphNodeConfig): unknown | Promise<unknown> {
+  afterNode(
+    nodeName: string,
+    state: unknown,
+    result: unknown,
+    _config?: LangGraphNodeConfig,
+  ): unknown | Promise<unknown> {
     const stack = this.pending[nodeName] || [];
     const startInfo = stack.pop() || { startTime: Date.now(), input: state };
     if (stack.length === 0) {
@@ -100,7 +123,12 @@ export class AgentTraceMiddleware implements NodeMiddleware {
     return result;
   }
 
-  onError(nodeName: string, state: unknown, error: Error, _config?: LangGraphNodeConfig): void | Promise<void> {
+  onError(
+    nodeName: string,
+    state: unknown,
+    error: Error,
+    _config?: LangGraphNodeConfig,
+  ): void | Promise<void> {
     const stack = this.pending[nodeName] || [];
     const startInfo = stack.pop() || { startTime: Date.now(), input: state };
     if (stack.length === 0) {
@@ -170,7 +198,10 @@ export class AgentTraceMiddleware implements NodeMiddleware {
         const rm = c.response_metadata as Record<string, unknown> | undefined;
         return {
           promptTokens: (u.input_tokens ?? u.prompt_tokens ?? u.promptTokens ?? 0) as number,
-          completionTokens: (u.output_tokens ?? u.completion_tokens ?? u.completionTokens ?? 0) as number,
+          completionTokens: (u.output_tokens ??
+            u.completion_tokens ??
+            u.completionTokens ??
+            0) as number,
           totalTokens: (u.total_tokens ?? u.totalTokens ?? 0) as number,
           model: (rm?.model_name || c.name) as string | undefined,
         };
@@ -190,9 +221,16 @@ export class AgentTraceMiddleware implements NodeMiddleware {
       const tu = tuRaw as Record<string, unknown>;
       if (tu.totalTokens != null || tu.total_tokens != null || tu.total != null) {
         return {
-          promptTokens: (tu.promptTokens ?? tu.prompt_tokens ?? tu.input_tokens ?? tu.inputTokens ?? 0) as number,
-          completionTokens:
-            (tu.completionTokens ?? tu.completion_tokens ?? tu.output_tokens ?? tu.outputTokens ?? 0) as number,
+          promptTokens: (tu.promptTokens ??
+            tu.prompt_tokens ??
+            tu.input_tokens ??
+            tu.inputTokens ??
+            0) as number,
+          completionTokens: (tu.completionTokens ??
+            tu.completion_tokens ??
+            tu.output_tokens ??
+            tu.outputTokens ??
+            0) as number,
           totalTokens: (tu.totalTokens ?? tu.total_tokens ?? tu.total ?? 0) as number,
           model: rm.model_name as string | undefined,
         };
@@ -203,8 +241,10 @@ export class AgentTraceMiddleware implements NodeMiddleware {
     if (c.totalTokens != null || c.total_tokens != null) {
       return {
         promptTokens: (c.promptTokens ?? c.prompt_tokens ?? c.input_tokens ?? 0) as number,
-        completionTokens:
-          (c.completionTokens ?? c.completion_tokens ?? c.output_tokens ?? 0) as number,
+        completionTokens: (c.completionTokens ??
+          c.completion_tokens ??
+          c.output_tokens ??
+          0) as number,
         totalTokens: (c.totalTokens ?? c.total_tokens ?? 0) as number,
         model: c.model as string | undefined,
       };
@@ -226,10 +266,8 @@ export class AgentTraceMiddleware implements NodeMiddleware {
       for (const [k, v] of Object.entries(curObj)) {
         if (/usage|token/i.test(k) && v && typeof v === 'object') {
           const vo = v as Record<string, unknown>;
-          const p =
-            (vo.promptTokens ?? vo.prompt_tokens ?? vo.input_tokens ?? 0) as number;
-          const c =
-            (vo.completionTokens ??
+          const p = (vo.promptTokens ?? vo.prompt_tokens ?? vo.input_tokens ?? 0) as number;
+          const c = (vo.completionTokens ??
             vo.completion_tokens ??
             vo.output_tokens ??
             0) as number;

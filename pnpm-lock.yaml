@@ -44,16 +44,16 @@ importers:
 
   packages/cli:
     dependencies:
-      '@agenttrace/dashboard':
+      '@agenttrace-io/dashboard':
         specifier: workspace:*
         version: link:../dashboard
-      '@agenttrace/sdk':
+      '@agenttrace-io/sdk':
         specifier: workspace:*
         version: link:../sdk
 
   packages/dashboard:
     dependencies:
-      '@agenttrace/sdk':
+      '@agenttrace-io/sdk':
         specifier: workspace:*
         version: link:../sdk
       express:
@@ -69,7 +69,7 @@ importers:
 
   packages/middleware-langgraph:
     dependencies:
-      '@agenttrace/sdk':
+      '@agenttrace-io/sdk':
         specifier: workspace:*
         version: link:../sdk
 
