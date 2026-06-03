@@ -734,10 +734,10 @@ export class TraceStorage {
   getAgentUsage(filter: AgentUsageFilter = {}, tenantId?: string): AgentUsageRecord[] {
     let sql = 'SELECT * FROM agent_usage WHERE 1=1';
     const params: unknown[] = [];
-
-    if (tenantId) {
+    const effTenant = tenantId || this.tenantId;
+    if (effTenant) {
       sql += ' AND tenant_id = ?';
-      params.push(tenantId);
+      params.push(effTenant);
     }
 
     if (filter.agentName) {
@@ -793,9 +793,10 @@ export class TraceStorage {
   ): UsageStats {
     const whereParts: string[] = [];
     const params: unknown[] = [];
-    if (tenantId) {
+    const effTenant = tenantId || this.tenantId;
+    if (effTenant) {
       whereParts.push('tenant_id = ?');
-      params.push(tenantId);
+      params.push(effTenant);
     }
     if (agentName) {
       whereParts.push('agent_name = ?');

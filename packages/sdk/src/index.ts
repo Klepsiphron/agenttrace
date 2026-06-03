@@ -246,7 +246,6 @@ export class AgentTrace {
   constructor(config: TraceConfig = {}) {
     const dbPath = config.dbPath || './agenttrace.db';
     const tenantId = config.tenantId ?? '';
-    console.error(`[DEBUG AgentTrace ctor] config.tenantId='${config.tenantId}' computed='${tenantId}'`);
     this.storage = new TraceStorage(dbPath, tenantId);
     const persisted = this.storage.getRetentionPolicy();
     this.config = {
