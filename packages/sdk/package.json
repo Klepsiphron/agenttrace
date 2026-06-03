@@ -1,5 +1,5 @@
 {
-  "name": "@agenttrace-io/sdk",
+  "name": "@agenttrace/sdk",
   "version": "0.1.0",
   "description": "Drop-in tracing SDK for AI agents",
   "license": "MIT",

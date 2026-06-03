@@ -8,8 +8,8 @@
     "agenttrace": "./dist/index.js"
   },
   "dependencies": {
-    "@agenttrace/sdk": "workspace:*",
-    "@agenttrace/dashboard": "workspace:*"
+    "@agenttrace-io/dashboard": "workspace:*",
+    "@agenttrace-io/sdk": "workspace:*"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
