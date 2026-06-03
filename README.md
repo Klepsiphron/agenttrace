@@ -58,12 +58,12 @@ npx agenttrace dashboard      # Start local dashboard
 
 ## Packages
 
-| Package | Description |
-|---------|-------------|
-| `@agenttrace/sdk` | TypeScript SDK |
+| Package                 | Description         |
+| ----------------------- | ------------------- |
+| `@agenttrace/sdk`       | TypeScript SDK      |
 | `@agenttrace/dashboard` | Local web dashboard |
-| `@agenttrace/cli` | CLI tool |
-| `agenttrace` (PyPI) | Python SDK |
+| `@agenttrace/cli`       | CLI tool            |
+| `agenttrace` (PyPI)     | Python SDK          |
 
 ## Architecture
 

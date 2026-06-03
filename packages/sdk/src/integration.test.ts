@@ -18,23 +18,39 @@ describe('AgentTrace Integration', () => {
 
   afterEach(() => {
     agenttrace.close();
-    try { unlinkSync(testDb); } catch (_) { void 0; }
-    try { unlinkSync(testDb + '-wal'); } catch (_) { void 0; }
-    try { unlinkSync(testDb + '-shm'); } catch (_) { void 0; }
+    try {
+      unlinkSync(testDb);
+    } catch (_) {
+      void 0;
+    }
+    try {
+      unlinkSync(testDb + '-wal');
+    } catch (_) {
+      void 0;
+    }
+    try {
+      unlinkSync(testDb + '-shm');
+    } catch (_) {
+      void 0;
+    }
   });
 
   it('should trace a simple function', async () => {
     const runId = agenttrace.startRun('test-run');
-    
-    const result = await agenttrace.trace('test-op', async () => {
-      return 'hello world';
-    }, {
-      input: { query: 'test' },
-      tokens: { promptTokens: 100, completionTokens: 50, totalTokens: 150, model: 'gpt-4o' }
-    });
+
+    const result = await agenttrace.trace(
+      'test-op',
+      async () => {
+        return 'hello world';
+      },
+      {
+        input: { query: 'test' },
+        tokens: { promptTokens: 100, completionTokens: 50, totalTokens: 150, model: 'gpt-4o' },
+      },
+    );
 
     expect(result).toBe('hello world');
-    
+
     const traces = agenttrace.getTraces({ runId });
     expect(traces.length).toBe(1);
     expect(traces[0].name).toBe('test-op');
@@ -44,10 +60,12 @@ describe('AgentTrace Integration', () => {
 
   it('should trace failures', async () => {
     const runId = agenttrace.startRun('failing-run');
-    
-    await expect(agenttrace.trace('fail-op', async () => {
-      throw new Error('test error');
-    })).rejects.toThrow('test error');
+
+    await expect(
+      agenttrace.trace('fail-op', async () => {
+        throw new Error('test error');
+      }),
+    ).rejects.toThrow('test error');
 
     const traces = agenttrace.getTraces({ runId });
     expect(traces.length).toBe(1);
@@ -57,13 +75,13 @@ describe('AgentTrace Integration', () => {
 
   it('should calculate stats', async () => {
     agenttrace.startRun('stats-run');
-    
+
     await agenttrace.trace('op-1', async () => 'ok', {
-      tokens: { promptTokens: 100, completionTokens: 50, totalTokens: 150 }
+      tokens: { promptTokens: 100, completionTokens: 50, totalTokens: 150 },
     });
-    
+
     await agenttrace.trace('op-2', async () => 'ok', {
-      tokens: { promptTokens: 200, completionTokens: 100, totalTokens: 300 }
+      tokens: { promptTokens: 200, completionTokens: 100, totalTokens: 300 },
     });
 
     const stats = agenttrace.getStats();
@@ -75,9 +93,9 @@ describe('AgentTrace Integration', () => {
 
   it('should export to JSON', async () => {
     agenttrace.startRun('export-run');
-    
+
     await agenttrace.trace('export-op', async () => 'data', {
-      tokens: { promptTokens: 50, completionTokens: 25, totalTokens: 75 }
+      tokens: { promptTokens: 50, completionTokens: 25, totalTokens: 75 },
     });
 
     const json = agenttrace.export('json');
@@ -88,9 +106,9 @@ describe('AgentTrace Integration', () => {
 
   it('should export to CSV', async () => {
     agenttrace.startRun('csv-run');
-    
+
     await agenttrace.trace('csv-op', async () => 'data', {
-      tokens: { promptTokens: 50, completionTokens: 25, totalTokens: 75 }
+      tokens: { promptTokens: 50, completionTokens: 25, totalTokens: 75 },
     });
 
     const csv = agenttrace.export('csv');
@@ -101,14 +119,16 @@ describe('AgentTrace Integration', () => {
 
   it('should filter traces by status', async () => {
     agenttrace.startRun('filter-run');
-    
+
     await agenttrace.trace('success-op', async () => 'ok', {
-      tokens: { promptTokens: 10, completionTokens: 5, totalTokens: 15 }
+      tokens: { promptTokens: 10, completionTokens: 5, totalTokens: 15 },
     });
-    
-    await expect(agenttrace.trace('fail-op', async () => {
-      throw new Error('fail');
-    })).rejects.toThrow();
+
+    await expect(
+      agenttrace.trace('fail-op', async () => {
+        throw new Error('fail');
+      }),
+    ).rejects.toThrow();
 
     const successTraces = agenttrace.getTraces({ status: ['success'] });
     expect(successTraces.length).toBe(1);

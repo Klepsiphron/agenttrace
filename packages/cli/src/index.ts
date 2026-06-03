@@ -5,8 +5,8 @@
  * Command-line interface for querying traces, runs, stats and exports
  */
 
-import { AgentTrace, type Run, type Trace, type TraceStats, ExportFormat } from '@agenttrace/sdk';
-import { startDashboard } from '@agenttrace/dashboard';
+import { AgentTrace, type Run, type Trace, type TraceStats, type ExportFormat } from '@agenttrace-io/sdk';
+import { startDashboard } from '@agenttrace-io/dashboard';
 import { existsSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
@@ -235,7 +235,10 @@ function main(): void {
 
         const statusRaw = flags.status ? String(flags.status) : '';
         if (statusRaw) {
-          const allowed = statusRaw.split(',').map((s) => s.trim()).filter(Boolean);
+          const allowed = statusRaw
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean);
           if (allowed.length) {
             runs = runs.filter((r) => allowed.includes(r.status));
           }
@@ -267,7 +270,10 @@ function main(): void {
         }
         const statusRaw = flags.status ? String(flags.status) : '';
         if (statusRaw) {
-          const statuses = statusRaw.split(',').map((s) => s.trim()).filter(Boolean);
+          const statuses = statusRaw
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean);
           if (statuses.length) {
             filter.status = statuses;
           }
@@ -347,8 +353,7 @@ const isMain = (() => {
     if (!invoked) return false;
     const thisFile = fileURLToPath(import.meta.url);
     // Normalize for cross-platform (esp. Windows backslashes)
-    return invoked === thisFile ||
-      invoked.replace(/\\/g, '/') === thisFile.replace(/\\/g, '/');
+    return invoked === thisFile || invoked.replace(/\\/g, '/') === thisFile.replace(/\\/g, '/');
   } catch {
     return false;
   }

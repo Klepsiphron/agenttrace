@@ -1,9 +1,9 @@
 ---
 name: Feature request
 about: Suggest an idea for AgentTrace
-title: "[FEAT] "
+title: '[FEAT] '
 labels: enhancement
-assignees: ""
+assignees: ''
 ---
 
 **Is your feature request related to a problem?**
