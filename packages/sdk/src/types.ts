@@ -228,19 +228,7 @@ export interface AlertHistory {
   error?: string;
 }
 
-/** Webhook configuration for event-driven notifications */
-export interface WebhookConfig {
-  id: string;
-  url: string;
-  secret?: string;
-  events: WebhookEvent[];
-  enabled: boolean;
-  createdAt: number;
-  lastTriggeredAt?: number;
-  failureCount: number;
-}
 
-/**
  * TraceContext can be passed between collaborating agents to link their traces
  * into a parent/child hierarchy.
  */
