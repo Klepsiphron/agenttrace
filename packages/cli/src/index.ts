@@ -230,6 +230,13 @@ Options (by command):
     --type ACTION        Filter by action type
     --limit N            Max entries (default 30)
     --since DURATION     e.g. 1h, 30m, 2d (from now backwards)
+  webhook:
+    add <url> <events...>
+                         Register a webhook for the given event types
+    list                 List all configured webhooks
+    remove <id>          Remove a webhook by ID (prefix match)
+    test <id>            Send a test payload to a webhook by ID
+    Events: trace.complete, trace.error, run.complete, run.error, cost.threshold, agent.inactive
   cleanup:
     --days N             Override retention days (default: use policy setting)
     --dry-run            Show what would be deleted without deleting
@@ -266,6 +273,10 @@ Examples:
   agenttrace-io retention show
   agenttrace-io retention set 60
   agenttrace-io retention set 90 --interval 12
+  agenttrace-io webhook add https://example.com/hook trace.complete run.complete
+  agenttrace-io webhook list
+  agenttrace-io webhook test abc12345
+  agenttrace-io webhook remove abc12345
   npx agenttrace-io version
   # alias also works: npx agenttrace ...
 `);

@@ -1046,8 +1046,6 @@ export class AgentTrace {
       t.createdAt,
     ]);
     return [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
-');
-  }
 
   /**
    * Close the database connection
