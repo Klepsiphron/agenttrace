@@ -448,7 +448,7 @@ function printSelfStats(storage: TraceStorage, useJson: boolean): void {
     return;
   }
 
-  console.log('AgentTrace Self-Tracking Stats (OWL / Hermes)');
+  console.log('AgentTrace Self-Tracking Stats');
   console.log('==============================================');
   console.log('');
   console.log("Today's Activity:");
