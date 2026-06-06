@@ -144,3 +144,25 @@ def test_get_agent_and_close():
         mw.close()
     finally:
         cleanup()
+
+
+def test_middleware_captures_traced_call_and_run_context():
+    """Integration style: start run then task/tool produce traces sharing the run (context propagation)."""
+    db, cleanup = make_temp_db()
+    try:
+        mw = AgentTraceCrewAI(db_path=db)
+        inspector = AgentTrace({"db_path": db, "silent": True})
+
+        rid = mw.get_agent_trace().start_run("crew-ctx")
+        mw.on_task_start(None, _FakeTaskStart(task_id="tctx", name="plan"))
+        mw.on_task_end(None, _FakeTaskEnd(task_id="tctx", output="planned"))
+
+        traces = inspector.get_traces()
+        assert any(t.name == "task:plan" for t in traces)
+        run_traces = [t for t in traces if t.run_id == rid]
+        assert len(run_traces) >= 1
+
+        mw.close()
+        inspector.close()
+    finally:
+        cleanup()

@@ -255,6 +255,16 @@ describe('CLI commands (comprehensive)', () => {
       expect(lines.length).toBeGreaterThanOrEqual(2);
     });
 
+    it('runs --limit N returns at most N data rows', async () => {
+      await seedData(tmpDb);
+      clearLogs();
+      runCmd(['runs', '--limit', '1']);
+      const dataLines = out()
+        .split('\n')
+        .filter((l) => l.trim().length > 0 && !l.includes('ID') && !l.includes('---'));
+      expect(dataLines.length).toBeLessThanOrEqual(1);
+    });
+
     it('--status filters by status', async () => {
       await seedData(tmpDb);
       runCmd(['runs', '--status', 'success']);
@@ -860,6 +870,29 @@ describe('CLI commands (comprehensive)', () => {
       expect(parsed).toHaveProperty('tracesDeleted');
       expect(parsed).toHaveProperty('runsDeleted');
       expect(parsed).toHaveProperty('usageDeleted');
+      expect(parsed).toHaveProperty('days');
+    });
+
+    it('--dry-run reports would-delete counts without removing data', () => {
+      runCmd(['init']);
+      clearLogs();
+      runCmd(['cleanup', '--dry-run']);
+      const o = out();
+      expect(o).toContain('Dry run');
+      expect(o).toContain('would delete');
+      // no "complete" message from real cleanup path
+      expect(o).not.toContain('Cleanup complete');
+    });
+
+    it('--dry-run with --json includes dryRun flag and counts', () => {
+      runCmd(['init']);
+      clearLogs();
+      runCmd(['cleanup', '--dry-run', '--json']);
+      const jsonLine = logs.find((l) => l.trim().startsWith('{'));
+      expect(jsonLine).toBeTruthy();
+      const parsed = JSON.parse(jsonLine!);
+      expect(parsed).toHaveProperty('dryRun', true);
+      expect(parsed).toHaveProperty('tracesDeleted');
       expect(parsed).toHaveProperty('days');
     });
   });

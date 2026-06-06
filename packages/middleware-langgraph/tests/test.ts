@@ -121,4 +121,31 @@ describe('AgentTraceMiddleware', () => {
     // calling again is safe
     expect(() => agent.close()).not.toThrow();
   });
+
+  it('captures a traced call via before/after (integration)', () => {
+    mw.beforeNode('search', { q: 'hello' });
+    mw.afterNode('search', { q: 'hello' }, { results: 3 });
+
+    const traces = inspector.getTraces({ name: 'search' });
+    expect(traces.length).toBeGreaterThan(0);
+    expect(traces[0].status).toBe('success');
+    expect(traces[0].metadata.framework).toBe('langgraph');
+  });
+
+  it('works with parent/child context via shared run', () => {
+    const agent = mw.getAgentTrace();
+    const runId = agent.startRun('parent-child-run');
+    mw.beforeNode('parent', { step: 1 });
+    mw.afterNode('parent', { step: 1 }, { out: 1 });
+    mw.beforeNode('child', { step: 2 });
+    mw.afterNode('child', { step: 2 }, { out: 2 });
+
+    const traces = inspector.getTraces({ runId });
+    expect(traces.length).toBeGreaterThanOrEqual(2);
+    const names = traces.map((t) => t.name);
+    expect(names).toContain('parent');
+    expect(names).toContain('child');
+    // all share the explicit run
+    expect(traces.every((t) => t.runId === runId)).toBe(true);
+  });
 });

@@ -1419,17 +1419,60 @@ async function runMain(): Promise<void> {
       const rawDays = flags.days ? parseInt(String(flags.days), 10) : NaN;
       const days = Number.isFinite(rawDays) && rawDays > 0 ? rawDays : 30;
       const cutoff = Date.now() - days * 86400000;
-      const tracesDeleted = storage.cleanupOldTraces(cutoff);
-      const runsDeleted = storage.cleanupOldRuns(cutoff);
-      const usageDeleted = storage.cleanupOldAgentUsage(cutoff);
-      storage.close();
-      if (useJson) {
-        console.log(JSON.stringify({ tracesDeleted, runsDeleted, usageDeleted, days }, null, 2));
+      const isDry = !!(flags['dry-run'] || flags.dryRun || flags.dry_run);
+      let tracesDeleted = 0;
+      let runsDeleted = 0;
+      let usageDeleted = 0;
+      if (isDry) {
+        // Preview only - do not mutate. Use internal better-sqlite3 db for counts (matches other internal access patterns).
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const db: any = (storage as any).db;
+          if (db && typeof db.prepare === 'function') {
+            const t = db
+              .prepare('SELECT COUNT(*) as c FROM traces WHERE created_at < ?')
+              .get(cutoff) as { c?: number } | undefined;
+            const r = db
+              .prepare('SELECT COUNT(*) as c FROM runs WHERE started_at < ?')
+              .get(cutoff) as { c?: number } | undefined;
+            const u = db
+              .prepare('SELECT COUNT(*) as c FROM agent_usage WHERE created_at < ?')
+              .get(cutoff) as { c?: number } | undefined;
+            tracesDeleted = t?.c || 0;
+            runsDeleted = r?.c || 0;
+            usageDeleted = u?.c || 0;
+          }
+        } catch {
+          /* ignore preview errors; will report 0s */
+        }
+        storage.close();
+        if (useJson) {
+          console.log(
+            JSON.stringify(
+              { tracesDeleted, runsDeleted, usageDeleted, days, dryRun: true },
+              null,
+              2,
+            ),
+          );
+        } else {
+          console.log(`Dry run (no data deleted, older than ${days} days):`);
+          console.log(`  Traces would delete:  ${tracesDeleted}`);
+          console.log(`  Runs would delete:    ${runsDeleted}`);
+          console.log(`  Usage would delete:   ${usageDeleted}`);
+        }
       } else {
-        console.log(`Cleanup complete (older than ${days} days):`);
-        console.log(`  Traces deleted:  ${tracesDeleted}`);
-        console.log(`  Runs deleted:    ${runsDeleted}`);
-        console.log(`  Usage deleted:   ${usageDeleted}`);
+        tracesDeleted = storage.cleanupOldTraces(cutoff);
+        runsDeleted = storage.cleanupOldRuns(cutoff);
+        usageDeleted = storage.cleanupOldAgentUsage(cutoff);
+        storage.close();
+        if (useJson) {
+          console.log(JSON.stringify({ tracesDeleted, runsDeleted, usageDeleted, days }, null, 2));
+        } else {
+          console.log(`Cleanup complete (older than ${days} days):`);
+          console.log(`  Traces deleted:  ${tracesDeleted}`);
+          console.log(`  Runs deleted:    ${runsDeleted}`);
+          console.log(`  Usage deleted:   ${usageDeleted}`);
+        }
       }
       break;
     }
