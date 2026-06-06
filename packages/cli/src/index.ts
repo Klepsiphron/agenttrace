@@ -1736,7 +1736,7 @@ async function runMain(): Promise<void> {
     case 'budget':
     case 'budget-check': {
       /* eslint-disable @typescript-eslint/no-explicit-any */
-      const sub = (args[1] as string) || (command === 'budget-check' ? 'check' : 'list');
+      const sub = (flags.sub as string) || (command === 'budget-check' ? 'check' : 'list');
       const agent = (flags.agent ? String(flags.agent) : undefined) || undefined;
       const dbp = getDbPath();
       const storage = new TraceStorage(dbp);
