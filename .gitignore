@@ -28,3 +28,4 @@ ENV/
 .pytest_cache/
 *.egg
 agenttrace.db*-test-*.db*
+:memory:
