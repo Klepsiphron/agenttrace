@@ -20,7 +20,7 @@
 - [x] Full CLI -- init, dashboard, runs, traces, stats, export commands
 - [x] OpenTelemetry export -- industry standard, enables integration with existing tools
 - [x] Python SDK -- must-have, 70%+ of AI agent code is Python
-- [ ] Framework middleware -- LangGraph callback handler, CrewAI integration (GROK WORKING)
+- [x] Framework middleware -- LangGraph callback handler (27 tests), CrewAI integration (7 tests)
 - [ ] Documentation site -- proper docs with search, examples, API reference
 - [ ] README demo GIF -- visual proof for landing page
 - [ ] GitHub Sponsors -- enable sponsorship
