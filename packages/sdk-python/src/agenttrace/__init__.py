@@ -36,7 +36,7 @@ from .types import (
 )
 
 __all__ = [
-    # Core per production-sprint Task 3 spec (must be importable)
+    # Core public API exports
     "AgentTrace",
     "TraceStorage",
     "Run",

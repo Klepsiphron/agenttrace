@@ -345,7 +345,7 @@ def test_close_idempotent_and_storage_close():
 
 
 def test_init_exports_include_new_symbols():
-    """__init__ must export the full public surface per spec (including TraceStorage, RunStatus)."""
+    """__init__ must export the full public surface (including TraceStorage, RunStatus)."""
     import agenttrace as at
 
     assert hasattr(at, "TraceStorage")

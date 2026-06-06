@@ -112,7 +112,7 @@ async function seedAgentData(dbPath: string) {
 
 // ── Harness (per-test isolation, console capture, exit mock, env/argv restore; supports async cmds) ──
 
-describe('CLI commands (focused per spec)', () => {
+describe('CLI commands', () => {
   let tmpDb: string;
   let origArgv: string[];
   let origEnv: string | undefined;
