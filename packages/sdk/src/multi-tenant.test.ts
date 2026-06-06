@@ -249,9 +249,7 @@ describe('multi-tenant: project creation', () => {
       .run(id, 'Lookup Test', apiKey, now);
 
     // Query by api_key (the indexed column)
-    const row = getStorageDb(storage)
-      .prepare('SELECT * FROM projects WHERE api_key = ?')
-      .get(apiKey);
+    const row = getStorageDb(storage).prepare('SELECT * FROM projects WHERE api_key = ?').get(apiKey);
     expect(row).toBeDefined();
     expect(row.id).toBe(id);
     expect(row.name).toBe('Lookup Test');
@@ -273,8 +271,7 @@ describe('multi-tenant: API key validation', () => {
 
     // Use direct storage on the agent's storage (same db) to get a usable key for validate,
     // because AgentTrace.createApiKey wrapper returns a key whose hash is not the one stored.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const stor = (agent as any).storage;
+    const stor = (agent as unknown as { storage: typeof agent.storage }).storage;
     const real = stor.createApiKey('real-validate-key');
     const result = agent.validateApiKey(real.key);
     expect(result.valid).toBe(true);
@@ -304,6 +301,7 @@ describe('multi-tenant: API key validation', () => {
 
     // Ensure no full key is exposed
     for (const k of keys) {
+       
       expect((k as Record<string, unknown>).key).toBeUndefined();
     }
 

@@ -22,7 +22,6 @@ import {
   CostBreakdown,
   AlertCondition,
   AlertHistory,
-  TraceContext,
   TraceTreeNode,
   HealthReport,
   AgentUsageRecord,
@@ -69,8 +68,12 @@ export type {
   WebhookConfig,
   WebhookEvent,
   WebhookDelivery,
-  Project,
 } from './types.js';
+
+// Value import — TraceContext is a class (value), not just a type.
+// Must be a separate import from the type-only block above so isolatedModules
+// doesn't erase it at compile time.
+import { TraceContext } from './types.js';
 
 export { TraceContext } from './types.js';
 
@@ -296,11 +299,8 @@ export class AgentTrace {
           /* scheduled cleanup must never crash host process */
         }
       }, intervalMs);
-
-      if (
-        this._cleanupInterval &&
-        typeof (this._cleanupInterval as NodeJS.Timeout).unref === 'function'
-      ) {
+       
+      if (this._cleanupInterval && typeof (this._cleanupInterval as NodeJS.Timeout).unref === 'function') {
         (this._cleanupInterval as NodeJS.Timeout).unref();
       }
     }

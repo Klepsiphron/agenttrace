@@ -29,6 +29,7 @@ export class TraceStorage {
   private dbPath: string;
   private _droppedTraces: number = 0;
   private tenantId: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private static _connections = new Map<string, { db: any; refCount: number }>();
 
   constructor(dbPath: string = './agenttrace.db', tenantId?: string) {
