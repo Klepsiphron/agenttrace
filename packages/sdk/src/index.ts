@@ -67,6 +67,8 @@ export type {
   AgentSession,
   ApiKey,
   CreatedApiKey,
+} from './types.js';
+
 export { TraceStorage } from './storage.js';
 export { SelfTracker } from './self-track.js';
 export type { SelfTrackerConfig } from './self-track.js';
