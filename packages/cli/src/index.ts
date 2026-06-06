@@ -802,7 +802,9 @@ async function runMain(): Promise<void> {
               child.on('close', (code: number | null) => {
                 exitCode = code ?? 0;
                 if (exitCode !== 0) {
-                  const e = new Error(stderr.slice(0, 500) || `exited with code ${exitCode}`) as Error & { exitCode?: number };
+                  const e = new Error(
+                    stderr.slice(0, 500) || `exited with code ${exitCode}`,
+                  ) as Error & { exitCode?: number };
                   e.exitCode = exitCode;
                   reject(e);
                 } else {
