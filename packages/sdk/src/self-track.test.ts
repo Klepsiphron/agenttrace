@@ -89,7 +89,7 @@ describe('SelfTracker', () => {
     const storage = new TraceStorage(dbPath);
     const run = storage.getRun(sid);
     expect(run).not.toBeNull();
-    expect(run!.name).toBe('agent-self-session');
+    expect(run!.name).toBe('test-agent-self-session');
     expect(run!.metadata.selfTracked).toBe(true);
     expect(run!.metadata.agentName).toBe('test-agent');
     expect(run!.status).toBe('running');
