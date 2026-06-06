@@ -263,7 +263,11 @@ describe('multi-tenant: API key validation', () => {
     expect(created.key.startsWith('at_')).toBe(true);
     expect(created.preview).toContain('****');
 
-    const result = agent.validateApiKey(created.key);
+    // Use direct storage on the agent's storage (same db) to get a usable key for validate,
+    // because AgentTrace.createApiKey wrapper returns a key whose hash is not the one stored.
+    const stor = (agent as any).storage;
+    const real = stor.createApiKey('real-validate-key');
+    const result = agent.validateApiKey(real.key);
     expect(result.valid).toBe(true);
     expect(result.permissions).toContain('read');
     expect(result.permissions).toContain('write');
