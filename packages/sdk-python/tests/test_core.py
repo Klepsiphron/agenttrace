@@ -381,7 +381,7 @@ def test_schema_has_parent_id_and_tenant_id_columns():
 
 def test_all_spec_public_symbols_exported_from_package():
     """Task 3: ensure every listed public class/type is exported (no import errors)."""
-    # Import the names required by production-sprint.md Task 3b
+    # Verify all public class/type names are exported from the top-level package
     from agenttrace import (  # noqa: F401
         AgentTrace,
         TraceStorage,
