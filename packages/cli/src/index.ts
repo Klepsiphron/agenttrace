@@ -232,6 +232,7 @@ function printUsage(): void {
 
 Commands:
   init                 Create empty agenttrace.db in current dir
+  wrap                 Trace any CLI command (zero-config)
   dashboard            Start the local dashboard server
   runs                 List recent runs (most recent first)
   traces               List traces (most recent first)
@@ -242,7 +243,8 @@ Commands:
   tree                 Show parent/child/related trace tree (multi-agent)
   alerts               Manage alerts: list | test --name N | history
   health               Check health of gateway, dashboard, and database
-  self-stats           Show OWL/Hermes self-tracked usage (today, week, top actions, costs, sessions)
+  self-stats           Show self-tracked usage (today, week, top actions, costs, sessions)
+  budget               Manage per-agent token budgets: set | list | status | check
   who                  Show active agents (usage tracking)
   cost                 Show agent cost breakdown (periods + by agent/model)
   sessions             List agent sessions with aggregates
@@ -307,6 +309,7 @@ Global:
 
 Examples:
   agenttrace-io init
+  agenttrace-io wrap claude "Write a hello world function"
   agenttrace-io runs --limit 5 --status success,running
   agenttrace-io traces --run-id 123e4567 --json
   agenttrace-io export --format csv --output out.csv --run-id abc
@@ -794,6 +797,65 @@ async function runMain(): Promise<void> {
         trace.close();
         console.log(`Created ${dbp}`);
       }
+      break;
+    }
+
+    case 'wrap': {
+      const argvArgs = process.argv.slice(2);
+      const cmd = argvArgs[1];
+      if (!cmd) {
+        console.error('Usage: agenttrace-io wrap <command> [args...]');
+        process.exit(1);
+      }
+      const cmdArgs = argvArgs.slice(2);
+      const agenttrace = new AgentTrace({ dbPath: getDbPath(), silent: true });
+      const runId = agenttrace.startRun(`wrap:${cmd}`);
+      void runId;
+      const inputStr = `${cmd} ${cmdArgs.join(' ')}`.trim();
+      let stdout = '';
+      let stderr = '';
+      let exitCode: number;
+      try {
+        const { spawn } = await import('node:child_process');
+        const result = await new Promise<string>((resolve, reject) => {
+          const child = spawn(cmd, cmdArgs, { stdio: 'pipe', shell: true });
+          child.stdout.on('data', (d: Buffer) => {
+            stdout += d.toString();
+          });
+          child.stderr.on('data', (d: Buffer) => {
+            stderr += d.toString();
+          });
+          child.on('close', (code: number | null) => {
+            exitCode = code ?? 0;
+            if (exitCode !== 0) {
+              const e = new Error(
+                stderr.slice(0, 500) || `exited with code ${exitCode}`,
+              ) as Error & {
+                exitCode?: number;
+              };
+              e.exitCode = exitCode;
+              reject(e);
+            } else {
+              resolve(stdout.slice(0, 2000));
+            }
+          });
+          child.on('error', (err: unknown) => {
+            exitCode = 1;
+            reject(err);
+          });
+        });
+        await agenttrace.trace(`wrap:${cmd}`, async () => result, { input: inputStr });
+        agenttrace.completeRun('success');
+      } catch (e: unknown) {
+        agenttrace.completeRun('error');
+        const err = e as Error & { exitCode?: number };
+        exitCode = err?.exitCode ?? 1;
+        if (stderr) process.stderr.write(stderr.slice(0, 500));
+        agenttrace.close();
+        process.exit(exitCode);
+      }
+      agenttrace.close();
+      process.exit(0);
       break;
     }
 
@@ -1736,8 +1798,24 @@ async function runMain(): Promise<void> {
     case 'budget':
     case 'budget-check': {
       /* eslint-disable @typescript-eslint/no-explicit-any */
-      const sub = (flags.sub as string) || (command === 'budget-check' ? 'check' : 'list');
-      const agent = (flags.agent ? String(flags.agent) : undefined) || undefined;
+      const budgetArgv = process.argv.slice(2);
+      const budgetIdx = budgetArgv.indexOf(command);
+      let budgetSub = command === 'budget-check' ? 'check' : 'list';
+      let budgetAgent: string | undefined;
+      if (budgetIdx !== -1) {
+        for (let k = budgetIdx + 1; k < budgetArgv.length; k++) {
+          const c = budgetArgv[k];
+          if (typeof c === 'string' && !c.startsWith('-')) {
+            if (budgetSub === 'list' || budgetSub === 'check') {
+              budgetSub = c;
+            } else if (!budgetAgent) {
+              budgetAgent = c;
+            }
+          }
+        }
+      }
+      const sub = (flags.sub as string) || budgetSub;
+      const agent = (flags.agent ? String(flags.agent) : undefined) || budgetAgent || undefined;
       const dbp = getDbPath();
       const storage = new TraceStorage(dbp);
       try {
