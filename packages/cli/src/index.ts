@@ -1871,6 +1871,7 @@ async function runMain(): Promise<void> {
       const storage = new TraceStorage(dbp);
       try {
         const db = (storage as any).db;
+        const agent = _budgetAgent || (flags.agent ? String(flags.agent) : undefined) || undefined;
         if (sub === 'list' || sub === '') {
           const rows =
             (storage as any).db.prepare('SELECT * FROM budgets ORDER BY agent_name').all() || [];
