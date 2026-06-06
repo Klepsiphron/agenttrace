@@ -85,7 +85,7 @@ jobs:
             echo "No changes to landing page"
           fi
 
-      # npm publish
+      # --- npm publish ---
       - name: Publish @agenttrace-io/sdk to npm
         run: pnpm publish --access public --no-git-checks
         working-directory: packages/sdk
@@ -104,19 +104,30 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      # PyPI publish via Trusted Publishing (OIDC - no token needed)
+      # --- PyPI publish (OIDC Trusted Publishing, with token fallback) ---
       - name: Build Python package
         run: |
           cd packages/sdk-python
           pip install build
           python -m build
 
-      - name: Publish Python SDK to PyPI
+      - name: Publish to PyPI via Trusted Publishing
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: packages/sdk-python/dist/
+        continue-on-error: true
+        id: pypi-oidc
 
-      # Docker publish to GHCR (uses GITHUB_TOKEN - no extra secret)
+      - name: Publish to PyPI via API token (fallback)
+        if: steps.pypi-oidc.outcome == 'failure'
+        run: |
+          pip install twine
+          twine upload packages/sdk-python/dist/*
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
+
+      # --- Docker publish to GHCR ---
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
