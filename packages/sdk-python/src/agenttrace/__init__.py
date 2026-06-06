@@ -36,20 +36,11 @@ from .types import (
 )
 
 __all__ = [
+    # Core per production-sprint Task 3 spec (must be importable)
     "AgentTrace",
-    "AgentUsageTracker",
     "TraceStorage",
-    "init",
-    "trace",
-    "get_agent_trace",
-    "score",
-    "evaluate",
-    "evaluate_trace",
-    "VERSION",
-    "PACKAGE_NAME",
-    # types
-    "Trace",
     "Run",
+    "Trace",
     "TokenUsage",
     "ToolCall",
     "TraceConfig",
@@ -58,10 +49,20 @@ __all__ = [
     "ExportFormat",
     "Scorer",
     "ScorerResult",
-    "EvaluateOptions",
+    "CostBreakdown",
     "AgentUsageRecord",
     "AgentUsageFilter",
     "UsageStats",
-    "CostBreakdown",
     "RunStatus",
+    # Additional public surface (module helpers + tracker)
+    "AgentUsageTracker",
+    "init",
+    "trace",
+    "get_agent_trace",
+    "score",
+    "evaluate",
+    "evaluate_trace",
+    "VERSION",
+    "PACKAGE_NAME",
+    "EvaluateOptions",
 ]

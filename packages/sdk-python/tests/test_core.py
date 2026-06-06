@@ -377,3 +377,52 @@ def test_schema_has_parent_id_and_tenant_id_columns():
         assert "tenant_id" in cols_usage
     finally:
         cleanup_db(db)
+
+
+def test_all_spec_public_symbols_exported_from_package():
+    """Task 3: ensure every listed public class/type is exported (no import errors)."""
+    # Import the names required by production-sprint.md Task 3b
+    from agenttrace import (  # noqa: F401
+        AgentTrace,
+        TraceStorage,
+        Run,
+        Trace,
+        TokenUsage,
+        ToolCall,
+        TraceConfig,
+        TraceFilter,
+        TraceStats,
+        ExportFormat,
+        Scorer,
+        ScorerResult,
+        CostBreakdown,
+        AgentUsageRecord,
+        AgentUsageFilter,
+        UsageStats,
+        RunStatus,
+    )
+    # Also via the package object
+    import agenttrace as at
+
+    required = [
+        "AgentTrace",
+        "TraceStorage",
+        "Run",
+        "Trace",
+        "TokenUsage",
+        "ToolCall",
+        "TraceConfig",
+        "TraceFilter",
+        "TraceStats",
+        "ExportFormat",
+        "Scorer",
+        "ScorerResult",
+        "CostBreakdown",
+        "AgentUsageRecord",
+        "AgentUsageFilter",
+        "UsageStats",
+        "RunStatus",
+    ]
+    for name in required:
+        assert hasattr(at, name), f"missing export: {name}"
+        assert name in at.__all__, f"missing from __all__: {name}"
