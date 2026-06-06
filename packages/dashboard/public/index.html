@@ -5,107 +5,123 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>AgentTrace • Dashboard</title>
     <link rel="stylesheet" href="style.css" />
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
   </head>
   <body>
     <header class="topbar">
       <div class="topbar-inner">
         <div class="brand">
-          <span class="logo">◉</span>
+          <svg class="brand-logo" width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle cx="12" cy="12" r="9" stroke="#3b82f6" stroke-width="2" />
+            <path d="M8 12l3 3 5-5" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
           <div>
             <h1>AgentTrace</h1>
             <span class="subtitle">Local Observability</span>
           </div>
         </div>
         <div class="top-actions">
-          <button id="refresh-btn" class="btn btn-secondary" title="Refresh data">⟳ Refresh</button>
+          <button id="refresh-btn" class="btn btn-secondary" title="Refresh data (R)" aria-label="Refresh data">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.66 0 3-1.34 3-3" /></svg>
+            Refresh
+          </button>
           <a href="/usage" class="btn btn-secondary" title="View live usage stats">Usage</a>
           <div class="export-group">
-            <button id="export-json-btn" class="btn btn-secondary">Export JSON</button>
-            <button id="export-csv-btn" class="btn btn-secondary">Export CSV</button>
+            <button id="export-json-btn" class="btn btn-secondary" title="Export as JSON">JSON</button>
+            <button id="export-csv-btn" class="btn btn-secondary" title="Export as CSV">CSV</button>
           </div>
-          <span class="version">v0.0.0</span>
+          <span class="version" id="version-badge">v0.1.0</span>
         </div>
       </div>
     </header>
 
     <main class="container">
-      <!-- Summary Stats -->
-      <section class="stats-grid" id="stats">
-        <div class="stat-card">
-          <div class="stat-value" id="total-runs">0</div>
-          <div class="stat-label">Total Runs</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value" id="success-rate">0%</div>
-          <div class="stat-label">Success Rate</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value" id="avg-latency">0ms</div>
-          <div class="stat-label">Avg Latency</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value" id="total-cost">$0.0000</div>
-          <div class="stat-label">Total Cost (USD)</div>
+      <!-- Stats -->
+      <section class="section" aria-label="Summary statistics">
+        <div class="stats-grid" id="stats">
+          <!-- Populated by JS -->
+          <div class="stat-card"><div class="skeleton skeleton-stat"></div><div class="skeleton skeleton-line" style="width:60%"></div></div>
+          <div class="stat-card"><div class="skeleton skeleton-stat"></div><div class="skeleton skeleton-line" style="width:60%"></div></div>
+          <div class="stat-card"><div class="skeleton skeleton-stat"></div><div class="skeleton skeleton-line" style="width:60%"></div></div>
+          <div class="stat-card"><div class="skeleton skeleton-stat"></div><div class="skeleton skeleton-line" style="width:60%"></div></div>
         </div>
       </section>
 
-      <!-- Filters -->
-      <section class="toolbar">
-        <div class="filter-group" id="filters" role="group" aria-label="Filter runs by status">
-          <button class="filter-btn active" data-status="all">All</button>
-          <button class="filter-btn" data-status="success">Success</button>
-          <button class="filter-btn" data-status="failure">Failure</button>
-          <button class="filter-btn" data-status="running">Running</button>
+      <!-- Burn rate + Top Agents -->
+      <div class="side-by-side">
+        <div class="burn-card" aria-label="Token burn rate">
+          <div class="burn-label">Token Burn Rate</div>
+          <div class="burn-value" id="burn-tokens">— t/min</div>
+          <div class="burn-sub" id="burn-cost">— cost/hr</div>
+        </div>
+        <div class="top-agents" aria-label="Top agents by cost">
+          <h3>Top Agents</h3>
+          <div id="top-agents-list" class="top-agents-list">
+            <div class="empty small">Loading…</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Filters / Toolbar -->
+      <section class="toolbar" aria-label="Filter and search runs">
+        <input
+          type="text"
+          id="search-input"
+          class="search-input"
+          placeholder="Search runs by name…"
+          aria-label="Search runs by name"
+        />
+        <div class="filter-group" id="status-filters" role="group" aria-label="Filter by status">
+          <button class="filter-btn active" data-status="all" aria-pressed="true">All</button>
+          <button class="filter-btn" data-status="success" aria-pressed="false">Success</button>
+          <button class="filter-btn" data-status="failure" aria-pressed="false">Failure</button>
+          <button class="filter-btn" data-status="running" aria-pressed="false">Running</button>
+        </div>
+        <div class="date-range" id="date-range" role="group" aria-label="Date range">
+          <button class="date-btn active" data-range="all">All</button>
+          <button class="date-btn" data-range="1h">1h</button>
+          <button class="date-btn" data-range="today">Today</button>
+          <button class="date-btn" data-range="week">Week</button>
         </div>
         <div class="toolbar-spacer"></div>
-        <div class="status-hint">Auto-refreshes every 5s</div>
+        <div class="status-hint" id="auto-refresh-hint">Auto-refreshes every 5s • <span id="runs-total">0</span> total</div>
       </section>
 
-      <!-- Runs -->
-      <section class="panel">
+      <!-- Runs List -->
+      <section class="panel" aria-labelledby="runs-heading">
         <div class="panel-header">
-          <h2>Recent Agent Runs</h2>
+          <h2 id="runs-heading">Recent Agent Runs</h2>
           <span id="runs-count" class="count-badge">0 runs</span>
         </div>
-        <div id="runs-list" class="runs-list" aria-live="polite">
+        <div id="runs-list" class="runs-list" aria-live="polite" role="list">
           <!-- Populated by JS -->
-          <div class="empty">Loading runs…</div>
         </div>
       </section>
 
-      <!-- Traces for selected run -->
-      <section id="traces-section" class="panel" style="display: none">
+      <!-- Traces -->
+      <section id="traces-section" class="panel" style="display: none" aria-labelledby="traces-heading">
         <div class="panel-header">
-          <h2>Traces for <span id="selected-run-name" class="run-name"></span></h2>
+          <h2 id="traces-heading">Traces for <span id="selected-run-name" class="run-name"></span></h2>
           <span id="traces-count" class="count-badge">0 traces</span>
         </div>
-        <div id="traces-list" class="traces-list">
-          <!-- Populated by JS -->
-        </div>
+        <div id="traces-list" class="traces-list" role="list"></div>
       </section>
 
       <!-- Trace Details -->
-      <section id="details-section" class="panel" style="display: none">
+      <section id="details-section" class="panel" style="display: none" aria-labelledby="details-heading">
         <div class="panel-header">
-          <h2>Trace Details</h2>
-          <button id="close-details-btn" class="btn btn-ghost" aria-label="Close details">
-            ✕ Close
-          </button>
+          <h2 id="details-heading">Trace Details</h2>
+          <button id="close-details-btn" class="btn btn-ghost" aria-label="Close details (Esc)">✕ Close</button>
         </div>
-        <div id="trace-details" class="trace-details">
-          <!-- Populated by JS: tokens, cost, latency, tool calls, input/output -->
-        </div>
+        <div id="trace-details" class="trace-details"></div>
       </section>
     </main>
 
     <footer class="footer">
-      <span
-        >AgentTrace — data lives on disk •
-        <a href="https://github.com/your-org/agenttrace" target="_blank" rel="noopener"
-          >GitHub</a
-        ></span
-      >
+      <span>AgentTrace — data lives on disk • <a href="https://github.com/Klepsiphron/agenttrace" target="_blank" rel="noopener">GitHub</a></span>
     </footer>
+
+    <div id="toast-container" class="toast-container" aria-live="polite"></div>
 
     <script src="app.js"></script>
   </body>
