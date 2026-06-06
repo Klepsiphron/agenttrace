@@ -1507,8 +1507,8 @@ export class TraceStorage {
         return {
           id: t.id as string,
           name: t.name as string,
-          input: JSON.parse((t.input as string) || 'null'),
-          output: JSON.parse((t.output as string) || 'null'),
+          input: this.safeJsonParse(t.input),
+          output: this.safeJsonParse(t.output),
           latencyMs: Number(t.latency_ms),
           success: t.success === 1,
           error: t.error as string | undefined,
