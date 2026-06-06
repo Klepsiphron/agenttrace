@@ -32,7 +32,7 @@ export class TraceStorage {
   private tenantId: string;
 
   // Shared connection pool: dbPath -> { db, refCount }
-  private static connections = new Map<string, { db: Database.Database; refCount: number }>();
+  private static connections = new Map<string, { db: Database; refCount: number }>();
 
   constructor(dbPath: string = './agenttrace.db', tenantId?: string) {
     this.dbPath = dbPath;
