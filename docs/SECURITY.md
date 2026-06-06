@@ -227,7 +227,7 @@ function verifySignature(body: string, signatureHeader: string, secret: string):
 2. **Verify signatures** on the receiver before processing any payload.
 3. **Use HTTPS** for webhook URLs in production to prevent MITM attacks.
 4. **Check the `timestamp`** to reject stale deliveries (replay protection).
-5. **Monitor `failure_count`** — AgentTrack increments it on each failed delivery. Use `getWebhooks()` to audit.
+5. **Monitor `failure_count`** — AgentTrace increments it on each failed delivery. Use `getWebhooks()` to audit.
 
 ---
 
