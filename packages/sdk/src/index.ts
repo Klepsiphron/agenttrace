@@ -34,7 +34,6 @@ import {
   WebhookConfig,
   WebhookEvent,
   WebhookDelivery,
-  Project,
 } from './types.js';
 
 export const VERSION = '0.1.0';
@@ -67,7 +66,6 @@ export type {
   AgentSession,
   ApiKey,
   CreatedApiKey,
-  TraceContext,
   WebhookConfig,
   WebhookEvent,
   WebhookDelivery,
