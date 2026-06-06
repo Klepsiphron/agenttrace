@@ -107,7 +107,7 @@ describe('Dashboard server API (createDashboardApp)', () => {
   it('GET /api/runs returns runs', async () => {
     const res = await apiFetch('/api/runs');
     expect(res.status).toBe(200);
-    const runs = (await res.json()) as any[];
+    const runs = (await res.json()) as Array<Record<string, unknown>>;
     expect(Array.isArray(runs)).toBe(true);
     expect(runs.length).toBeGreaterThan(0);
     expect(runs[0]).toHaveProperty('id');
@@ -117,7 +117,7 @@ describe('Dashboard server API (createDashboardApp)', () => {
   it('GET /api/traces returns traces', async () => {
     const res = await apiFetch('/api/traces');
     expect(res.status).toBe(200);
-    const traces = (await res.json()) as any[];
+    const traces = (await res.json()) as Array<Record<string, unknown>>;
     expect(Array.isArray(traces)).toBe(true);
     expect(traces.length).toBeGreaterThan(0);
     expect(traces[0]).toHaveProperty('runId');
@@ -127,14 +127,14 @@ describe('Dashboard server API (createDashboardApp)', () => {
   it('GET /api/traces?runId=... filters', async () => {
     // first get a run
     const runsRes = await apiFetch('/api/runs?limit=1');
-    const runs = (await runsRes.json()) as any[];
-    const rid = runs[0]?.id;
+    const runs = (await runsRes.json()) as Array<Record<string, unknown>>;
+    const rid = (runs[0] as Record<string, unknown> | undefined)?.id as string | undefined;
     expect(rid).toBeTruthy();
 
     const res = await apiFetch(`/api/traces?runId=${rid}`);
     expect(res.status).toBe(200);
-    const traces = (await res.json()) as any[];
-    expect(traces.every((t: any) => t.runId === rid)).toBe(true);
+    const traces = (await res.json()) as Array<Record<string, unknown>>;
+    expect(traces.every((t) => (t as Record<string, unknown>).runId === rid)).toBe(true);
   });
 
   it('GET /api/health does not require auth', async () => {

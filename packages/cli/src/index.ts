@@ -695,7 +695,7 @@ async function runMain(): Promise<void> {
   // webhook add <url> <events...>  => positional[0]=url, positional[1..]=events
   // webhook remove <id>            => positional[0]=id
   // webhook test <id>              => positional[0]=id
-  const webhookPositionals: string[] = (() => {
+  const _webhookPositionals: string[] = (() => {
     if (command !== 'webhook') return [];
     const argvArgs = process.argv.slice(2);
     const idx = argvArgs.indexOf('webhook');
@@ -727,7 +727,7 @@ async function runMain(): Promise<void> {
   })();
 
   // For 'retention set <days>', capture the days positional arg
-  const retentionSetDays: string | undefined = (() => {
+  const _retentionSetDays: string | undefined = (() => {
     if (command !== 'retention') return undefined;
     if (retentionSub !== 'set') return undefined;
     const argvArgs = process.argv.slice(2);
@@ -1689,7 +1689,7 @@ async function runMain(): Promise<void> {
         const start = Date.now();
         const ops = 100;
         for (let i = 0; i < ops; i++) {
-          const runId = trace.startRun(`bench-${i}`);
+          const _runId = trace.startRun(`bench-${i}`);
           trace.completeRun();
         }
         const durationMs = Date.now() - start;

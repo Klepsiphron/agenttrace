@@ -160,7 +160,7 @@ describe('CLI commands (comprehensive)', () => {
     process.argv = ['node', 'agenttrace-io', ...args];
     try {
       const res = main();
-      if (res && typeof (res as any).then === 'function') {
+      if (res && typeof (res as unknown).then === 'function') {
         await (res as Promise<void>).catch((e: unknown) => {
           const msg = String((e as { message?: string }).message || e);
           if (!msg.includes('process.exit')) throw e;
@@ -587,7 +587,7 @@ describe('CLI commands (comprehensive)', () => {
     it('--active filters old agents', async () => {
       await seedAgentUsage(tmpDb);
       runCmd(['who', '--active']);
-      const o = out();
+      const _o = out();
       expect(out()).toContain('agent-a');
       expect(out()).toContain('agent-b');
     });
@@ -803,7 +803,7 @@ describe('CLI commands (comprehensive)', () => {
       // extract id from output
       const idMatch = regOut.match(/(\w{8})\s+->/);
       expect(idMatch).toBeTruthy();
-      const shortId = idMatch![1];
+      const _shortId = idMatch![1];
 
       clearLogs();
       runCmd(['webhook', 'list', '--json']);
