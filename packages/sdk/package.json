@@ -1,7 +1,7 @@
 {
   "name": "@agenttrace-io/sdk",
-  "version": "0.1.0",
-  "description": "Drop-in tracing SDK for AI agents",
+  "version": "0.1.9",
+  "description": "Drop-in tracing SDK for AI agents — track tokens, cost, latency, and tool calls",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",
@@ -16,6 +16,21 @@
       "import": "./dist/benchmark.js"
     }
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Klepsiphron/agenttrace.git",
+    "directory": "packages/sdk"
+  },
+  "homepage": "https://github.com/Klepsiphron/agenttrace#readme",
+  "keywords": [
+    "ai",
+    "agents",
+    "observability",
+    "tracing",
+    "llm",
+    "cost-tracking",
+    "token-tracking"
+  ],
   "peerDependencies": {
     "better-sqlite3": "^11.0.0"
   },

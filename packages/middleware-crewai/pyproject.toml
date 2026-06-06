@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "agenttrace-io-middleware-crewai"
-version = "0.2.0"
+version = "0.1.9"
 description = "CrewAI middleware for AgentTrace - automatic task and tool tracing"
 readme = "README.md"
 license = { text = "MIT" }

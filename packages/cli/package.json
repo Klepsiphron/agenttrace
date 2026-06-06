@@ -1,7 +1,7 @@
 {
   "name": "@agenttrace-io/cli",
-  "version": "0.1.0",
-  "description": "CLI for AgentTrace — init, dashboard, export, stats",
+  "version": "0.1.9",
+  "description": "CLI for AgentTrace — trace, dashboard, stats, costs, alerts, wrap any agent",
   "license": "MIT",
   "type": "module",
   "bin": {
@@ -20,6 +20,21 @@
       "import": "./dist/index.js"
     }
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Klepsiphron/agenttrace.git",
+    "directory": "packages/cli"
+  },
+  "homepage": "https://github.com/Klepsiphron/agenttrace#readme",
+  "keywords": [
+    "ai",
+    "agents",
+    "observability",
+    "cli",
+    "tracing",
+    "llm",
+    "cost-tracking"
+  ],
   "files": [
     "dist"
   ],

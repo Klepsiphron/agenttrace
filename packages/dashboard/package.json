@@ -1,7 +1,7 @@
 {
   "name": "@agenttrace-io/dashboard",
-  "version": "0.1.0",
-  "description": "Local web dashboard for AgentTrace",
+  "version": "0.1.9",
+  "description": "Local web dashboard for AgentTrace — view runs, traces, costs, and stats",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",
@@ -12,6 +12,20 @@
       "import": "./dist/index.js"
     }
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Klepsiphron/agenttrace.git",
+    "directory": "packages/dashboard"
+  },
+  "homepage": "https://github.com/Klepsiphron/agenttrace#readme",
+  "keywords": [
+    "ai",
+    "agents",
+    "observability",
+    "dashboard",
+    "tracing",
+    "llm"
+  ],
   "files": [
     "dist",
     "public"
