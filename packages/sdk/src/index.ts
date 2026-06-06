@@ -299,8 +299,11 @@ export class AgentTrace {
           /* scheduled cleanup must never crash host process */
         }
       }, intervalMs);
-       
-      if (this._cleanupInterval && typeof (this._cleanupInterval as NodeJS.Timeout).unref === 'function') {
+
+      if (
+        this._cleanupInterval &&
+        typeof (this._cleanupInterval as NodeJS.Timeout).unref === 'function'
+      ) {
         (this._cleanupInterval as NodeJS.Timeout).unref();
       }
     }

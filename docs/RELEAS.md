@@ -3,6 +3,7 @@
 This document describes how to cut a new release of AgentTrace using the changelog system and automation.
 
 See also:
+
 - [docs/PUBLISHING.md](PUBLISHING.md) for publishing and credential details
 - [CHANGELOG.md](../CHANGELOG.md) (Keep a Changelog format)
 - [.github/release.yml](../.github/release.yml) (auto release notes config)
@@ -94,7 +95,6 @@ See also:
    - The auto-generated release notes on GitHub are customized by `.github/release.yml` (categories for feat/fix/docs/chore etc. based on PR labels).
 
 7. **Monitor**
-
    - Watch the "Release" workflow in GitHub Actions.
    - Verify the GitHub Release was created with notes.
    - Confirm packages published:
@@ -107,6 +107,7 @@ See also:
 The file `.github/release.yml` configures how `gh release create --generate-notes` (used in the release workflow) groups changes.
 
 It categorizes by PR labels:
+
 - 🚀 Features (feat, feature, enhancement)
 - 🐛 Bug Fixes (fix, bugfix, bug)
 - 📚 Documentation
