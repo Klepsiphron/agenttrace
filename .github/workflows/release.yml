@@ -94,18 +94,21 @@ jobs:
         working-directory: packages/sdk
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        continue-on-error: true
 
       - name: Publish @agenttrace-io/dashboard to npm
         run: pnpm publish --access public --no-git-checks
         working-directory: packages/dashboard
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        continue-on-error: true
 
       - name: Publish @agenttrace-io/cli to npm
         run: pnpm publish --access public --no-git-checks
         working-directory: packages/cli
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        continue-on-error: true
 
       # --- PyPI publish (OIDC Trusted Publishing, with token fallback) ---
       - name: Build Python package
