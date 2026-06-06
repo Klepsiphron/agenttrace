@@ -793,7 +793,7 @@ const tracker = new SelfTracker({
 
 Each method writes both to the SQLite database (as a trace in the `traces` table
 with `selfTracked: true` metadata) and appends a JSONL line to
-`~/.hermes/agenttrace-usage.jsonl` (configurable via `AGENTTRACE_USAGE_LOG` env).
+`~/.config/agenttrace/usage.jsonl` (configurable via `AGENTTRACE_USAGE_LOG` env).
 
 ---
 
@@ -1468,7 +1468,7 @@ table for usage analytics. Supports session grouping.
 ```python
 from agenttrace import AgentUsageTracker
 
-tracker = AgentUsageTracker(agent_name="owl", agent_type="orchestrator")
+tracker = AgentUsageTracker(agent_name="my-agent", agent_type="ai-agent")
 ```
 
 ### Methods

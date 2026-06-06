@@ -181,7 +181,7 @@ sequenceDiagram
     participant Agent
     participant SelfTracker
     participant Storage
-    participant JSONL as "JSONL Log<br/>~/.hermes/agenttrace-usage.jsonl"
+    participant JSONL as "JSONL Log<br/>~/.config/agenttrace/usage.jsonl"
 
     Agent->>SelfTracker: startSession()
     SelfTracker->>Storage: createRun({selfTracked: true})
