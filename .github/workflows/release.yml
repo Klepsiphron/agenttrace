@@ -8,6 +8,7 @@ on:
 permissions:
   contents: write
   packages: write
+  id-token: write
 
 jobs:
   ci:
@@ -18,13 +19,13 @@ jobs:
         node-version: [20, 22]
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@v6
+      - uses: pnpm/action-setup@v4
         with:
           version: 9
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
           cache: pnpm
@@ -38,30 +39,31 @@ jobs:
   release:
     needs: ci
     runs-on: ubuntu-latest
+    environment: release
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - uses: pnpm/action-setup@v6
+      - uses: pnpm/action-setup@v4
         with:
           version: 9
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v4
         with:
           node-version: '22'
           registry-url: 'https://registry.npmjs.org'
           cache: pnpm
 
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
 
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
 
-      - name: Create GitHub Release with auto-generated changelog
+      - name: Create GitHub Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -70,7 +72,7 @@ jobs:
             --title "AgentTrace ${{ github.ref_name }}" \
             --repo ${{ github.repository }}
 
-      - name: Update landing page with new version number
+      - name: Update landing page version
         run: |
           VERSION="${GITHUB_REF#refs/tags/v}"
           sed -i -E 's|(Local AI agent observability\. Zero cloud\.)(\s*v[0-9][0-9.]*)?|\1 v'"${VERSION}"'|' docs/landing/index.html
@@ -83,6 +85,7 @@ jobs:
             echo "No changes to landing page"
           fi
 
+      # npm publish
       - name: Publish @agenttrace-io/sdk to npm
         run: pnpm publish --access public --no-git-checks
         working-directory: packages/sdk
@@ -101,16 +104,19 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: Build and publish Python SDK to PyPI
-        env:
-          TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
+      # PyPI publish via Trusted Publishing (OIDC - no token needed)
+      - name: Build Python package
         run: |
           cd packages/sdk-python
-          pip install build twine
+          pip install build
           python -m build
-          twine upload dist/*
 
+      - name: Publish Python SDK to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: packages/sdk-python/dist/
+
+      # Docker publish to GHCR (uses GITHUB_TOKEN - no extra secret)
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -132,8 +138,8 @@ jobs:
             type=semver,pattern={{major}}
             type=raw,value=latest
 
-      - name: Build and push Docker image to GHCR
-        uses: docker/build-push-action@v7
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
         with:
           context: .
           push: true
