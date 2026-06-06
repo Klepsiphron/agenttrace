@@ -54,18 +54,18 @@ Returns the current singleton (creates a default one if none exists).
 
 ```ts
 interface TraceConfig {
-  dbPath?: string;                    // default: './agenttrace.db'
-  maxTraces?: number;                 // default: 10000
-  autoCleanup?: boolean;              // default: true
+  dbPath?: string; // default: './agenttrace.db'
+  maxTraces?: number; // default: 10000
+  autoCleanup?: boolean; // default: true
   costCalculator?: (tokens: TokenUsage, model?: string) => number;
   hallucinationDetector?: (output: unknown, expected?: unknown) => boolean;
-  silent?: boolean;                   // suppress console warnings
-  retentionDays?: number;             // 0 = forever (default 30 in persisted policy)
-  cleanupIntervalHours?: number;      // default 24
-  tenantId?: string;                  // multi-tenant scoping
-  maxTracesPerSecond?: number;        // rate limit (0 = disabled)
+  silent?: boolean; // suppress console warnings
+  retentionDays?: number; // 0 = forever (default 30 in persisted policy)
+  cleanupIntervalHours?: number; // default 24
+  tenantId?: string; // multi-tenant scoping
+  maxTracesPerSecond?: number; // rate limit (0 = disabled)
   maxTracesPerMinute?: number;
-  burstAllowance?: number;            // default 10
+  burstAllowance?: number; // default 10
 }
 ```
 
@@ -86,6 +86,7 @@ Completes the current run. Fires `run.complete` / `run.error` webhooks automatic
 The primary tracing primitive. Wraps an async operation, records latency, cost, tokens, tool calls (collected via `recordToolCall`), input/output, metadata, and parent linkage.
 
 **TraceOptions**
+
 ```ts
 {
   input?: unknown;
@@ -111,8 +112,11 @@ Must be called from inside an active `trace()` — otherwise it warns (unless `s
 ## Query Methods
 
 ### `getTraces(filter?: TraceFilter): Trace[]`
+
 ### `getTrace(id: string): Trace | null`
+
 ### `getRuns(limit?: number): Run[]`
+
 ### `getRun(id: string): Run | null`
 
 `TraceFilter` supports: `runId`, `status[]`, `name`, date ranges, cost/latency min/max, `limit`, `offset`.
@@ -177,9 +181,9 @@ interface TraceTreeNode {
 interface AlertCondition {
   name: string;
   condition: (stats: TraceStats) => boolean;
-  webhook?: string;   // HTTPS only (except localhost / private for testing)
-  email?: string;     // not yet implemented in v0.1
-  cooldown?: number;  // seconds
+  webhook?: string; // HTTPS only (except localhost / private for testing)
+  email?: string; // not yet implemented in v0.1
+  cooldown?: number; // seconds
 }
 ```
 
@@ -190,6 +194,7 @@ Alerts are checked automatically after every `trace()`. Conditions that fire are
 Force an immediate check (rarely needed — called internally).
 
 ### `getAlerts(): AlertCondition[]`
+
 ### `getAlertHistory(): AlertHistory[]`
 
 `getAlerts()` returns both persisted configs (with no-op conditions for CLI) and runtime-registered alerts with real functions.
@@ -207,6 +212,7 @@ Force an immediate check (rarely needed — called internally).
 **Events:** `'trace.complete' | 'trace.error' | 'run.complete' | 'run.error' | 'cost.threshold' | 'agent.inactive'`
 
 ### `async triggerWebhook(event, payload): Promise<WebhookDelivery[]>`
+
 ### `async testWebhook(id: string): Promise<{ok, status?, error?}>`
 
 Deliveries are signed with `X-AgentTrace-Signature: sha256=...` when a secret is configured. SSRF protection and 10s timeout are enforced.
@@ -261,6 +267,7 @@ Helper: `score(name: string, fn: Scorer['fn']): Scorer`
 - `validateApiKey(key: string): { valid: boolean; permissions: string[] }`
 
 Projects (basic multi-tenant isolation):
+
 - `createProject(name): { id, name, apiKey, createdAt }`
 - `getProject(apiKey)`
 - `deleteProject(id)`
@@ -279,7 +286,7 @@ Projects (basic multi-tenant isolation):
 
 ## Cost Calculator & Model Rates
 
-Built-in rates for gpt-4o, gpt-4o-mini, claude-*, gemini-*, llama-* (and more). Rates are USD per 1 000 tokens.
+Built-in rates for gpt-4o, gpt-4o-mini, claude-_, gemini-_, llama-\* (and more). Rates are USD per 1 000 tokens.
 
 ```ts
 import { registerModelRate } from '@agenttrace-io/sdk';

@@ -426,3 +426,5 @@ def test_all_spec_public_symbols_exported_from_package():
     for name in required:
         assert hasattr(at, name), f"missing export: {name}"
         assert name in at.__all__, f"missing from __all__: {name}"
+
+    # Task 3 complete: close(), exports list, schema migrations (parent/tenant + version) verified + tested

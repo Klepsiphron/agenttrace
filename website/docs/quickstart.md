@@ -36,21 +36,25 @@ const agent = init({ dbPath: './agenttrace.db' });
 // Start a logical run (groups related traces)
 agent.startRun('support-session-42');
 
-const result = await agent.trace('web-search', async () => {
-  // Your LLM or tool call here
-  const response = await callYourLLM({ prompt: 'Find pricing for X' });
-  return response;
-}, {
-  input: 'Find pricing for X',
-  tokens: {
-    promptTokens: 142,
-    completionTokens: 67,
-    totalTokens: 209,
-    model: 'gpt-4o-mini',
-    provider: 'openai'
+const result = await agent.trace(
+  'web-search',
+  async () => {
+    // Your LLM or tool call here
+    const response = await callYourLLM({ prompt: 'Find pricing for X' });
+    return response;
   },
-  metadata: { userId: 'u_123' }
-});
+  {
+    input: 'Find pricing for X',
+    tokens: {
+      promptTokens: 142,
+      completionTokens: 67,
+      totalTokens: 209,
+      model: 'gpt-4o-mini',
+      provider: 'openai',
+    },
+    metadata: { userId: 'u_123' },
+  },
+);
 
 // Always close when you're done (flushes retention timers etc.)
 agent.close();
