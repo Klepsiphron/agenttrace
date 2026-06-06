@@ -37,41 +37,12 @@ import {
   Project,
 } from './types.js';
 
-export const VERSION = '0.1.0';
-export const PACKAGE_NAME = '@agenttrace-io/sdk';
+WebhookConfig,
+WebhookEvent,
+WebhookDelivery,
+} from './types.js';
 
 export type {
-  Trace,
-  Run,
-  TraceConfig,
-  TraceFilter,
-  TraceStats,
-  TokenUsage,
-  ToolCall,
-  ExportFormat,
-  DashboardConfig,
-  AgentFramework,
-  FrameworkIntegration,
-  Scorer,
-  ScorerResult,
-  EvaluateOptions,
-  CostBreakdown,
-  AlertCondition,
-  AlertHistory,
-  TraceTreeNode,
-  HealthReport,
-  AgentUsageRecord,
-  AgentUsageFilter,
-  UsageStats,
-  AgentWho,
-  AgentSession,
-  ApiKey,
-  CreatedApiKey,
-  WebhookConfig,
-  WebhookEvent,
-  WebhookDelivery,
-  Project,
-} from './types.js';
 
 export { TraceContext } from './types.js';
 
@@ -297,8 +268,11 @@ export class AgentTrace {
           /* scheduled cleanup must never crash host process */
         }
       }, intervalMs);
-       
-      if (this._cleanupInterval && typeof (this._cleanupInterval as NodeJS.Timeout).unref === 'function') {
+
+      if (
+        this._cleanupInterval &&
+        typeof (this._cleanupInterval as NodeJS.Timeout).unref === 'function'
+      ) {
         (this._cleanupInterval as NodeJS.Timeout).unref();
       }
     }

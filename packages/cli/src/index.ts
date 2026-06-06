@@ -1875,7 +1875,6 @@ async function runMain(): Promise<void> {
       break;
     }
 
-
     default: {
       console.error(`Unknown command: ${command}`);
       printUsage();

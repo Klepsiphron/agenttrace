@@ -249,7 +249,9 @@ describe('multi-tenant: project creation', () => {
       .run(id, 'Lookup Test', apiKey, now);
 
     // Query by api_key (the indexed column)
-    const row = getStorageDb(storage).prepare('SELECT * FROM projects WHERE api_key = ?').get(apiKey);
+    const row = getStorageDb(storage)
+      .prepare('SELECT * FROM projects WHERE api_key = ?')
+      .get(apiKey);
     expect(row).toBeDefined();
     expect(row.id).toBe(id);
     expect(row.name).toBe('Lookup Test');
@@ -301,7 +303,6 @@ describe('multi-tenant: API key validation', () => {
 
     // Ensure no full key is exposed
     for (const k of keys) {
-       
       expect((k as Record<string, unknown>).key).toBeUndefined();
     }
 
