@@ -74,15 +74,19 @@ jobs:
 
       - name: Update landing page version
         run: |
-          VERSION="${GITHUB_REF#refs/tags/v}"
-          sed -i -E 's|(Local AI agent observability\. Zero cloud\.)(\s*v[0-9][0-9.]*)?|\1 v'"${VERSION}"'|' docs/landing/index.html
-          git config --local user.name "github-actions[bot]"
-          git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs/landing/index.html
-          if git commit -m "docs: update landing page version to v${VERSION}"; then
-            git push origin HEAD:main
+          if [ -f "docs/landing/index.html" ]; then
+            VERSION="${GITHUB_REF#refs/tags/v}"
+            sed -i -E 's|(Local AI agent observability\. Zero cloud\.)(\s*v[0-9][0-9.]*)?|\1 v'"${VERSION}"'|' docs/landing/index.html
+            git config --local user.name "github-actions[bot]"
+            git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add docs/landing/index.html
+            if git commit -m "docs: update landing page version to v${VERSION}"; then
+              git push origin HEAD:main
+            else
+              echo "No changes to landing page"
+            fi
           else
-            echo "No changes to landing page"
+            echo "No landing page to update"
           fi
 
       # --- npm publish ---
