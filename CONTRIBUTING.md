@@ -89,9 +89,9 @@ agenttrace/
 │   ├── middleware-langgraph/   # LangGraph auto-tracing integration
 │   ├── middleware-crewai/      # CrewAI auto-tracing integration
 │   └── billing/                # Stripe billing integration
-├── docs/                       # Documentation and planning docs
-├── docs-site/                  # GitHub Pages site source
-└── examples/                   # Integration examples (LangGraph, CrewAI, Custom)
+├── docs/                       # Documentation (API reference, architecture, roadmap)
+├── examples/                   # Integration examples (LangGraph, CrewAI, Custom)
+└── scripts/                    # Utility scripts (e.g. hermes-bridge.py)
 ```
 
 ---
