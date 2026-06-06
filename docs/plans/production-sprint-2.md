@@ -1,7 +1,9 @@
 : Production Readiness Sprint
 
 ## Goal
+
 Make AgentTrace ready for real-world use. Focus on:
+
 1. `agenttrace-io wrap` command (zero-config tracing for ANY agent)
 2. Budget alerts (per-agent token limits)
 3. Production docs (README, install guide, quickstart)
@@ -19,7 +21,7 @@ agenttrace-io wrap <command> [args...]
 
 # Examples:
 agenttrace-io wrap claude "Write a hello world function"
-agenttrace-io wrap codex exec "Fix the auth bug"  
+agenttrace-io wrap codex exec "Fix the auth bug"
 agenttrace-io wrap python my_agent.py
 ```
 
@@ -79,6 +81,7 @@ case 'wrap': {
 ```
 
 ### After adding:
+
 1. Run `pnpm build` to compile
 2. Test manually:
    ```bash
@@ -103,7 +106,7 @@ Add per-agent budget tracking and alerting.
 # Set a daily token budget for an agent
 agenttrace-io budget set <agent-name> --tokens <max-per-day> --cost <max-cost-per-day>
 
-# Check current budget status  
+# Check current budget status
 agenttrace-io budget status <agent-name>
 
 # List all budgets
@@ -118,6 +121,7 @@ agenttrace-io budget list
 4. Add a `budget-check` command that exits with code 1 if over budget (usable in CI/scripts)
 
 ### After adding:
+
 1. Run `pnpm build`
 2. Test:
    ```bash
@@ -146,33 +150,40 @@ npm install -g @agenttrace-io/cli
 ## Quick Start
 
 # Trace any agent (zero config)
+
 agenttrace-io wrap claude "Write a hello world function"
 
 # View your traces
+
 agenttrace-io runs --limit 10
 agenttrace-io traces --run-id <id>
 
 # See token usage stats
+
 agenttrace-io self-stats
 
 # Set budget alerts
+
 agenttrace-io budget set my-agent --tokens 1000000 --cost 50
 
 # Launch dashboard
+
 agenttrace-io dashboard
 
 ## SDK Usage
 
 ### TypeScript
+
 import { AgentTrace } from '@agenttrace-io/sdk';
 const agent = new AgentTrace({ dbPath: './traces.db' });
 const runId = agent.startRun('my-session');
 const result = await agent.trace('my-tool', async () => {
-  return await doWork();
+return await doWork();
 });
 agent.completeRun();
 
 ### Python
+
 from agenttrace import AgentTrace
 agent = AgentTrace(db_path='./traces.db')
 run_id = agent.start_run('my-session')
@@ -189,12 +200,14 @@ Commit: `docs: update README with quickstart, install, and usage examples`
 ### File: .github/workflows/ci.yml (verify/improve)
 
 Ensure CI:
+
 1. Runs `pnpm build` first
 2. Runs `pnpm test` after build
 3. Tests both TS SDK and Python SDK
 4. Reports coverage
 
 If CI doesn't already test Python SDK, add a step:
+
 ```yaml
 - name: Test Python SDK
   run: |
