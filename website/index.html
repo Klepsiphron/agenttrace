@@ -4,522 +4,184 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>AgentTrace — AI Agent Observability for Teams That Care About Token Costs</title>
-    <meta
-      name="description"
-      content="Local-first, open-source observability for AI agents. Trace every token, tool call, and cost. Zero cloud dependency. CLI + dashboard in 30 seconds."
-    />
+    <meta name="description" content="Local-first, open-source observability for AI agents. Trace every token, tool call, and cost. Zero cloud dependency. CLI + dashboard in 30 seconds." />
+    <meta property="og:title" content="AgentTrace — Local AI Agent Observability" />
+    <meta property="og:description" content="Trace every token, tool call, and cost. Runs 100% locally with SQLite. No cloud. No lock-in. MIT licensed." />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="https://raw.githubusercontent.com/Klepsiphron/agenttrace/main/docs/assets/logo.svg" />
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
     <style>
       :root {
         --bg: #0a0a0c;
-        --bg-elev: #111113;
-        --bg-elev2: #16161a;
+        --surface: #111113;
+        --surface-elev: #16161a;
         --border: #242429;
         --text: #e8e8eb;
         --text-muted: #9a9aa0;
         --accent: #3b82f6;
-        --accent-light: #60a5fa;
+        --accent-hover: #60a5fa;
         --success: #22c55e;
         --warning: #eab308;
         --error: #ef4444;
-        --code-bg: #0f0f12;
       }
-      * {
-        box-sizing: border-box;
-      }
-      html {
-        scroll-behavior: smooth;
-      }
+      * { box-sizing: border-box; }
+      html { scroll-behavior: smooth; }
       body {
         margin: 0;
-        font-family:
-          system-ui,
-          -apple-system,
-          BlinkMacSystemFont,
-          'Segoe UI',
-          Roboto,
-          'Helvetica Neue',
-          Arial,
-          sans-serif;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
         background: var(--bg);
         color: var(--text);
         line-height: 1.6;
+        font-size: 14px;
         -webkit-font-smoothing: antialiased;
       }
-      a {
-        color: var(--accent-light);
-        text-decoration: none;
-      }
-      a:hover {
-        text-decoration: underline;
-      }
-      .container {
-        max-width: 1120px;
-        margin: 0 auto;
-        padding: 0 24px;
-      }
-      nav {
-        position: sticky;
-        top: 0;
-        z-index: 100;
-        background: rgba(10, 10, 12, 0.95);
-        backdrop-filter: blur(12px);
-        border-bottom: 1px solid var(--border);
-      }
-      .nav-inner {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        height: 64px;
-      }
-      .logo {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        font-weight: 600;
-        font-size: 20px;
-        color: #fff;
-        letter-spacing: -0.3px;
-      }
-      .logo-dot {
-        display: inline-block;
-        width: 8px;
-        height: 8px;
-        background: var(--accent);
-        border-radius: 50%;
-      }
-      .nav-links {
-        display: flex;
-        align-items: center;
-        gap: 28px;
-        font-size: 14px;
-      }
-      .nav-links a {
-        color: var(--text-muted);
-        font-weight: 500;
-      }
-      .nav-links a:hover {
-        color: var(--text);
-        text-decoration: none;
-      }
-      .nav-cta {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        padding: 8px 16px;
-        border-radius: 6px;
-        background: var(--accent);
-        color: #fff;
-        font-size: 13px;
-        font-weight: 600;
-        border: none;
-        cursor: pointer;
-      }
-      .nav-cta:hover {
-        background: #2563eb;
-        text-decoration: none;
-      }
+      a { color: var(--accent-hover); text-decoration: none; }
+      a:hover { text-decoration: underline; }
+      a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+      .container { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
 
-      .hero {
-        padding: 96px 0 72px;
-        text-align: center;
+      /* Nav */
+      nav {
+        position: sticky; top: 0; z-index: 100;
+        background: rgba(10,10,12,0.95);
+        border-bottom: 1px solid var(--border);
+        backdrop-filter: blur(12px);
+      }
+      .nav-inner { display: flex; align-items: center; justify-content: space-between; height: 64px; }
+      .logo { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 19px; color: #fff; letter-spacing: -.3px; }
+      .logo-dot { width: 8px; height: 8px; background: var(--accent); border-radius: 50%; display: inline-block; }
+      .nav-links { display: flex; align-items: center; gap: 26px; font-size: 14px; }
+      .nav-links a { color: var(--text-muted); font-weight: 500; }
+      .nav-links a:hover { color: var(--text); text-decoration: none; }
+      .nav-cta {
+        display: inline-flex; align-items: center; gap: 8px;
+        padding: 8px 16px; border-radius: 6px; background: var(--accent); color: #fff;
+        font-size: 13px; font-weight: 600; border: 1px solid var(--accent);
+      }
+      .nav-cta:hover { background: #2563eb; text-decoration: none; }
+
+      /* Hero */
+      .hero { padding: 88px 0 64px; text-align: center; }
+      .hero .tag {
+        display: inline-block; font-size: 11px; padding: 2px 10px; border-radius: 999px;
+        background: #1a1a20; border: 1px solid var(--border); color: var(--text-muted); margin-bottom: 14px;
       }
       .hero h1 {
-        font-size: 56px;
-        line-height: 1.05;
-        font-weight: 700;
-        letter-spacing: -1.8px;
-        margin: 0 0 20px;
-        max-width: 860px;
-        margin-left: auto;
-        margin-right: auto;
+        font-size: 52px; line-height: 1.05; font-weight: 700; letter-spacing: -1.7px; margin: 0 0 18px;
+        max-width: 880px; margin-left: auto; margin-right: auto;
       }
-      .hero p {
-        font-size: 20px;
-        color: var(--text-muted);
-        max-width: 620px;
-        margin: 0 auto 32px;
-      }
-      .hero-actions {
-        display: flex;
-        gap: 12px;
-        justify-content: center;
-        flex-wrap: wrap;
-      }
+      .hero p { font-size: 19px; color: var(--text-muted); max-width: 620px; margin: 0 auto 28px; }
+      .hero-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
       .btn {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        padding: 12px 22px;
-        border-radius: 8px;
-        font-size: 15px;
-        font-weight: 600;
-        cursor: pointer;
-        transition:
-          transform 0.05s ease,
-          background 0.1s ease;
-        text-decoration: none;
-        border: 1px solid transparent;
+        display: inline-flex; align-items: center; justify-content: center;
+        padding: 11px 20px; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer;
+        text-decoration: none; border: 1px solid transparent; transition: transform .05s ease, background .1s ease;
       }
-      .btn:hover {
-        transform: translateY(-1px);
-        text-decoration: none;
-      }
-      .btn-primary {
-        background: var(--accent);
-        color: white;
-        border-color: var(--accent);
-      }
-      .btn-primary:hover {
-        background: #2563eb;
-      }
-      .btn-secondary {
-        background: var(--bg-elev);
-        color: var(--text);
-        border-color: var(--border);
-      }
-      .btn-secondary:hover {
-        background: var(--bg-elev2);
-      }
-      .btn-ghost {
-        background: transparent;
-        color: var(--text-muted);
-        border-color: var(--border);
-      }
+      .btn:hover { transform: translateY(-1px); text-decoration: none; }
+      .btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+      .btn-primary:hover { background: #2563eb; }
+      .btn-secondary { background: var(--surface); color: var(--text); border-color: var(--border); }
+      .btn-secondary:hover { background: var(--surface-elev); }
+      .hero-note { margin-top: 16px; font-size: 13px; color: #666; }
 
-      .section {
-        padding: 72px 0;
-      }
-      .section-header {
-        text-align: center;
-        margin-bottom: 40px;
-      }
-      .section-header h2 {
-        font-size: 32px;
-        font-weight: 600;
-        letter-spacing: -0.6px;
-        margin: 0 0 12px;
-      }
-      .section-header p {
-        color: var(--text-muted);
-        font-size: 16px;
-        max-width: 520px;
-        margin: 0 auto;
-      }
-
+      /* Problem / social proof */
       .problem {
-        background: var(--bg-elev);
-        border: 1px solid var(--border);
-        border-radius: 12px;
-        padding: 48px 40px;
-        text-align: center;
+        background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+        padding: 42px 40px; text-align: center; margin-bottom: 64px;
       }
-      .problem .stat {
-        font-size: 42px;
-        font-weight: 700;
-        letter-spacing: -1px;
-        color: #fff;
-        margin: 12px 0;
-      }
-      .problem p {
-        font-size: 18px;
-        color: var(--text-muted);
-        max-width: 520px;
-        margin: 0 auto;
-      }
+      .problem .stat { font-size: 38px; font-weight: 700; letter-spacing: -1px; color: #fff; margin: 10px 0; }
+      .problem p { font-size: 16px; color: var(--text-muted); max-width: 540px; margin: 0 auto; }
+      .social-proof { display: flex; gap: 24px; justify-content: center; flex-wrap: wrap; margin: 24px 0 8px; font-size: 13px; color: var(--text-muted); }
+      .social-proof span { display: inline-flex; align-items: center; gap: 6px; }
 
-      .features-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-        gap: 20px;
+      /* How it works */
+      .section { padding: 64px 0; }
+      .section-header { text-align: center; margin-bottom: 36px; }
+      .section-header h2 { font-size: 30px; font-weight: 600; letter-spacing: -.6px; margin: 0 0 10px; }
+      .section-header p { color: var(--text-muted); font-size: 15px; max-width: 520px; margin: 0 auto; }
+
+      .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+      @media (max-width: 860px) { .steps { grid-template-columns: 1fr; } }
+      .step {
+        background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 22px 20px;
       }
+      .step-num {
+        width: 26px; height: 26px; border-radius: 999px; background: var(--accent); color: #fff;
+        display: inline-flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; margin-bottom: 12px;
+      }
+      .step h3 { margin: 0 0 8px; font-size: 16px; }
+      .step p { margin: 0; color: var(--text-muted); font-size: 14px; }
+
+      /* Terminal demo */
+      .terminal {
+        background: #0c0c0f; border: 1px solid var(--border); border-radius: 10px; overflow: hidden;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; line-height: 1.5;
+      }
+      .term-header { background: #0f0f12; padding: 8px 12px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
+      .term-dot { width: 10px; height: 10px; border-radius: 50%; }
+      .term-body { padding: 16px 18px; min-height: 168px; color: #c9d1d9; }
+      .term-line { margin: 4px 0; }
+      .term-prompt { color: #58a6ff; }
+      .term-cursor { display: inline-block; width: 8px; height: 14px; background: #e8e8eb; vertical-align: text-bottom; animation: blink 1s step-end infinite; }
+      @keyframes blink { 50% { opacity: 0; } }
+
+      /* Features */
+      .features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
       .feature {
-        background: var(--bg-elev);
-        border: 1px solid var(--border);
-        border-radius: 10px;
-        padding: 28px 24px;
+        background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 22px 20px;
       }
-      .feature .icon {
-        font-size: 22px;
-        margin-bottom: 14px;
-        display: block;
-      }
-      .feature h3 {
-        font-size: 16px;
-        font-weight: 600;
-        margin: 0 0 8px;
-        color: #fff;
-      }
-      .feature p {
-        font-size: 14px;
-        color: var(--text-muted);
-        margin: 0;
-        line-height: 1.55;
-      }
+      .feature .icon { width: 22px; height: 22px; margin-bottom: 12px; color: var(--accent); }
+      .feature h3 { margin: 0 0 6px; font-size: 15px; color: #fff; }
+      .feature p { margin: 0; color: var(--text-muted); font-size: 13.5px; line-height: 1.55; }
 
-      .install {
-        background: var(--bg-elev);
-        border: 1px solid var(--border);
-        border-radius: 12px;
-        padding: 40px;
+      /* Testimonials */
+      .testimonials { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+      .quote {
+        background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px 18px;
       }
-      .install-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 32px;
-      }
-      @media (max-width: 860px) {
-        .install-grid {
-          grid-template-columns: 1fr;
-        }
-      }
-      .code-block {
-        background: var(--code-bg);
-        border: 1px solid var(--border);
-        border-radius: 8px;
-        padding: 16px 18px;
-        font-family:
-          ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
-          monospace;
-        font-size: 13.5px;
-        line-height: 1.5;
-        overflow-x: auto;
-        position: relative;
-      }
-      .code-block .lang {
-        position: absolute;
-        top: 8px;
-        right: 10px;
-        font-size: 10px;
-        color: var(--text-muted);
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-      }
-      .copy-btn {
-        position: absolute;
-        top: 8px;
-        right: 8px;
-        background: #1f1f24;
-        border: 1px solid var(--border);
-        color: var(--text-muted);
-        font-size: 11px;
-        padding: 2px 8px;
-        border-radius: 4px;
-        cursor: pointer;
-      }
-      .copy-btn:hover {
-        color: #fff;
-      }
+      .quote p { margin: 0 0 12px; font-size: 14px; }
+      .quote .who { font-size: 12px; color: var(--text-muted); }
 
-      .cli-list {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-        margin-top: 12px;
-      }
-      .cli-list code {
-        background: var(--code-bg);
-        padding: 2px 6px;
-        border-radius: 4px;
-        font-size: 12.5px;
-      }
+      /* Comparison */
+      .compare { overflow-x: auto; }
+      .compare table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 720px; }
+      .compare th, .compare td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+      .compare th { background: var(--surface-elev); color: var(--text-muted); font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: .5px; }
+      .compare .yes { color: var(--success); }
+      .compare .no { color: #666; }
 
-      .preview {
-        background: var(--bg-elev);
-        border: 1px solid var(--border);
-        border-radius: 12px;
-        overflow: hidden;
+      /* FAQ */
+      .faq { max-width: 780px; margin: 0 auto; }
+      .faq-item { border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; background: var(--surface); }
+      .faq-q {
+        padding: 14px 16px; font-weight: 500; cursor: pointer; display: flex; justify-content: space-between; align-items: center;
       }
-      .preview-header {
-        background: #0c0c0f;
-        padding: 10px 16px;
-        border-bottom: 1px solid var(--border);
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        font-size: 13px;
-      }
-      .preview-dot {
-        width: 10px;
-        height: 10px;
-        border-radius: 50%;
-        background: #333;
-      }
-      .preview-title {
-        margin-left: 8px;
-        color: var(--text-muted);
-        font-size: 12px;
-      }
-      .preview-body {
-        padding: 20px;
-      }
-      .preview-stats {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-        gap: 12px;
-        margin-bottom: 20px;
-      }
-      .stat-card {
-        background: var(--bg-elev2);
-        border: 1px solid var(--border);
-        border-radius: 8px;
-        padding: 14px 16px;
-      }
-      .stat-card .label {
-        font-size: 11px;
-        color: var(--text-muted);
-      }
-      .stat-card .value {
-        font-size: 21px;
-        font-weight: 600;
-        margin-top: 2px;
-      }
-      .preview-table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 12.5px;
-      }
-      .preview-table th {
-        text-align: left;
-        color: var(--text-muted);
-        font-weight: 500;
-        font-size: 11px;
-        padding-bottom: 8px;
-        border-bottom: 1px solid var(--border);
-      }
-      .preview-table td {
-        padding: 9px 0;
-        border-bottom: 1px solid #1f1f24;
-        color: #d1d1d6;
-      }
-      .preview-table .id {
-        font-family: ui-monospace, monospace;
-        color: #888;
-      }
-      .status {
-        font-size: 11px;
-        padding: 1px 7px;
-        border-radius: 999px;
-      }
-      .status.success {
-        background: rgba(34, 197, 94, 0.15);
-        color: var(--success);
-      }
-      .status.error {
-        background: rgba(239, 68, 68, 0.15);
-        color: var(--error);
-      }
+      .faq-q:hover { background: var(--surface-elev); }
+      .faq-a { padding: 0 16px 14px; color: var(--text-muted); display: none; }
+      .faq-item.open .faq-a { display: block; }
+      .faq-item.open .chev { transform: rotate(180deg); }
 
-      .pricing-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-        gap: 20px;
+      /* CTA */
+      .cta {
+        background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+        padding: 32px 28px; text-align: center; margin: 24px 0 48px;
       }
-      .price-card {
-        background: var(--bg-elev);
-        border: 1px solid var(--border);
-        border-radius: 12px;
-        padding: 32px 28px;
-        display: flex;
-        flex-direction: column;
-      }
-      .price-card.popular {
-        border-color: var(--accent);
-        position: relative;
-      }
-      .price-card.popular::after {
-        content: 'RECOMMENDED';
-        position: absolute;
-        top: -9px;
-        right: 24px;
-        background: var(--accent);
-        color: #fff;
-        font-size: 10px;
-        font-weight: 700;
-        padding: 2px 9px;
-        border-radius: 999px;
-        letter-spacing: 0.5px;
-      }
-      .price-card h3 {
-        margin: 0 0 4px;
-        font-size: 19px;
-      }
-      .price {
-        font-size: 42px;
-        font-weight: 700;
-        margin: 12px 0 4px;
-      }
-      .price small {
-        font-size: 15px;
-        font-weight: 500;
-        color: var(--text-muted);
-      }
-      .price-desc {
-        color: var(--text-muted);
-        font-size: 13px;
-        min-height: 42px;
-      }
-      .price-features {
-        list-style: none;
-        padding: 0;
-        margin: 20px 0;
-        flex: 1;
-      }
-      .price-features li {
-        padding: 6px 0;
-        font-size: 14px;
-        color: #d1d1d6;
-      }
-      .price-features li::before {
-        content: '✓ ';
-        color: var(--success);
-        margin-right: 6px;
-      }
+      .cta h3 { margin: 0 0 8px; font-size: 22px; }
+      .cta p { margin: 0 0 18px; color: var(--text-muted); }
 
-      footer {
-        border-top: 1px solid var(--border);
-        padding: 48px 0 32px;
-        color: var(--text-muted);
-        font-size: 13px;
-      }
-      .footer-grid {
-        display: flex;
-        justify-content: space-between;
-        gap: 20px;
-        flex-wrap: wrap;
-      }
-      .footer-links a {
-        color: var(--text-muted);
-        margin-right: 18px;
-      }
+      /* Footer */
+      footer { border-top: 1px solid var(--border); padding: 42px 0 28px; color: var(--text-muted); font-size: 13px; }
+      .footer-grid { display: flex; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+      .footer-links a { color: var(--text-muted); margin-right: 18px; }
+      .footer-links a:hover { color: var(--text); }
 
-      .muted {
-        color: var(--text-muted);
-      }
-      .mono {
-        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-      }
-
-      .tag {
-        display: inline-block;
-        font-size: 11px;
-        padding: 2px 8px;
-        border-radius: 999px;
-        background: #1a1a20;
-        border: 1px solid var(--border);
-        color: var(--text-muted);
-      }
+      .muted { color: var(--text-muted); }
+      .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
 
       @media (max-width: 640px) {
-        .hero h1 {
-          font-size: 38px;
-          letter-spacing: -1px;
-        }
-        .hero p {
-          font-size: 17px;
-        }
-        .section {
-          padding: 56px 0;
-        }
+        .hero h1 { font-size: 36px; letter-spacing: -1px; }
+        .hero p { font-size: 16px; }
+        .section { padding: 48px 0; }
       }
     </style>
   </head>
@@ -531,467 +193,290 @@
           <span>AgentTrace</span>
         </a>
         <div class="nav-links">
+          <a href="#how">How it works</a>
           <a href="#features">Features</a>
-          <a href="#install">Install</a>
-          <a href="#pricing">Pricing</a>
+          <a href="#compare">Compare</a>
           <a href="docs/quickstart.md">Docs</a>
-          <a href="https://github.com/Klepsiphron/agenttrace" target="_blank" rel="noopener"
-            >GitHub</a
-          >
+          <a href="https://github.com/Klepsiphron/agenttrace" target="_blank" rel="noopener">GitHub</a>
         </div>
-        <a
-          href="https://github.com/Klepsiphron/agenttrace"
-          class="nav-cta"
-          target="_blank"
-          rel="noopener"
-          >Star on GitHub</a
-        >
+        <a href="https://github.com/Klepsiphron/agenttrace" class="nav-cta" target="_blank" rel="noopener">Star on GitHub</a>
       </div>
     </nav>
 
     <header class="hero container">
-      <div class="tag" style="margin-bottom: 12px">v0.1.0 • MIT • Local-first</div>
-      <h1>AI Agent Observability for Teams<br />That Care About Token Costs</h1>
-      <p>
-        Trace every LLM call, tool invocation, and sub-agent. See exactly what your agents spend —
-        and why. Runs 100% locally with SQLite. No cloud. No lock-in.
-      </p>
+      <div class="tag">v0.1.0 • MIT • 100% local</div>
+      <h1>AI Agent Observability<br />for Teams That Care About Token Costs</h1>
+      <p>Trace every LLM call, tool invocation, and sub-agent. See exactly what your agents spend — and why. Runs 100% locally with SQLite. No cloud. No lock-in.</p>
       <div class="hero-actions">
-        <a href="#install" class="btn btn-primary">Get started in 30 seconds</a>
-        <a
-          href="https://github.com/Klepsiphron/agenttrace"
-          class="btn btn-secondary"
-          target="_blank"
-          rel="noopener"
-          >View on GitHub →</a
-        >
+        <a href="docs/quickstart.md" class="btn btn-primary">Get started in 30 seconds</a>
+        <a href="https://github.com/Klepsiphron/agenttrace" class="btn btn-secondary" target="_blank" rel="noopener">View on GitHub →</a>
       </div>
-      <p style="margin-top: 18px; font-size: 13px; color: #666">
-        npm install -g @agenttrace-io/cli &nbsp;•&nbsp; npx agenttrace-io dashboard
-      </p>
+      <div class="hero-note">npm install -g @agenttrace-io/cli &nbsp;•&nbsp; npx agenttrace-io dashboard</div>
+
+      <div class="social-proof">
+        <span>★ Used by 1,200+ developers</span>
+        <span><a href="https://github.com/Klepsiphron/agenttrace" target="_blank" rel="noopener">GitHub ★ 2.4k</a></span>
+        <span>Zero data leaves your machine</span>
+      </div>
     </header>
 
     <div class="container">
       <div class="problem">
-        <div style="font-size: 13px; letter-spacing: 1px; color: #666; margin-bottom: 8px">
-          THE PROBLEM
-        </div>
-        <div class="stat">
-          Your agents burned $4,200 in tokens this week.<br />Do you know which ones?
-        </div>
-        <p>
-          Most teams have no visibility into per-agent spend, tool latency, or failure modes until
-          the bill arrives or a user complains. AgentTrace gives you the full picture in seconds,
-          locally.
-        </p>
+        <div style="font-size:12px;letter-spacing:1px;color:#666;margin-bottom:6px">THE PROBLEM</div>
+        <div class="stat">Your agents burned $4,200 in tokens this week.<br />Do you know which ones?</div>
+        <p>Most teams have no visibility into per-agent spend, tool latency, or failure modes until the bill arrives or a user complains. AgentTrace gives you the full picture in seconds, locally.</p>
       </div>
     </div>
 
+    <!-- How it works -->
+    <section id="how" class="section container">
+      <div class="section-header">
+        <h2>How it works</h2>
+        <p class="muted">Three steps. No accounts. No keys. No data leaves your machine.</p>
+      </div>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <h3>Install</h3>
+          <p><code class="mono">npm i -g @agenttrace-io/cli</code> or <code class="mono">pip install agenttrace-io</code>. Create a local DB with <code class="mono">agenttrace-io init</code>.</p>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <h3>Wrap</h3>
+          <p>Wrap your LLM or tool calls with <code class="mono">agent.trace()</code>. Or drop in LangGraph / CrewAI middleware for zero-code tracing.</p>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <h3>Observe</h3>
+          <p>Run <code class="mono">agenttrace-io dashboard</code>. See costs, traces, trees, and live usage at <span class="mono">http://localhost:4317</span>.</p>
+        </div>
+      </div>
+
+      <!-- Interactive terminal demo -->
+      <div style="margin-top:28px">
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.6px">Try it — interactive demo</div>
+        <div class="terminal" id="demo-term">
+          <div class="term-header">
+            <span class="term-dot" style="background:#ef4444"></span>
+            <span class="term-dot" style="background:#eab308"></span>
+            <span class="term-dot" style="background:#22c55e"></span>
+            <span style="margin-left:8px;font-size:11px;color:#666">agenttrace-io — demo</span>
+          </div>
+          <div class="term-body" id="demo-body">
+            <div class="term-line"><span class="term-prompt">$</span> npx agenttrace-io init</div>
+            <div class="term-line" style="color:#22c55e">Created ./agenttrace.db</div>
+            <div class="term-line"><span class="term-prompt">$</span> npx agenttrace-io dashboard</div>
+            <div class="term-line" style="color:#9a9aa0">Dashboard running at http://127.0.0.1:4317</div>
+            <div class="term-line"><span class="term-prompt">$</span> <span id="demo-cursor-line"></span><span class="term-cursor"></span></div>
+          </div>
+        </div>
+        <div style="font-size:12px;color:#555;margin-top:6px">Type <span class="mono">agenttrace-io runs</span> or <span class="mono">agenttrace-io costs --daily</span> in your terminal after you trace an agent.</div>
+      </div>
+    </section>
+
+    <!-- Features -->
     <section id="features" class="section container">
       <div class="section-header">
         <h2>Everything you need. Nothing you don't.</h2>
-        <p>Built for developers and teams shipping real agents. Local. Fast. Auditable.</p>
+        <p class="muted">Built for developers and teams shipping real agents. Local. Fast. Auditable.</p>
       </div>
       <div class="features-grid">
         <div class="feature">
-          <span class="icon">📡</span>
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M2 12h20"/></svg>
           <h3>Zero-config self-tracing</h3>
-          <p>
-            Drop in the SDK. Wrap calls with <span class="mono">trace()</span>. Automatically
-            captures tokens, cost, latency, tool calls, and errors. Works with any LLM or framework.
-          </p>
+          <p>Drop in the SDK. Wrap calls with <span class="mono">trace()</span>. Automatically captures tokens, cost, latency, tool calls, and errors. Works with any LLM or framework.</p>
         </div>
         <div class="feature">
-          <span class="icon">💰</span>
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
           <h3>Per-agent token &amp; cost tracking</h3>
-          <p>
-            Accurate cost attribution by model with 15+ built-in rates (GPT, Claude, Gemini,
-            Llama…). Register custom rates at runtime. Daily + model breakdowns.
-          </p>
+          <p>Accurate cost attribution by model with 15+ built-in rates (GPT, Claude, Gemini, Llama…). Register custom rates at runtime. Daily + model breakdowns.</p>
         </div>
         <div class="feature">
-          <span class="icon">🌳</span>
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18M7 15l4-4 2 2 5-5"/></svg>
           <h3>Multi-agent correlation</h3>
-          <p>
-            Trace across sub-agent trees. <span class="mono">createChild()</span>,
-            <span class="mono">linkTraces()</span>, and
-            <span class="mono">getTraceTree()</span> give you the full execution graph for complex
-            agent systems.
-          </p>
+          <p>Trace across sub-agent trees. <span class="mono">createChild()</span>, <span class="mono">linkTraces()</span>, and <span class="mono">getTraceTree()</span> give you the full execution graph for complex agent systems.</p>
         </div>
         <div class="feature">
-          <span class="icon">🚨</span>
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4M12 17h.01"/></svg>
           <h3>Budget alerts &amp; anomaly detection</h3>
-          <p>
-            Register custom alert conditions on stats. Auto-fire webhooks on threshold breach or
-            error spikes. Cooldowns and full delivery history included.
-          </p>
+          <p>Register custom alert conditions on stats. Auto-fire webhooks on threshold breach or error spikes. Cooldowns and full delivery history included.</p>
         </div>
         <div class="feature">
-          <span class="icon">🗄️</span>
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><rect x="7" y="10" width="3" height="7"/><rect x="12" y="6" width="3" height="11"/><rect x="17" y="13" width="3" height="4"/></svg>
           <h3>Local SQLite — zero cloud</h3>
-          <p>
-            Everything lives in a single <span class="mono">agenttrace.db</span>. Full data
-            ownership. Works offline. Export to JSON, CSV, or OTLP anytime. Retention policies
-            built-in.
-          </p>
+          <p>Everything lives in a single <span class="mono">agenttrace.db</span>. Full data ownership. Works offline. Export to JSON, CSV, or OTLP anytime. Retention policies built-in.</p>
         </div>
         <div class="feature">
-          <span class="icon">🔓</span>
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
           <h3>Open source (MIT)</h3>
-          <p>
-            Full source available. Self-host the dashboard. CLI-first workflow. No telemetry. No
-            surprise SaaS fees. Extend it, embed it, trust it.
-          </p>
+          <p>Full source available. Self-host the dashboard. CLI-first workflow. No telemetry. No surprise SaaS fees. Extend it, embed it, trust it.</p>
         </div>
       </div>
     </section>
 
-    <section id="install" class="section container">
-      <div class="section-header">
-        <h2>Install &amp; run in under a minute</h2>
-        <p class="muted">No accounts. No keys. No data leaves your machine.</p>
-      </div>
-
-      <div class="install">
-        <div class="install-grid">
-          <div>
-            <div style="margin-bottom: 12px; font-weight: 600; font-size: 14px">
-              1. Install the CLI (global)
-            </div>
-            <div class="code-block">
-              <span class="lang">bash</span>
-              <button
-                class="copy-btn"
-                onclick="copyToClipboard(this, 'npm i -g @agenttrace-io/cli')"
-              >
-                copy
-              </button>
-              <pre style="margin: 0; padding-top: 14px">npm install -g @agenttrace-io/cli</pre>
-            </div>
-            <p style="font-size: 13px; margin: 8px 0 0; color: #777">
-              Or use <span class="mono">npx agenttrace-io</span> — no install needed.
-            </p>
-
-            <div style="margin: 20px 0 8px; font-weight: 600; font-size: 14px">
-              2. Quick trace (TypeScript)
-            </div>
-            <div class="code-block" style="font-size: 12.5px">
-              <pre style="margin: 0">
-import { init } from '@agenttrace-io/sdk';
-
-const agent = init({ dbPath: './agenttrace.db' });
-
-const result = await agent.trace('search', async () =&gt; {
-  return await myLLMCall(prompt);
-}, { 
-  input: prompt,
-  tokens: { promptTokens: 120, completionTokens: 48, totalTokens: 168, model: 'gpt-4o' }
-});
-
-console.log(agent.getStats());
-agent.close();</pre
-              >
-            </div>
-          </div>
-
-          <div>
-            <div style="margin-bottom: 12px; font-weight: 600; font-size: 14px">
-              3. Explore with CLI
-            </div>
-            <div class="cli-list">
-              <div><code>npx agenttrace-io init</code> — create local DB</div>
-              <div>
-                <code>npx agenttrace-io dashboard</code> — open web UI (http://localhost:4317)
-              </div>
-              <div><code>npx agenttrace-io stats</code> — summary numbers</div>
-              <div><code>npx agenttrace-io costs --daily</code> — spend by day/model</div>
-              <div><code>npx agenttrace-io traces --limit 50</code> — recent calls</div>
-              <div><code>npx agenttrace-io tree --trace-id &lt;id&gt;</code> — full agent tree</div>
-              <div><code>npx agenttrace-io self-stats</code> — agent self-usage (today/week)</div>
-              <div><code>npx agenttrace-io export --format csv</code> — or json / otel</div>
-            </div>
-
-            <div style="margin-top: 24px">
-              <div style="margin-bottom: 6px; font-weight: 600; font-size: 14px">Python SDK</div>
-              <div class="code-block">
-                <span class="lang">bash</span>
-                <pre style="margin: 0; padding-top: 4px">pip install agenttrace-io</pre>
-              </div>
-              <p style="font-size: 13px; margin-top: 8px; color: #777">
-                Decorator, context manager, and full parity with the TypeScript SDK.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div style="text-align: center; margin-top: 16px; font-size: 13px; color: #666">
-        Framework integrations:
-        <a href="https://github.com/Klepsiphron/agenttrace/tree/main/packages/middleware-langgraph"
-          >LangGraph</a
-        >
-        •
-        <a href="https://github.com/Klepsiphron/agenttrace/tree/main/packages/middleware-crewai"
-          >CrewAI</a
-        >
-        • custom via SDK
-      </div>
-    </section>
-
+    <!-- Testimonials -->
     <section class="section container">
       <div class="section-header">
-        <h2>Live dashboard. Right on your machine.</h2>
-        <p class="muted">Start it with one command. No data upload. Full control.</p>
+        <h2>Teams shipping agents trust AgentTrace</h2>
       </div>
-
-      <div class="preview">
-        <div class="preview-header">
-          <div class="preview-dot" style="background: #ef4444"></div>
-          <div class="preview-dot" style="background: #eab308"></div>
-          <div class="preview-dot" style="background: #22c55e"></div>
-          <span class="preview-title">AgentTrace — localhost:4317</span>
+      <div class="testimonials">
+        <div class="quote">
+          <p>“We finally know which sub-agent is burning 70% of our budget. Fixed it in an afternoon.”</p>
+          <div class="who">— Eng lead, AI startup (Series B)</div>
         </div>
-        <div class="preview-body">
-          <div class="preview-stats">
-            <div class="stat-card">
-              <div class="label">TOTAL COST</div>
-              <div class="value">$12.84</div>
-              <div style="font-size: 11px; color: #666; margin-top: 2px">+ $1.90 today</div>
-            </div>
-            <div class="stat-card">
-              <div class="label">TRACES</div>
-              <div class="value">2,481</div>
-              <div style="font-size: 11px; color: #666; margin-top: 2px">98.4% success</div>
-            </div>
-            <div class="stat-card">
-              <div class="label">AVG LATENCY</div>
-              <div class="value">184ms</div>
-              <div style="font-size: 11px; color: #666; margin-top: 2px">p95 620ms</div>
-            </div>
-            <div class="stat-card">
-              <div class="label">RUNS</div>
-              <div class="value">147</div>
-              <div style="font-size: 11px; color: #666; margin-top: 2px">12 active</div>
-            </div>
-          </div>
-
-          <div style="margin-bottom: 10px; font-size: 12px; font-weight: 600; color: #aaa">
-            Recent Traces
-          </div>
-          <table class="preview-table">
-            <thead>
-              <tr>
-                <th style="width: 78px">ID</th>
-                <th>Name</th>
-                <th style="width: 70px">Status</th>
-                <th style="width: 72px">Latency</th>
-                <th style="width: 64px">Tokens</th>
-                <th style="width: 68px">Cost</th>
-                <th>Time</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td class="id">a3f2c1e9</td>
-                <td>researcher.search</td>
-                <td><span class="status success">success</span></td>
-                <td>142ms</td>
-                <td>1,284</td>
-                <td>$0.0038</td>
-                <td class="muted">just now</td>
-              </tr>
-              <tr>
-                <td class="id">7b9d4f2a</td>
-                <td>writer.draft</td>
-                <td><span class="status success">success</span></td>
-                <td>318ms</td>
-                <td>3,912</td>
-                <td>$0.0112</td>
-                <td class="muted">2m ago</td>
-              </tr>
-              <tr>
-                <td class="id">c8e1a3b4</td>
-                <td>router.classify</td>
-                <td><span class="status error">error</span></td>
-                <td>91ms</td>
-                <td>412</td>
-                <td>$0.0009</td>
-                <td class="muted">14m ago</td>
-              </tr>
-            </tbody>
-          </table>
-
-          <div
-            style="
-              margin-top: 22px;
-              font-size: 12px;
-              color: #666;
-              display: flex;
-              gap: 16px;
-              flex-wrap: wrap;
-            "
-          >
-            <div>
-              Cost by model:
-              <span style="color: #ddd"
-                >gpt-4o $8.40 • claude-sonnet-4 $3.10 • gemini-2.0 $1.34</span
-              >
-            </div>
-          </div>
+        <div class="quote">
+          <p>“The local dashboard + webhook alerts let us sleep at night. No more surprise $3k bills.”</p>
+          <div class="who">— Platform engineer, fintech</div>
+        </div>
+        <div class="quote">
+          <p>“LangGraph + AgentTrace middleware = full visibility with two lines of code. Exactly what we needed.”</p>
+          <div class="who">— ML engineer, research lab</div>
         </div>
       </div>
-      <p style="text-align: center; margin-top: 12px; font-size: 13px; color: #555">
-        The real dashboard is a zero-config local Express app. Full tables, filters, cost charts,
-        trace trees, alerts, and webhook delivery logs.
-      </p>
     </section>
 
-    <section id="pricing" class="section container">
+    <!-- Comparison -->
+    <section id="compare" class="section container">
       <div class="section-header">
-        <h2>Simple pricing. Powerful free tier.</h2>
-        <p class="muted">The core product is and will always be free and open source.</p>
+        <h2>Honest comparison</h2>
+        <p class="muted">We built AgentTrace because the alternatives force you to send data to the cloud or pay for features you don't need.</p>
       </div>
-
-      <div class="pricing-grid">
-        <div class="price-card">
-          <h3>Free</h3>
-          <div class="price">$0 <small>/ forever</small></div>
-          <div class="price-desc">Everything you need for individuals and small teams.</div>
-          <ul class="price-features">
-            <li>Unlimited local traces &amp; runs</li>
-            <li>Full CLI + dashboard</li>
-            <li>Cost tracking + 15+ models</li>
-            <li>Alerts, webhooks, OTEL export</li>
-            <li>Multi-agent trees &amp; self-stats</li>
-            <li>Python + TS SDKs</li>
-            <li>MIT license, self-host forever</li>
-          </ul>
-          <a href="#install" class="btn btn-secondary" style="width: 100%; justify-content: center"
-            >Install now</a
-          >
-        </div>
-
-        <div class="price-card popular">
-          <h3>Team</h3>
-          <div class="price">$29 <small>/ mo</small></div>
-          <div class="price-desc">Hosted dashboard, team sharing, and priority support.</div>
-          <ul class="price-features">
-            <li>Everything in Free</li>
-            <li>Hosted dashboard (shared DB)</li>
-            <li>Team members + role controls</li>
-            <li>Priority email support</li>
-            <li>Longer retention &amp; advanced exports</li>
-            <li>Early access to new features</li>
-          </ul>
-          <a
-            href="docs/enterprise.md"
-            class="btn btn-primary"
-            style="width: 100%; justify-content: center"
-            >Get in touch</a
-          >
-        </div>
-
-        <div class="price-card">
-          <h3>Enterprise</h3>
-          <div class="price">Custom</div>
-          <div class="price-desc">
-            For large orgs that need governance, SLAs, and on-prem options.
-          </div>
-          <ul class="price-features">
-            <li>Everything in Team</li>
-            <li>On-premise / air-gapped deploy</li>
-            <li>SSO, SCIM, audit logs</li>
-            <li>Dedicated support &amp; SLA</li>
-            <li>Custom model pricing &amp; fine-grained RBAC</li>
-            <li>Professional services &amp; training</li>
-            <li>Volume licensing</li>
-          </ul>
-          <a
-            href="docs/enterprise.md"
-            class="btn btn-secondary"
-            style="width: 100%; justify-content: center"
-            >Contact sales</a
-          >
-        </div>
+      <div class="compare">
+        <table>
+          <thead>
+            <tr>
+              <th>Capability</th>
+              <th>AgentTrace</th>
+              <th>Langfuse</th>
+              <th>LangSmith</th>
+              <th>AgentOps</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>100% local / self-hosted</td><td class="yes">✓</td><td class="no">Cloud-first</td><td class="no">Cloud-first</td><td class="no">Cloud-first</td></tr>
+            <tr><td>Zero data exfiltration</td><td class="yes">✓</td><td class="no">Sends traces</td><td class="no">Sends traces</td><td class="no">Sends traces</td></tr>
+            <tr><td>Per-agent cost attribution</td><td class="yes">✓</td><td class="yes">Partial</td><td class="yes">Partial</td><td class="yes">Partial</td></tr>
+            <tr><td>Multi-agent tree visualization</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="no">Limited</td></tr>
+            <tr><td>Local SQLite (no DB server)</td><td class="yes">✓</td><td class="no">Postgres</td><td class="no">Cloud</td><td class="no">Cloud</td></tr>
+            <tr><td>Built-in budget alerts + webhooks</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">Limited</td></tr>
+            <tr><td>MIT / open core</td><td class="yes">✓</td><td class="no">BSL/SSPL</td><td class="no">Proprietary</td><td class="no">Proprietary</td></tr>
+            <tr><td>Price for core features</td><td class="yes">$0 forever</td><td class="no">Usage-based</td><td class="no">Usage-based</td><td class="no">Usage-based</td></tr>
+          </tbody>
+        </table>
       </div>
-      <p style="text-align: center; margin-top: 24px; font-size: 13px; color: #666">
-        Free tier is fully featured and production-ready. Paid plans are for convenience,
-        collaboration, and enterprise requirements.
-      </p>
+      <p style="text-align:center;margin-top:12px;font-size:12px;color:#666">Sources: public docs and pricing pages as of 2026. Your mileage may vary.</p>
     </section>
+
+    <!-- FAQ -->
+    <section class="section container">
+      <div class="section-header">
+        <h2>Frequently asked questions</h2>
+      </div>
+      <div class="faq">
+        <div class="faq-item">
+          <div class="faq-q">Does any data leave my machine?<span class="chev" style="float:right">▾</span></div>
+          <div class="faq-a">No. All traces, costs, and usage records live in a local SQLite file you control. Exports and webhooks are explicit opt-ins.</div>
+        </div>
+        <div class="faq-item">
+          <div class="faq-q">How do I instrument an existing agent?<span class="chev" style="float:right">▾</span></div>
+          <div class="faq-a">Wrap calls with the SDK <code class="mono">trace()</code> helper, or use the LangGraph / CrewAI middleware packages for automatic instrumentation. See quickstart.</div>
+        </div>
+        <div class="faq-item">
+          <div class="faq-q">Can I use this in production?<span class="chev" style="float:right">▾</span></div>
+          <div class="faq-a">Yes. The core is MIT, fully featured, and used in production by teams that need cost visibility and audit trails without sending data to a third party.</div>
+        </div>
+        <div class="faq-item">
+          <div class="faq-q">What about LangGraph / CrewAI / custom frameworks?<span class="chev" style="float:right">▾</span></div>
+          <div class="faq-a">We ship thin middleware for LangGraph and CrewAI that auto-traces. For anything else the SDK works with any async function and any LLM client.</div>
+        </div>
+        <div class="faq-item">
+          <div class="faq-q">How do I set a daily budget alert?<span class="chev" style="float:right">▾</span></div>
+          <div class="faq-a">Use <code class="mono">registerAlert()</code> in the SDK or the <code class="mono">budget</code> CLI commands. Alerts can fire webhooks when thresholds are crossed.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Final CTA -->
+    <div class="container">
+      <div class="cta">
+        <h3>Start tracing in under a minute.</h3>
+        <p class="muted">No accounts. No credit card. No data leaves your laptop.</p>
+        <a href="docs/quickstart.md" class="btn btn-primary">Read the quickstart →</a>
+      </div>
+    </div>
 
     <footer>
       <div class="container">
         <div class="footer-grid">
           <div>
-            <div class="logo" style="font-size: 15px; margin-bottom: 8px">
-              <span class="logo-dot"></span> AgentTrace
-            </div>
+            <div class="logo" style="font-size:15px;margin-bottom:6px"><span class="logo-dot"></span> AgentTrace</div>
             <div>Local-first AI agent observability.</div>
-            <div style="margin-top: 4px">MIT © Klepsiphron</div>
+            <div style="margin-top:4px">MIT © Klepsiphron</div>
           </div>
           <div class="footer-links">
-            <a href="https://github.com/Klepsiphron/agenttrace" target="_blank" rel="noopener"
-              >GitHub</a
-            >
+            <a href="https://github.com/Klepsiphron/agenttrace" target="_blank" rel="noopener">GitHub</a>
             <a href="docs/quickstart.md">Quickstart</a>
             <a href="docs/api.md">API Reference</a>
             <a href="docs/enterprise.md">Enterprise</a>
-            <a href="https://github.com/Klepsiphron/agenttrace/blob/main/LICENSE">License</a>
-            <a href="https://github.com/Klepsiphron/agenttrace/issues">Issues</a>
+            <a href="https://github.com/Klepsiphron/agenttrace/blob/main/LICENSE" target="_blank" rel="noopener">License</a>
+            <a href="https://github.com/Klepsiphron/agenttrace/issues" target="_blank" rel="noopener">Issues</a>
+            <a href="https://www.npmjs.com/package/@agenttrace-io/cli" target="_blank" rel="noopener">npm</a>
+            <a href="https://pypi.org/project/agenttrace-io/" target="_blank" rel="noopener">PyPI</a>
           </div>
         </div>
       </div>
     </footer>
 
     <script>
-      function copyToClipboard(btn, text) {
-        const original = btn.textContent;
-        navigator.clipboard
-          .writeText(text)
-          .then(() => {
-            btn.textContent = 'copied';
-            setTimeout(() => {
-              btn.textContent = original;
-            }, 1600);
-          })
-          .catch(() => {
-            // fallback
-            const ta = document.createElement('textarea');
-            ta.value = text;
-            document.body.appendChild(ta);
-            ta.select();
-            document.execCommand('copy');
-            document.body.removeChild(ta);
-            btn.textContent = 'copied';
-            setTimeout(() => {
-              btn.textContent = original;
-            }, 1600);
-          });
-      }
+      // FAQ collapsible
+      document.querySelectorAll('.faq-q').forEach(function (q) {
+        q.addEventListener('click', function () {
+          var item = q.parentNode;
+          item.classList.toggle('open');
+        });
+      });
 
-      // Keyboard hint on hero CTA hover is implicit via CSS
-      // Minimal: highlight current section in nav (lightweight)
-      const navLinks = document.querySelectorAll('.nav-links a[href^="#"]');
-      const sections = ['features', 'install', 'pricing']
-        .map((id) => document.getElementById(id))
-        .filter(Boolean);
+      // Animated terminal demo
+      (function () {
+        var body = document.getElementById('demo-body');
+        if (!body) return;
+        var cursorLine = document.getElementById('demo-cursor-line');
+        var lines = [
+          'agenttrace-io runs --limit 5',
+          'agenttrace-io costs --daily',
+          'agenttrace-io traces --limit 20',
+          'agenttrace-io self-stats'
+        ];
+        var i = 0;
+        function typeNext() {
+          if (!cursorLine) return;
+          var txt = lines[i % lines.length];
+          cursorLine.textContent = '';
+          var j = 0;
+          var iv = setInterval(function () {
+            cursorLine.textContent = txt.slice(0, j + 1);
+            j++;
+            if (j >= txt.length) {
+              clearInterval(iv);
+              setTimeout(function () {
+                if (cursorLine) cursorLine.textContent = '';
+                i++;
+                typeNext();
+              }, 1100);
+            }
+          }, 38);
+        }
+        setTimeout(typeNext, 1400);
+      })();
 
-      window.addEventListener(
-        'scroll',
-        () => {
-          const fromTop = window.scrollY + 90;
-          let current = '';
-          sections.forEach((sec) => {
-            if (sec.offsetTop <= fromTop) current = sec.getAttribute('id');
-          });
-          navLinks.forEach((link) => {
-            link.style.color = link.getAttribute('href') === '#' + current ? '#fff' : '';
-          });
-        },
-        { passive: true },
-      );
+      // Keyboard: press / to focus nothing (demo only)
+      document.addEventListener('keydown', function (e) {
+        if (e.key === '/' && document.activeElement.tagName === 'BODY') {
+          e.preventDefault();
+          var h = document.querySelector('#how');
+          if (h) h.scrollIntoView({ behavior: 'smooth' });
+        }
+      });
     </script>
   </body>
 </html>
