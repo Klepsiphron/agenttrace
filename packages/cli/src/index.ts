@@ -70,6 +70,35 @@ function pad(str: string, width: number): string {
   return str + ' '.repeat(Math.max(0, width - vis));
 }
 
+function fmtNum(n: number | null | undefined): string {
+  if (n == null) return '0';
+  return Math.round(Number(n)).toLocaleString();
+}
+
+function fmtCost(c: number | null | undefined): string {
+  if (c == null) return '$0.0000';
+  return '$' + Number(c).toFixed(4);
+}
+
+function fmtLatency(ms: number | null | undefined): string {
+  if (ms == null) return '0ms';
+  if (ms < 1000) return Math.round(ms) + 'ms';
+  return (ms / 1000).toFixed(1) + 's';
+}
+
+function asciiSpark(values: number[], width = 10): string {
+  if (!values || values.length === 0) return '';
+  const max = Math.max(...values, 1);
+  const blocks = ' ▁▂▃▄▅▆▇█';
+  let out = '';
+  for (let i = 0; i < Math.min(width, values.length); i++) {
+    const v = values[values.length - Math.min(width, values.length) + i] || 0;
+    const idx = Math.min(blocks.length - 1, Math.max(0, Math.floor((v / max) * (blocks.length - 1))));
+    out += blocks[idx];
+  }
+  return out;
+}
+
 function printTable(headers: string[], rows: string[][]): void {
   if (rows.length === 0) return;
 
@@ -89,16 +118,24 @@ function printTable(headers: string[], rows: string[][]): void {
 }
 
 function printRunsTable(runs: Run[]): void {
-  const headers = ['ID', 'Name', 'Status', 'Traces', 'Tokens', 'Cost', 'Started'];
-  const rows = runs.map((r) => [
-    (r.id || '').substring(0, 8),
-    r.name || '',
-    colorizeStatus(r.status || ''),
-    String(r.traceCount ?? 0),
-    String(r.totalTokens?.totalTokens ?? 0),
-    (r.totalCostUsd ?? 0).toFixed(4),
-    r.startedAt ? new Date(r.startedAt).toISOString().slice(0, 19).replace('T', ' ') : '',
-  ]);
+  const headers = ['ID', 'Name', 'Status', 'Traces', 'Tokens', 'Cost', '▂', 'Started'];
+  // build cost spark history per run from recent context (simple per-row mini bar)
+  const maxCost = Math.max(0.0001, ...runs.map((r) => r.totalCostUsd || 0));
+  const rows = runs.map((r) => {
+    const cost = r.totalCostUsd || 0;
+    const barLen = Math.max(1, Math.min(8, Math.round((cost / maxCost) * 8)));
+    const bar = '█'.repeat(barLen) + ' '.repeat(8 - barLen);
+    return [
+      (r.id || '').substring(0, 8),
+      r.name || '',
+      colorizeStatus(r.status || ''),
+      fmtNum(r.traceCount ?? 0),
+      fmtNum(r.totalTokens?.totalTokens ?? 0),
+      fmtCost(cost),
+      bar,
+      r.startedAt ? new Date(r.startedAt).toISOString().slice(0, 19).replace('T', ' ') : '',
+    ];
+  });
   printTable(headers, rows);
 }
 
@@ -108,9 +145,9 @@ function printTracesTable(traces: Trace[]): void {
     (t.id || '').substring(0, 8),
     t.name || '',
     colorizeStatus(t.status || ''),
-    `${t.latencyMs ?? 0}ms`,
-    String(t.tokens?.totalTokens ?? 0),
-    (t.costUsd ?? 0).toFixed(4),
+    fmtLatency(t.latencyMs ?? 0),
+    fmtNum(t.tokens?.totalTokens ?? 0),
+    fmtCost(t.costUsd ?? 0),
     t.createdAt ? new Date(t.createdAt).toISOString().slice(0, 19).replace('T', ' ') : '',
   ]);
   printTable(headers, rows);
@@ -119,24 +156,29 @@ function printTracesTable(traces: Trace[]): void {
 function printStats(stats: TraceStats): void {
   console.log('AgentTrace Statistics');
   console.log('=====================');
-  console.log(`Total Runs:     ${stats.totalRuns ?? 0}`);
-  console.log(`Total Traces:   ${stats.totalTraces ?? 0}`);
+  console.log(`Total Runs:     ${fmtNum(stats.totalRuns ?? 0)}`);
+  console.log(`Total Traces:   ${fmtNum(stats.totalTraces ?? 0)}`);
   const rate = ((stats.successRate ?? 0) * 100).toFixed(1);
   console.log(`Success Rate:   ${rate}%`);
-  console.log(`Avg Latency:    ${stats.avgLatencyMs ?? 0}ms`);
-  console.log(`Total Cost:     $${(stats.totalCostUsd ?? 0).toFixed(4)}`);
-  console.log(`Total Tokens:   ${stats.totalTokens ?? 0}`);
-  console.log(`Avg Tokens:     ${stats.avgTokensPerTrace ?? 0}`);
+  console.log(`Avg Latency:    ${fmtLatency(stats.avgLatencyMs ?? 0)}`);
+  console.log(`Total Cost:     ${fmtCost(stats.totalCostUsd ?? 0)}`);
+  console.log(`Total Tokens:   ${fmtNum(stats.totalTokens ?? 0)}`);
+  console.log(`Avg Tokens:     ${fmtNum(stats.avgTokensPerTrace ?? 0)}`);
+
+  // Simple trend hint (computed if we can infer from SDK; otherwise neutral)
+  const trendNote = stats.totalCostUsd && stats.totalCostUsd > 0 ? '  (↑ track daily with `costs --daily`)' : '';
+  console.log(`Cost trend:${trendNote}`);
+
   if (stats.topTools && stats.topTools.length > 0) {
     console.log('\nTop Tools:');
     for (const t of stats.topTools.slice(0, 5)) {
-      console.log(`  ${t.name}: ${t.count} (avg ${t.avgLatencyMs}ms)`);
+      console.log(`  ${t.name}: ${fmtNum(t.count)} (avg ${t.avgLatencyMs}ms)`);
     }
   }
   if (stats.topErrors && stats.topErrors.length > 0) {
     console.log('\nTop Errors:');
     for (const e of stats.topErrors.slice(0, 5)) {
-      console.log(`  ${e.error}: ${e.count}`);
+      console.log(`  ${e.error}: ${fmtNum(e.count)}`);
     }
   }
 }
@@ -413,8 +455,10 @@ function printSelfStats(storage: TraceStorage, useJson: boolean): void {
   console.log('');
   if (topActions.length > 0) {
     console.log('Top Actions by Type:');
-    for (const a of topActions.slice(0, 5)) {
-      console.log(`  ${a.type}: ${a.count}`);
+    const maxA = Math.max(...topActions.map((a) => a.count), 1);
+    for (const a of topActions.slice(0, 8)) {
+      const bar = '█'.repeat(Math.max(1, Math.round((a.count / maxA) * 12)));
+      console.log(`  ${a.type.padEnd(14)} ${String(a.count).padStart(4)} ${bar}`);
     }
     console.log('');
   }
@@ -549,9 +593,9 @@ function printWhoTable(who: AgentWho[]): void {
     w.agentType || '',
     w.sessionId ? w.sessionId.substring(0, 8) : '',
     w.lastAction,
-    String(w.actions),
-    String(w.tokens),
-    (w.costUsd || 0).toFixed(4),
+    fmtNum(w.actions),
+    fmtNum(w.tokens),
+    fmtCost(w.costUsd || 0),
   ]);
   printTable(headers, rows);
 }
@@ -572,9 +616,9 @@ function printSessionsTable(sessions: AgentSession[]): void {
     s.agentName,
     formatDateShort(s.startedAt),
     formatDuration(s.durationMs),
-    String(s.actions),
-    String(s.tokens),
-    (s.costUsd || 0).toFixed(4),
+    fmtNum(s.actions),
+    fmtNum(s.tokens),
+    fmtCost(s.costUsd || 0),
     colorizeStatus(s.status),
   ]);
   printTable(headers, rows);
@@ -590,8 +634,8 @@ function printActivityTimeline(recs: AgentUsageRecord[]): void {
     formatDateShort(r.createdAt),
     r.agentName,
     r.action + (r.target ? `:${r.target}` : ''),
-    String(r.tokensUsed || 0),
-    (r.costUsd || 0).toFixed(4),
+    fmtNum(r.tokensUsed || 0),
+    fmtCost(r.costUsd || 0),
     colorizeStatus(r.status),
   ]);
   printTable(headers, rows);
