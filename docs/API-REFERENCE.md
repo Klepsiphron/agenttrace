@@ -297,7 +297,7 @@ Records an agent action/usage event for self-tracking. Emits a `'usage'` event.
 ```typescript
 agent.recordAgentUsage({
   agentName: 'my-agent',
-  agentType: 'orchestrator',
+  agentType: 'ai-agent',
   action: 'file-edit',
   target: 'src/index.ts',
   tokensUsed: 500,
@@ -763,8 +763,8 @@ operations via AgentTrace storage + JSONL log for external consumption.
 import { SelfTracker } from '@agenttrace-io/sdk';
 
 const tracker = new SelfTracker({
-  agentName: 'owl',
-  agentType: 'orchestrator',
+  agentName: 'my-agent',
+  agentType: 'ai-agent',
   dbPath: './agenttrace.db',
 });
 ```
@@ -774,7 +774,7 @@ const tracker = new SelfTracker({
 | Field       | Type     | Default             | Description                  |
 | ----------- | -------- | ------------------- | ---------------------------- |
 | `agentName` | `string` | (required)          | Name of the agent            |
-| `agentType` | `string` | (required)          | Type (e.g. `'orchestrator'`) |
+| `agentType` | `string` | (required)          | Type (e.g. `'ai-agent'`) |
 | `dbPath`    | `string` | `'./agenttrace.db'` | SQLite database path         |
 
 ### Methods
