@@ -31,9 +31,9 @@ export class SelfTracker {
     this.agentType = config.agentType;
     this.dbPath = config.dbPath || process.env.AGENTTRACE_DB_PATH || './agenttrace.db';
     this.storage = new TraceStorage(this.dbPath);
-    // Allow override via env for tests / hermes deployment flexibility (still defaults to spec)
+    // Allow override via env for deployment flexibility
     const envLog = process.env.AGENTTRACE_USAGE_LOG;
-    this.logPath = envLog || path.join(os.homedir(), '.hermes', 'agenttrace-usage.jsonl');
+    this.logPath = envLog || path.join(os.homedir(), '.config', 'agenttrace', 'usage.jsonl');
   }
 
   private ensureLogDir(): void {
