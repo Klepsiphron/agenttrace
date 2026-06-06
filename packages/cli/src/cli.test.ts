@@ -1082,6 +1082,29 @@ describe('CLI commands (comprehensive)', () => {
     });
   });
 
+  // ── wrap (Task 1) ──
+  describe('wrap', () => {
+    it('wrap echo "hello" succeeds and creates a trace', async () => {
+      runCmd(['init']);
+      clearLogs();
+      await runCmd(['wrap', 'echo', 'hello']);
+      const t = new AgentTrace({ dbPath: tmpDb, silent: true });
+      const traces = t.getTraces({ limit: 5 });
+      t.close();
+      expect(traces.some((tr) => tr.name === 'wrap:echo' && tr.status === 'success')).toBe(true);
+    });
+
+    it('wrap false (exit 1) creates error trace', async () => {
+      runCmd(['init']);
+      clearLogs();
+      await runCmd(['wrap', 'false']);
+      const t = new AgentTrace({ dbPath: tmpDb, silent: true });
+      const traces = t.getTraces({ limit: 5 });
+      t.close();
+      expect(traces.some((tr) => tr.name === 'wrap:false' && tr.status === 'error')).toBe(true);
+    });
+  });
+
   // ── Task 2a explicit coverage additions (per production-sprint.md) ──
   describe('Task 2a: init, runs --limit, traces --run-id, stats, costs daily/model, self-stats, export json/csv, tree parent/child, cleanup --dry-run', () => {
     it('init command creates DB', () => {

@@ -24,6 +24,7 @@ import {
 import { startDashboard } from '@agenttrace-io/dashboard';
 import { existsSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import child_process from 'node:child_process';
 
 export const VERSION = '0.1.0';
 
@@ -175,6 +176,7 @@ function printUsage(): void {
 
 Commands:
   init                 Create empty agenttrace.db in current dir
+  wrap                 Wrap any CLI command for zero-config tracing (e.g. wrap echo hi)
   dashboard            Start the local dashboard server
   runs                 List recent runs (most recent first)
   traces               List traces (most recent first)
@@ -761,6 +763,59 @@ async function runMain(): Promise<void> {
         trace.close();
         console.log(`Created ${dbp}`);
       }
+      break;
+    }
+
+    case 'wrap': {
+      const argvArgs = process.argv.slice(2);
+      const idx = argvArgs.indexOf('wrap');
+      const pos = idx !== -1 ? argvArgs.slice(idx + 1).filter((a): a is string => typeof a === 'string' && !a.startsWith('-')) : [];
+      const command = pos[0];
+      if (!command) {
+        console.error('Usage: agenttrace-io wrap <command> [args...]');
+        process.exit(1);
+      }
+      const cmdArgs = pos.slice(1);
+      const agenttrace = new AgentTrace({ dbPath: getDbPath(), silent: true });
+      const runId = agenttrace.startRun(`wrap:${command}`);
+      const inputStr = `${command} ${cmdArgs.join(' ')}`.trim();
+      let stdout = '';
+      let stderr = '';
+      let exitCode = 0;
+      try {
+        await agenttrace.trace(`wrap:${command}`, async () => {
+          return await new Promise<string>((resolve, reject) => {
+            const child = child_process.spawn(command, cmdArgs, { stdio: 'pipe', shell: true });
+            child.stdout.on('data', (d: Buffer) => { stdout += d.toString(); });
+            child.stderr.on('data', (d: Buffer) => { stderr += d.toString(); });
+            child.on('close', (code: number | null) => {
+              exitCode = code ?? 0;
+              if (exitCode !== 0) {
+                const e: any = new Error(stderr.slice(0, 500) || `exited with code ${exitCode}`);
+                e.exitCode = exitCode;
+                reject(e);
+              } else {
+                resolve(stdout.slice(0, 2000));
+              }
+            });
+            child.on('error', (err: any) => {
+              stderr += String(err);
+              exitCode = 1;
+              err.exitCode = 1;
+              reject(err);
+            });
+          });
+        }, { input: inputStr });
+        agenttrace.completeRun('success');
+      } catch (e: unknown) {
+        agenttrace.completeRun('error');
+        exitCode = (e as any)?.exitCode ?? 1;
+      }
+      agenttrace.close();
+      if (exitCode !== 0) {
+        process.stderr.write(stderr.slice(0, 500));
+      }
+      process.exit(exitCode);
       break;
     }
 
