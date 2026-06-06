@@ -73,4 +73,4 @@ const res = await trace('langchain-llm', () => llm.invoke(...), {
 npx agenttrace-io dashboard --db ./agenttrace.db
 ```
 
-See [INSTALL-FOR-AGENTS.md](../../../../docs/INSTALL-FOR-AGENTS.md) for the broader agent-focused guide.
+See the main README for the broader agent-focused guide.

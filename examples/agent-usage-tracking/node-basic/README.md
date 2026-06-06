@@ -71,4 +71,4 @@ rm -f agenttrace.db agenttrace.db-*
 
 - See `python-basic/` for the Python equivalent
 - See `langchain-integration/` and `crewai-integration/` for framework wiring
-- Read the full [INSTALL-FOR-AGENTS.md](../../../../docs/INSTALL-FOR-AGENTS.md)
+- See the main README for the full integration guide

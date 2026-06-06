@@ -42,4 +42,4 @@ npx agenttrace-io stats --db ./agenttrace.db
 npx agenttrace-io dashboard --db ./agenttrace.db
 ```
 
-See the sibling `node-basic/` for the TypeScript version and [INSTALL-FOR-AGENTS.md](../../../../docs/INSTALL-FOR-AGENTS.md) for more.
+See the sibling `node-basic/` for the TypeScript version. See the main README for the full guide.

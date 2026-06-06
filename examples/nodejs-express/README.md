@@ -132,4 +132,4 @@ npm run clean
 
 - `../agent-usage-tracking/node-basic/` — basic Node.js agent self-tracking
 - `../agent-usage-tracking/python-basic/` — Python equivalent
-- [INSTALL-FOR-AGENTS.md](../../../docs/INSTALL-FOR-AGENTS.md) — full SDK docs
+- See the main README for the full SDK documentation
