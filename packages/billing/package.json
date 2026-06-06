@@ -21,6 +21,6 @@
     "test": "vitest run --config ../../vitest.config.ts packages/billing"
   },
   "dependencies": {
-    "stripe": "^17.7.0"
+    "stripe": "^22.2.0"
   }
 }
