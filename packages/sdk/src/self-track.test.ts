@@ -75,13 +75,13 @@ describe('SelfTracker', () => {
   });
 
   it('exports and constructs with required config', () => {
-    const st = new SelfTracker({ agentName: 'owl', agentType: 'hermes' });
+    const st = new SelfTracker({ agentName: 'test-agent', agentType: 'local-agent' });
     expect(st).toBeInstanceOf(SelfTracker);
     st.close();
   });
 
   it('startSession returns a uuid and creates a self-tracked run', () => {
-    const st = new SelfTracker({ agentName: 'owl', agentType: 'hermes', dbPath });
+    const st = new SelfTracker({ agentName: 'test-agent', agentType: 'local-agent', dbPath });
     const sid = st.startSession();
     expect(typeof sid).toBe('string');
     expect(UUID_RE.test(sid)).toBe(true);
@@ -91,14 +91,14 @@ describe('SelfTracker', () => {
     expect(run).not.toBeNull();
     expect(run!.name).toBe('owl-self-session');
     expect(run!.metadata.selfTracked).toBe(true);
-    expect(run!.metadata.agentName).toBe('owl');
+    expect(run!.metadata.agentName).toBe('test-agent');
     expect(run!.status).toBe('running');
     storage.close();
     st.close();
   });
 
   it('track* methods create traces under current session and log to jsonl', () => {
-    const st = new SelfTracker({ agentName: 'owl', agentType: 'hermes', dbPath });
+    const st = new SelfTracker({ agentName: 'test-agent', agentType: 'local-agent', dbPath });
     const sid = st.startSession();
 
     st.trackAction('code-edit', 'src/foo.ts', { diff: 12 });
@@ -149,7 +149,7 @@ describe('SelfTracker', () => {
   });
 
   it('getSessionStats reflects actions, duration, tokens/cost (0 for pure self actions)', () => {
-    const st = new SelfTracker({ agentName: 'owl', agentType: 'hermes', dbPath });
+    const st = new SelfTracker({ agentName: 'test-agent', agentType: 'local-agent', dbPath });
     const sid = st.startSession();
     st.trackAction('x', 'y');
     st.trackResearch('q', 3);
@@ -170,7 +170,7 @@ describe('SelfTracker', () => {
   });
 
   it('auto-starts session on first track if none active', () => {
-    const st = new SelfTracker({ agentName: 'owl', agentType: 'hermes', dbPath });
+    const st = new SelfTracker({ agentName: 'test-agent', agentType: 'local-agent', dbPath });
     st.trackAction('auto', 'start');
     const stats = st.getSessionStats();
     expect(stats.sessionId).toMatch(UUID_RE);
@@ -179,13 +179,13 @@ describe('SelfTracker', () => {
   });
 
   it('endSession is safe when no session', () => {
-    const st = new SelfTracker({ agentName: 'owl', agentType: 'hermes', dbPath });
+    const st = new SelfTracker({ agentName: 'test-agent', agentType: 'local-agent', dbPath });
     expect(() => st.endSession()).not.toThrow();
     st.close();
   });
 
   it('getSessionStats returns zeros when no active session', () => {
-    const st = new SelfTracker({ agentName: 'owl', agentType: 'hermes', dbPath });
+    const st = new SelfTracker({ agentName: 'test-agent', agentType: 'local-agent', dbPath });
     const stats = st.getSessionStats();
     expect(stats.sessionId).toBe('');
     expect(stats.actions).toBe(0);
@@ -193,7 +193,7 @@ describe('SelfTracker', () => {
   });
 
   it('multiple sessions are isolated', () => {
-    const st = new SelfTracker({ agentName: 'owl', agentType: 'hermes', dbPath });
+    const st = new SelfTracker({ agentName: 'test-agent', agentType: 'local-agent', dbPath });
     const s1 = st.startSession();
     st.trackAction('a1', 't1');
     st.endSession();

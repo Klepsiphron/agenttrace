@@ -345,7 +345,7 @@ def test_get_active_agents():
 def test_tracker_constructs():
     db = make_temp_db()
     try:
-        t = AgentUsageTracker("owl", "hermes", db_path=db)
+        t = AgentUsageTracker("test-agent", "local-agent", db_path=db)
         assert isinstance(t, AgentUsageTracker)
         t.close()
     finally:
@@ -355,7 +355,7 @@ def test_tracker_constructs():
 def test_tracker_tracks_and_session_stats():
     db = make_temp_db()
     try:
-        t = AgentUsageTracker("owl", "hermes", db_path=db)
+        t = AgentUsageTracker("test-agent", "local-agent", db_path=db)
         sid = t.start_session()
         assert UUID_RE.match(sid)
 
@@ -392,7 +392,7 @@ def test_tracker_tracks_and_session_stats():
 def test_tracker_auto_starts_session():
     db = make_temp_db()
     try:
-        t = AgentUsageTracker("owl", "hermes", db_path=db)
+        t = AgentUsageTracker("test-agent", "local-agent", db_path=db)
         t.track_action("auto", "start")
         stats = t.get_session_stats()
         assert UUID_RE.match(stats["sessionId"])
@@ -405,7 +405,7 @@ def test_tracker_auto_starts_session():
 def test_tracker_end_session_and_get_stats_zero_when_none():
     db = make_temp_db()
     try:
-        t = AgentUsageTracker("owl", "hermes", db_path=db)
+        t = AgentUsageTracker("test-agent", "local-agent", db_path=db)
         t.end_session()  # safe
         stats = t.get_session_stats()
         assert stats["sessionId"] == ""
@@ -418,7 +418,7 @@ def test_tracker_end_session_and_get_stats_zero_when_none():
 def test_tracker_multiple_sessions_isolated():
     db = make_temp_db()
     try:
-        t = AgentUsageTracker("owl", "hermes", db_path=db)
+        t = AgentUsageTracker("test-agent", "local-agent", db_path=db)
         s1 = t.start_session()
         t.track_action("a1", "t1")
         t.end_session()
