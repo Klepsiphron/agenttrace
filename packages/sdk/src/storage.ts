@@ -25,14 +25,16 @@ import {
   Project,
 } from './types.js';
 
+type Db = Database.Database;
+
 export class TraceStorage {
-  private db: Database;
+  private db: Db;
   private dbPath: string;
   private _droppedTraces: number = 0;
   private tenantId: string;
 
   // Shared connection pool: dbPath -> { db, refCount }
-  private static connections = new Map<string, { db: Database; refCount: number }>();
+  private static connections = new Map<string, { db: Db; refCount: number }>();
 
   constructor(dbPath: string = './agenttrace.db', tenantId?: string) {
     this.dbPath = dbPath;
