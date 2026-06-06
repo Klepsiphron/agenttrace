@@ -67,12 +67,6 @@ export type {
   AgentSession,
   ApiKey,
   CreatedApiKey,
-  WebhookConfig,
-  WebhookEvent,
-  WebhookDelivery,
-  Project,
-} from './types.js';
-
 export { TraceStorage } from './storage.js';
 export { SelfTracker } from './self-track.js';
 export type { SelfTrackerConfig } from './self-track.js';
