@@ -166,3 +166,31 @@ def test_middleware_captures_traced_call_and_run_context():
         inspector.close()
     finally:
         cleanup()
+
+
+def test_middleware_integration_captures_task_and_tool_with_run_propagation():
+    """Task 2c addition: verify capture of calls + shared run context (no real crewai)."""
+    db, cleanup = make_temp_db()
+    try:
+        mw = AgentTraceCrewAI(db_path=db)
+        inspector = AgentTrace({"db_path": db, "silent": True})
+
+        rid = mw.get_agent_trace().start_run("crew-int")
+        mw.on_task_start(None, _FakeTaskStart(task_id="ti1", name="research"))
+        mw.on_task_end(None, _FakeTaskEnd(task_id="ti1", output="researched", usage={"prompt_tokens": 5, "completion_tokens": 3, "total_tokens": 8}))
+        mw.on_tool_start(None, _FakeToolStart(tool_id="to1", name="web"))
+        mw.on_tool_end(None, _FakeToolEnd(tool_id="to1", output="ok"))
+
+        traces = inspector.get_traces()
+        names = [t.name for t in traces]
+        assert "task:research" in names
+        assert "tool:web" in names
+        run_traces = [t for t in traces if t.run_id == rid]
+        assert len(run_traces) >= 2
+        for t in run_traces:
+            assert t.run_id == rid
+
+        mw.close()
+        inspector.close()
+    finally:
+        cleanup()

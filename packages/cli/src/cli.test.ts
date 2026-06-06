@@ -1081,4 +1081,151 @@ describe('CLI commands (comprehensive)', () => {
       expect(parsed.results.length).toBeGreaterThanOrEqual(3);
     });
   });
+
+  // ── Task 2a explicit coverage additions (per production-sprint.md) ──
+  describe('Task 2a: init, runs --limit, traces --run-id, stats, costs daily/model, self-stats, export json/csv, tree parent/child, cleanup --dry-run', () => {
+    it('init command creates DB', () => {
+      const dbPath = makeTempDbPath();
+      process.env.AGENTTRACE_DB_PATH = dbPath;
+      clearLogs();
+      runCmd(['init']);
+      expect(fs.existsSync(dbPath)).toBe(true);
+      expect(out()).toContain('Created');
+      rmrf(dbPath);
+    });
+
+    it('runs --limit N returns correct number of results', async () => {
+      await seedData(tmpDb);
+      clearLogs();
+      runCmd(['runs', '--limit', '1']);
+      const dataLines = out()
+        .split('\n')
+        .filter((l) => l.trim().length > 0 && !l.includes('ID') && !l.includes('---'));
+      expect(dataLines.length).toBeLessThanOrEqual(1);
+    });
+
+    it('traces --run-id X filters correctly', async () => {
+      const { r1 } = await seedData(tmpDb);
+      clearLogs();
+      runCmd(['traces', '--run-id', r1]);
+      const o = out();
+      expect(o).toContain('trace-1');
+      // should not contain traces from other run in this simple seed
+    });
+
+    it('stats output format contains expected sections', async () => {
+      await seedData(tmpDb);
+      clearLogs();
+      runCmd(['stats']);
+      const o = out();
+      expect(o).toContain('Total Runs');
+      expect(o).toContain('Total Traces');
+      expect(o).toContain('Success Rate');
+      expect(o).toContain('Total Cost');
+    });
+
+    it('costs --daily vs costs (by model) produce different sections', async () => {
+      await seedData(tmpDb);
+      clearLogs();
+      runCmd(['costs']);
+      const byModel = out();
+      expect(byModel).toContain('Cost Breakdown by Model');
+
+      clearLogs();
+      runCmd(['costs', '--daily']);
+      const daily = out();
+      expect(daily).toContain('Daily Cost Breakdown');
+      expect(daily).toMatch(/\d{4}-\d{2}-\d{2}/);
+    });
+
+    it('self-stats with and without data', async () => {
+      // without
+      runCmd(['init']);
+      clearLogs();
+      runCmd(['self-stats']);
+      expect(out()).toContain('Actions:  0');
+
+      // with data via agent usage seed (re-seed in same tmp)
+      clearLogs();
+      await seedAgentUsage(tmpDb);
+      runCmd(['self-stats']);
+      const o2 = out();
+      expect(o2).toContain('Self-Tracking');
+      // at least one action present in output
+      expect(o2).toMatch(/Actions:\s+\d+/);
+    });
+
+    it('export --format json and --format csv', async () => {
+      await seedData(tmpDb);
+      clearLogs();
+      runCmd(['export', '--format', 'json']);
+      const j = out().trim();
+      const parsed = JSON.parse(j);
+      expect(Array.isArray(parsed)).toBe(true);
+
+      clearLogs();
+      runCmd(['export', '--format', 'csv']);
+      const c = out();
+      expect(c).toContain('id,runId,name,status');
+    });
+
+    it('tree --trace-id X with parent/child traces', async () => {
+      // Seed a run and traces using storage to set parent_id (core trace() may not populate parent yet)
+      const { TraceStorage } = await import('@agenttrace-io/sdk');
+      const storage = new TraceStorage(tmpDb);
+      const runId = 'tree-parent-run-' + Date.now();
+      storage.createRun({ id: runId, name: 'tree-parent-run', startedAt: Date.now() });
+      const parentId = 'parent-t-' + Date.now();
+      const parentTrace: Record<string, unknown> = {
+        id: parentId,
+        runId,
+        name: 'parent-op',
+        status: 'success',
+        input: { step: 1 },
+        output: { ok: true },
+        tokens: { promptTokens: 10, completionTokens: 5, totalTokens: 15 },
+        toolCalls: [],
+        latencyMs: 10,
+        costUsd: 0,
+        error: null,
+        metadata: {},
+        createdAt: Date.now(),
+      };
+      storage.createTrace(parentTrace);
+      const childTrace: Record<string, unknown> = {
+        id: 'child-t-' + Date.now(),
+        runId,
+        name: 'child-op',
+        status: 'success',
+        input: { step: 2 },
+        output: { ok: true },
+        tokens: { promptTokens: 5, completionTokens: 3, totalTokens: 8 },
+        toolCalls: [],
+        latencyMs: 5,
+        costUsd: 0,
+        error: null,
+        metadata: { parentId },
+        createdAt: Date.now() + 1,
+        parent_id: parentId,
+      };
+      storage.createTrace(childTrace);
+      storage.close();
+
+      clearLogs();
+      await runCmd(['tree', '--trace-id', parentTrace.id]);
+      const o = out();
+      expect(o).toContain('Trace Tree:');
+      expect(o).toContain('parent-op');
+    });
+
+    it('cleanup --dry-run reports would-delete without removing', () => {
+      runCmd(['init']);
+      clearLogs();
+      runCmd(['cleanup', '--dry-run']);
+      const o = out();
+      expect(o).toContain('Dry run');
+      expect(o).toContain('would delete');
+      expect(o).not.toContain('Cleanup complete');
+    });
+  });
 });

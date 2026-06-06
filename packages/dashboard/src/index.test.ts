@@ -143,4 +143,39 @@ describe('Dashboard server API (createDashboardApp)', () => {
     const j = (await res.json()) as { status?: string };
     expect(j).toHaveProperty('status');
   });
+
+  // Task 2b additions
+  it('dashboard server starts and serves the frontend', async () => {
+    // Root may serve index.html or redirect; any non-5xx proves server is live and static mounted
+    const res = await fetch(`http://127.0.0.1:${port}/`);
+    expect(res.status).toBeLessThan(500);
+  });
+
+  it('GET /api/runs returns runs', async () => {
+    const res = await apiFetch('/api/runs');
+    expect(res.status).toBe(200);
+    const runs = (await res.json()) as Array<Record<string, unknown>>;
+    expect(Array.isArray(runs)).toBe(true);
+    expect(runs.length).toBeGreaterThan(0);
+    expect(runs[0]).toHaveProperty('id');
+    expect(runs[0]).toHaveProperty('name');
+  });
+
+  it('GET /api/traces returns traces', async () => {
+    const res = await apiFetch('/api/traces');
+    expect(res.status).toBe(200);
+    const traces = (await res.json()) as Array<Record<string, unknown>>;
+    expect(Array.isArray(traces)).toBe(true);
+    expect(traces.length).toBeGreaterThan(0);
+    expect(traces[0]).toHaveProperty('runId');
+    expect(traces[0]).toHaveProperty('name');
+  });
+
+  it('GET /api/stats returns stats', async () => {
+    const res = await apiFetch('/api/stats');
+    expect(res.status).toBe(200);
+    const j = (await res.json()) as { totalRuns?: number; totalTraces?: number };
+    expect(j.totalRuns).toBeGreaterThanOrEqual(1);
+    expect(j.totalTraces).toBeGreaterThanOrEqual(1);
+  });
 });

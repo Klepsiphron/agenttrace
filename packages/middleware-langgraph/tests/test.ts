@@ -148,4 +148,21 @@ describe('AgentTraceMiddleware', () => {
     // all share the explicit run
     expect(traces.every((t) => t.runId === runId)).toBe(true);
   });
+
+  // Task 2c addition: explicit integration capture + context propagation
+  it('middleware captures a traced call and propagates parent run context (integration)', () => {
+    const agent = mw.getAgentTrace();
+    const rid = agent.startRun('mw-integration-run');
+    mw.beforeNode('search', { q: 'hello' });
+    mw.afterNode('search', { q: 'hello' }, { results: 3 });
+    mw.beforeNode('summarize', { text: '...' });
+    mw.afterNode('summarize', { text: '...' }, { summary: 'short' });
+
+    const traces = inspector.getTraces({ runId: rid });
+    expect(traces.length).toBeGreaterThanOrEqual(2);
+    expect(traces.some((t) => t.name === 'search' && t.status === 'success')).toBe(true);
+    expect(traces.some((t) => t.name === 'summarize' && t.status === 'success')).toBe(true);
+    expect(traces.every((t) => t.runId === rid)).toBe(true);
+    expect(traces.every((t) => t.metadata && t.metadata.framework === 'langgraph')).toBe(true);
+  });
 });
