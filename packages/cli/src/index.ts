@@ -195,6 +195,8 @@ Commands:
   webhook              Manage webhooks: add <url> <events...> | list | remove <id> | test <id>
   cleanup              Manually run data retention cleanup (deletes expired traces, runs, usage)
   retention            Manage data retention policy: show | set <days> [--interval H]
+  budget               Budgets: set <agent> --tokens N --cost M | status <agent> | list | check <agent>
+  budget-check <agent> Exit 1 if over budget today (for scripts/CI)
   version              Show CLI version
 
 Options (by command):
@@ -749,6 +751,43 @@ async function runMain(): Promise<void> {
     const next = argvArgs[subIdx + 1];
     if (typeof next === 'string' && !next.startsWith('-')) {
       return next;
+    }
+    return undefined;
+  })();
+
+  // detect subcommand for budget (set/status/list/check)
+  const budgetSub: string | undefined = (() => {
+    if (command !== 'budget' && command !== 'budget-check') return undefined;
+    const argvArgs = process.argv.slice(2);
+    const idx = argvArgs.indexOf(command === 'budget-check' ? 'budget-check' : 'budget');
+    if (idx === -1) return 'status';
+    for (let k = idx + 1; k < argvArgs.length; k++) {
+      const c = argvArgs[k];
+      if (typeof c === 'string' && !c.startsWith('-')) {
+        return c;
+      }
+    }
+    return command === 'budget-check' ? 'check' : 'status';
+  })();
+
+  // capture agent name for budget set/status/check
+  const _budgetAgent: string | undefined = (() => {
+    if (command !== 'budget' && command !== 'budget-check') return undefined;
+    const argvArgs = process.argv.slice(2);
+    const key = command === 'budget-check' ? 'budget-check' : 'budget';
+    const idx = argvArgs.indexOf(key);
+    if (idx === -1) return undefined;
+    let subIdx = -1;
+    for (let k = idx + 1; k < argvArgs.length; k++) {
+      const c = argvArgs[k];
+      if (typeof c === 'string' && !c.startsWith('-')) {
+        if (subIdx === -1) { subIdx = k; continue; }
+        return c; // the one after sub
+      }
+    }
+    if (subIdx !== -1 && subIdx + 1 < argvArgs.length) {
+      const nxt = argvArgs[subIdx + 1];
+      if (typeof nxt === 'string' && !nxt.startsWith('-')) return nxt;
     }
     return undefined;
   })();

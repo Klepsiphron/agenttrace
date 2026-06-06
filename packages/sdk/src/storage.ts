@@ -223,6 +223,13 @@ export class TraceStorage {
         key TEXT PRIMARY KEY,
         value TEXT NOT NULL
       );
+
+      CREATE TABLE IF NOT EXISTS budgets (
+        agent_name TEXT PRIMARY KEY,
+        max_tokens_per_day INTEGER DEFAULT 0,
+        max_cost_per_day REAL DEFAULT 0,
+        created_at INTEGER NOT NULL
+      );
     `);
 
     // Migration tracking
