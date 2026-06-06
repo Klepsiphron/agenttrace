@@ -30,14 +30,23 @@ export class TraceStorage {
   private dbPath: string;
   private _droppedTraces: number = 0;
   private tenantId: string;
+  private static _connections = new Map<string, { db: any; refCount: number }>();
 
   constructor(dbPath: string = './agenttrace.db', tenantId?: string) {
     this.dbPath = dbPath;
     this.tenantId = tenantId || '';
-    this.db = new Database(dbPath);
-    this.db.pragma('journal_mode = WAL');
-    this.db.pragma('foreign_keys = ON');
-    this.initSchema();
+    const existing = TraceStorage._connections.get(dbPath);
+    if (existing) {
+      existing.refCount++;
+      this.db = existing.db;
+    } else {
+      const db = new Database(dbPath);
+      db.pragma('journal_mode = WAL');
+      db.pragma('foreign_keys = ON');
+      this.db = db;
+      TraceStorage._connections.set(dbPath, { db, refCount: 1 });
+      this.initSchema();
+    }
   }
 
   private initSchema(): void {
@@ -1772,6 +1781,15 @@ export class TraceStorage {
   }
 
   close(): void {
-    this.db.close();
+    const entry = TraceStorage._connections.get(this.dbPath);
+    if (entry) {
+      entry.refCount--;
+      if (entry.refCount <= 0) {
+        entry.db.close();
+        TraceStorage._connections.delete(this.dbPath);
+      }
+    } else {
+      this.db.close();
+    }
   }
 }
