@@ -1480,7 +1480,11 @@ export class TraceStorage {
 
   private safeJsonParse(val: unknown): unknown {
     if (val == null || val === '' || val === 'null') return null;
-    try { return JSON.parse(val as string); } catch { return val; }
+    try {
+      return JSON.parse(val as string);
+    } catch {
+      return val;
+    }
   }
 
   private rowToTrace(row: unknown): Trace {
