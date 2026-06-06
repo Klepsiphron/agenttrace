@@ -247,6 +247,12 @@ Options (by command):
   retention:
     show                 Show current retention policy and storage stats
     set <days>           Set retention policy (days); optional --interval H
+  budget:
+    set <agent> --tokens N --cost M   Set daily token and/or cost budget for agent name
+    status <agent>                    Show today's usage vs budget + projection + over alerts
+    list                              List configured budgets
+    check <agent>                     Exit code 1 if over budget (for CI)
+  budget-check <agent>                Same as 'budget check <agent>'
 
 Global:
   --json               Emit machine-readable JSON (for runs, traces, stats, costs, export, self-stats)
@@ -1850,6 +1856,113 @@ async function runMain(): Promise<void> {
         for (const r of results) {
           console.log(`  ${r.name}: ${r.ops} ops in ${r.durationMs}ms (${r.opsPerSec} ops/sec)`);
         }
+      }
+      break;
+    }
+
+    case 'budget':
+    case 'budget-check': {
+      const sub = budgetSub || (command === 'budget-check' ? 'check' : 'list');
+      const dbp = getDbPath();
+      const dbExists = existsSync(dbp);
+      const agent = _budgetAgent || (flags.agent ? String(flags.agent) : undefined) || undefined;
+      // For list, allow no db (show empty); for others may create on set
+      const storage = new TraceStorage(dbp);
+      try {
+        if (sub === 'list' || sub === '') {
+          const rows = (storage as any).db.prepare('SELECT * FROM budgets ORDER BY agent_name').all() || [];
+          if (useJson) {
+            console.log(JSON.stringify(rows.map((r: any) => ({
+              agent: r.agent_name,
+              maxTokensPerDay: r.max_tokens_per_day,
+              maxCostPerDay: r.max_cost_per_day,
+            })), null, 2));
+          } else if (!rows || rows.length === 0) {
+            console.log('No budgets configured.');
+          } else {
+            console.log('Budgets:');
+            for (const r of rows as any[]) {
+              console.log(`  ${r.agent_name}: tokens=${r.max_tokens_per_day || 0}/day cost=$${ (r.max_cost_per_day||0).toFixed(2) }/day`);
+            }
+          }
+          break;
+        }
+        if (sub === 'set') {
+          const name = agent || '';
+          if (!name) {
+            console.error('Usage: agenttrace-io budget set <agent-name> --tokens <N> --cost <M>');
+            process.exit(1);
+          }
+          const maxTokens = flags.tokens ? parseInt(String(flags.tokens), 10) || 0 : 0;
+          const maxCost = flags.cost ? parseFloat(String(flags.cost)) || 0 : 0;
+          const now = Date.now();
+          (storage as any).db.prepare(`
+            INSERT OR REPLACE INTO budgets (agent_name, max_tokens_per_day, max_cost_per_day, created_at)
+            VALUES (?, ?, ?, ?)
+          `).run(name, maxTokens, maxCost, now);
+          if (useJson) {
+            console.log(JSON.stringify({ agent: name, maxTokensPerDay: maxTokens, maxCostPerDay: maxCost }, null, 2));
+          } else {
+            console.log(`Budget set for ${name}: ${maxTokens} tokens/day, $${maxCost.toFixed(2)} cost/day`);
+          }
+          break;
+        }
+        // status or check
+        const name = agent || '';
+        if (!name) {
+          console.error('Usage: agenttrace-io budget status <agent-name>  or  budget check <agent-name>');
+          process.exit(1);
+        }
+        const brow = (storage as any).db.prepare('SELECT * FROM budgets WHERE agent_name = ?').get(name) as any;
+        const maxT = brow ? Number(brow.max_tokens_per_day || 0) : 0;
+        const maxC = brow ? Number(brow.max_cost_per_day || 0) : 0;
+        const dayStart = getDayStart(Date.now());
+        const urow = (storage as any).db.prepare(
+          'SELECT COALESCE(SUM(tokens_used),0) as t, COALESCE(SUM(cost_usd),0) as c FROM agent_usage WHERE agent_name = ? AND created_at >= ?'
+        ).get(name, dayStart) as any;
+        const usedT = urow ? Number(urow.t || 0) : 0;
+        const usedC = urow ? Number(urow.c || 0) : 0;
+        // projected daily
+        const elapsed = Date.now() - dayStart;
+        const dayMs = 86400000;
+        const frac = elapsed > 0 ? Math.min(1, elapsed / dayMs) : 1;
+        const projT = frac > 0 ? Math.round(usedT / frac) : usedT;
+        const projC = frac > 0 ? usedC / frac : usedC;
+        const overT = maxT > 0 && usedT > maxT;
+        const overC = maxC > 0 && usedC > maxC;
+        const isOver = overT || overC;
+        if (sub === 'check' || command === 'budget-check') {
+          storage.close();
+          if (isOver) {
+            if (!useJson) console.error(`Over budget for ${name}`);
+            process.exit(1);
+          } else {
+            process.exit(0);
+          }
+        }
+        if (useJson) {
+          console.log(JSON.stringify({
+            agent: name,
+            maxTokensPerDay: maxT,
+            maxCostPerDay: maxC,
+            usedTokens: usedT,
+            usedCostUsd: usedC,
+            projectedTokens: projT,
+            projectedCostUsd: Number(projC.toFixed(4)),
+            overBudget: isOver,
+            overTokens: overT,
+            overCost: overC,
+          }, null, 2));
+        } else {
+          console.log(`Budget status for ${name}:`);
+          console.log(`  Tokens today: ${usedT} / ${maxT || '∞'}  (projected ~${projT})`);
+          console.log(`  Cost today:   $${usedC.toFixed(4)} / $${maxC.toFixed(2) || '∞'}  (projected ~$${projC.toFixed(4)})`);
+          if (isOver) {
+            console.log('  *** OVER BUDGET ***');
+          }
+        }
+      } finally {
+        storage.close();
       }
       break;
     }
