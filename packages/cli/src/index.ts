@@ -1736,7 +1736,8 @@ async function runMain(): Promise<void> {
     case 'budget':
     case 'budget-check': {
       /* eslint-disable @typescript-eslint/no-explicit-any */
-      const sub = budgetSub || (command === 'budget-check' ? 'check' : 'list');
+      const sub = (args[1] as string) || (command === 'budget-check' ? 'check' : 'list');
+      const agent = (flags.agent ? String(flags.agent) : undefined) || undefined;
       const dbp = getDbPath();
       const storage = new TraceStorage(dbp);
       try {
@@ -1875,7 +1876,7 @@ async function runMain(): Promise<void> {
       break;
     }
 
->>>>>>> da435dc (feat(ui): complete dashboard and landing page redesign)
+
     default: {
       console.error(`Unknown command: ${command}`);
       printUsage();
