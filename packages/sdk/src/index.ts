@@ -37,14 +37,41 @@ import {
   Project,
 } from './types.js';
 
-WebhookConfig,
-WebhookEvent,
-WebhookDelivery,
-} from './types.js';
+export const VERSION = '0.1.0';
+export const PACKAGE_NAME = '@agenttrace-io/sdk';
 
 export type {
-
-export { TraceContext } from './types.js';
+  Trace,
+  Run,
+  TraceConfig,
+  TraceFilter,
+  TraceStats,
+  TokenUsage,
+  ToolCall,
+  ExportFormat,
+  DashboardConfig,
+  AgentFramework,
+  FrameworkIntegration,
+  Scorer,
+  ScorerResult,
+  EvaluateOptions,
+  CostBreakdown,
+  AlertCondition,
+  AlertHistory,
+  TraceTreeNode,
+  HealthReport,
+  AgentUsageRecord,
+  AgentUsageFilter,
+  UsageStats,
+  AgentWho,
+  AgentSession,
+  ApiKey,
+  CreatedApiKey,
+  WebhookConfig,
+  WebhookEvent,
+  WebhookDelivery,
+  Project,
+} from './types.js';
 
 export { TraceStorage } from './storage.js';
 export { SelfTracker } from './self-track.js';
