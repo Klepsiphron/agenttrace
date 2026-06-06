@@ -243,7 +243,7 @@ Commands:
   tree                 Show parent/child/related trace tree (multi-agent)
   alerts               Manage alerts: list | test --name N | history
   health               Check health of gateway, dashboard, and database
-  self-stats           Show self-tracked usage (today, week, top actions, costs, sessions)
+  self-stats           Show self-tracked usage stats
   budget               Manage per-agent token budgets: set | list | status | check
   who                  Show active agents (usage tracking)
   cost                 Show agent cost breakdown (periods + by agent/model)
