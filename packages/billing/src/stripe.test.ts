@@ -2,7 +2,6 @@
  * Tests for Stripe billing integration (mocked)
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import type { BillingMetric } from './types.js';
 
 // We will mock the 'stripe' module entirely
 const mockCustomersCreate = vi.fn();

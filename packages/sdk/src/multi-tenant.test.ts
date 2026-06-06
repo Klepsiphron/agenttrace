@@ -1,7 +1,13 @@
-import { describe, expect, it, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { randomUUID, randomBytes } from 'node:crypto';
+import type Database from 'better-sqlite3';
 import { TraceStorage } from './storage.js';
 import { AgentTrace } from './index.js';
+
+function getStorageDb(s: TraceStorage): Database {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (s as any).db;
+}
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
@@ -157,11 +163,11 @@ describe('multi-tenant: project creation', () => {
     const apiKey = randomBytes(24).toString('hex');
 
     // Insert directly into the projects table (schema already exists from migration)
-    (storage as any).db
+    getStorageDb(storage)
       .prepare('INSERT INTO projects (id, name, api_key, created_at) VALUES (?, ?, ?, ?)')
       .run(id, 'My Project', apiKey, now);
 
-    const row = (storage as any).db.prepare('SELECT * FROM projects WHERE id = ?').get(id);
+    const row = getStorageDb(storage).prepare('SELECT * FROM projects WHERE id = ?').get(id);
     expect(row).toBeDefined();
     expect(row.name).toBe('My Project');
     expect(row.api_key).toBe(apiKey);
@@ -175,11 +181,11 @@ describe('multi-tenant: project creation', () => {
     const apiKey = randomBytes(24).toString('hex');
     const now = Date.now();
 
-    (storage as any).db
+    getStorageDb(storage)
       .prepare('INSERT INTO projects (id, name, api_key, created_at) VALUES (?, ?, ?, ?)')
       .run(id, 'Test Project', apiKey, now);
 
-    const row = (storage as any).db.prepare('SELECT * FROM projects WHERE id = ?').get(id);
+    const row = getStorageDb(storage).prepare('SELECT * FROM projects WHERE id = ?').get(id);
     expect(row).not.toBeNull();
     expect(row.id).toBe(id);
     expect(row.name).toBe('Test Project');
@@ -189,7 +195,7 @@ describe('multi-tenant: project creation', () => {
 
   it('returns null for non-existent project', () => {
     const storage = makeStorage();
-    const row = (storage as any).db
+    const row = getStorageDb(storage)
       .prepare('SELECT * FROM projects WHERE id = ?')
       .get('non-existent');
     expect(row).toBeUndefined();
@@ -201,12 +207,12 @@ describe('multi-tenant: project creation', () => {
     const now = Date.now();
 
     for (const name of ['Project A', 'Project B', 'Project C']) {
-      (storage as any).db
+      getStorageDb(storage)
         .prepare('INSERT INTO projects (id, name, api_key, created_at) VALUES (?, ?, ?, ?)')
         .run(randomUUID(), name, randomBytes(24).toString('hex'), now);
     }
 
-    const rows = (storage as any).db
+    const rows = getStorageDb(storage)
       .prepare('SELECT * FROM projects ORDER BY created_at DESC')
       .all();
     expect(rows.length).toBe(3);
@@ -221,7 +227,7 @@ describe('multi-tenant: project creation', () => {
 
     for (let i = 0; i < 5; i++) {
       const key = randomBytes(24).toString('hex');
-      (storage as any).db
+      getStorageDb(storage)
         .prepare('INSERT INTO projects (id, name, api_key, created_at) VALUES (?, ?, ?, ?)')
         .run(randomUUID(), `Project ${i}`, key, now);
       keys.add(key);
@@ -238,12 +244,12 @@ describe('multi-tenant: project creation', () => {
     const apiKey = randomBytes(24).toString('hex');
     const now = Date.now();
 
-    (storage as any).db
+    getStorageDb(storage)
       .prepare('INSERT INTO projects (id, name, api_key, created_at) VALUES (?, ?, ?, ?)')
       .run(id, 'Lookup Test', apiKey, now);
 
     // Query by api_key (the indexed column)
-    const row = (storage as any).db.prepare('SELECT * FROM projects WHERE api_key = ?').get(apiKey);
+    const row = getStorageDb(storage).prepare('SELECT * FROM projects WHERE api_key = ?').get(apiKey);
     expect(row).toBeDefined();
     expect(row.id).toBe(id);
     expect(row.name).toBe('Lookup Test');
@@ -295,7 +301,8 @@ describe('multi-tenant: API key validation', () => {
 
     // Ensure no full key is exposed
     for (const k of keys) {
-      expect((k as any).key).toBeUndefined();
+       
+      expect((k as Record<string, unknown>).key).toBeUndefined();
     }
 
     agent.close();
@@ -496,7 +503,8 @@ describe('multi-tenant: tenant-scoped queries', () => {
     const db = tmpDb();
     const agent = makeAgent(db, 'tenant-x');
 
-    const runId = agent.startRun('bulk-run');
+    const _runId = agent.startRun('bulk-run');
+    void _runId;
     for (let i = 0; i < 10; i++) {
       await agent.trace(`op-${i}`, async () => `result-${i}`);
     }

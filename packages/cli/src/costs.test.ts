@@ -326,7 +326,8 @@ describe('CLI cost commands (new tests)', () => {
     }
     const out = logs.join('\n');
     // count data lines roughly (header + sep + 1 row)
-    const lines = out.split('\n').filter((l) => l.trim().length > 0);
+    const _lines = out.split('\n').filter((l) => l.trim().length > 0);
+    void _lines;
     // at least header present, but limited rows
     expect(out).toContain('researcher-1');
     // should not show both if limit 1 and sorted recent first

@@ -1,7 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { AgentTrace } from './index.js';
-import { TraceStorage } from './storage.js';
-import type { WebhookEvent } from './types.js';
 
 // Mock global fetch
 const mockFetch = vi.fn();

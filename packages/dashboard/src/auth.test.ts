@@ -1,8 +1,9 @@
-import { describe, it, expect, afterEach, beforeEach } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import { createDashboardApp, createApiKey, apiKeyStore } from './index.ts';
 import * as http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import type { Express } from 'express';
+import { createHash } from 'node:crypto';
 
 function getServerPort(server: http.Server): number {
   const addr = server.address();
@@ -279,8 +280,7 @@ describe('API key authentication', () => {
     it('keys are stored as SHA-256 hashes, not plaintext', () => {
       const { record, plaintextKey } = createApiKey('hash-test');
       // The record hash should be the SHA-256 of the plaintext key
-      const crypto = require('node:crypto') as typeof import('node:crypto');
-      const expectedHash = crypto.createHash('sha256').update(plaintextKey).digest('hex');
+      const expectedHash = createHash('sha256').update(plaintextKey).digest('hex');
       expect(record.hash).toBe(expectedHash);
       // The store should use the hash as the key
       expect(apiKeyStore.get(expectedHash)).toBe(record);

@@ -21,7 +21,6 @@ import {
   AgentWho,
   AgentSession,
   WebhookConfig,
-  ApiKey,
   Project,
 } from './types.js';
 
@@ -979,7 +978,7 @@ export class TraceStorage {
     );
     list.sort((a, b) => b.lastActive - a.lastActive);
     const lim = filter.limit && filter.limit > 0 ? filter.limit : 100;
-    return list.slice(0, lim).map(({ lastActive, ...rest }) => rest as AgentWho);
+    return list.slice(0, lim).map(({ lastActive: _lastActive, ...rest }) => rest as AgentWho);
   }
 
   getAgentSessions(
@@ -1713,7 +1712,7 @@ export class TraceStorage {
     try {
       totalSizeBytes = statSync(this.dbPath).size;
     } catch (_) {
-      totalSizeBytes = 0;
+      // DB file may be :memory: or not yet created
     }
     const traceCount = this.db.prepare(`SELECT COUNT(*) as c FROM traces`).get() as { c: number };
     const runCount = this.db.prepare(`SELECT COUNT(*) as c FROM runs`).get() as { c: number };

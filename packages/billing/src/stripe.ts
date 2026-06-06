@@ -14,7 +14,7 @@
  */
 
 import Stripe from 'stripe';
-import type { BillingMetric, UsageReport, CreateCustomerOptions } from './types.js';
+import type { BillingMetric, UsageReport } from './types.js';
 
 let _stripe: Stripe | null = null;
 
@@ -204,7 +204,7 @@ export async function getUsage(
         // default bucket for primary metered usage
         report.tracesRecorded += totalForItem;
       }
-    } catch (err) {
+    } catch (_) {
       // If summary lookup fails for an item (e.g. non-metered), ignore for this report
     }
   }

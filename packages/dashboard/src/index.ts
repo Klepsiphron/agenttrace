@@ -366,6 +366,7 @@ export function createDashboardApp(dbPath?: string): DashboardApp {
       if (req.query.limit) filter.limit = parseInt(String(req.query.limit), 10);
       if (req.query.offset) filter.offset = parseInt(String(req.query.offset), 10);
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const recs = trace.getAgentUsage(filter as any);
       res.json(recs);
     } catch (err) {
@@ -430,12 +431,8 @@ export function createDashboardApp(dbPath?: string): DashboardApp {
 
     const cleanup = () => {
       clearInterval(hb);
-      try {
-        trace.offUsage(onUsage);
-      } catch (_) {}
-      try {
-        res.end();
-      } catch (_) {}
+      trace.offUsage(onUsage);
+      res.end();
     };
 
     req.on('close', cleanup);
@@ -466,7 +463,6 @@ export function createDashboardApp(dbPath?: string): DashboardApp {
     };
 
     // DB connectivity test (simple query) + totalTraces + activeAgents
-    let dbOk = false;
     try {
       const qStart = Date.now();
       // Use getStats for connectivity + totalTraces (exercises DB)
@@ -474,12 +470,11 @@ export function createDashboardApp(dbPath?: string): DashboardApp {
       const dbRespTime = Date.now() - qStart;
       checks.database = { status: 'ok', responseTime: dbRespTime };
       checks.totalTraces = stats.totalTraces || 0;
-      dbOk = true;
 
       // activeAgents via COUNT(DISTINCT) on agent_usage (private storage access is internal)
       try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const storage: any = (trace as any).storage;
+        const storage = (trace as any).storage;
         const db = storage?.db;
         if (db && typeof db.prepare === 'function') {
           const ag = db.prepare('SELECT COUNT(DISTINCT agent_name) as c FROM agent_usage').get() as

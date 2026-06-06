@@ -30,11 +30,11 @@ import {
   UsageStats,
   AgentWho,
   AgentSession,
-  ApiKey,
   CreatedApiKey,
   WebhookConfig,
   WebhookEvent,
   WebhookDelivery,
+  Project,
 } from './types.js';
 
 export const VERSION = '0.1.0';
@@ -297,8 +297,9 @@ export class AgentTrace {
           /* scheduled cleanup must never crash host process */
         }
       }, intervalMs);
-      if (this._cleanupInterval && typeof (this._cleanupInterval as any).unref === 'function') {
-        (this._cleanupInterval as any).unref();
+       
+      if (this._cleanupInterval && typeof (this._cleanupInterval as NodeJS.Timeout).unref === 'function') {
+        (this._cleanupInterval as NodeJS.Timeout).unref();
       }
     }
   }
@@ -636,7 +637,6 @@ export class AgentTrace {
       throw new Error('API key name is required');
     }
     const fullKey = `at_${randomUUID().replace(/-/g, '')}`;
-    const preview = fullKey.slice(0, 12) + '****';
     const meta = this.storage.createApiKey(name.trim(), ['read', 'write'], fullKey);
     return { ...meta, key: fullKey };
   }

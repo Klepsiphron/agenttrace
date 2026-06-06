@@ -1,6 +1,5 @@
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
-import * as os from 'node:os';
-import * as fs from 'node:fs';
+
 import { createDashboardApp, createApiKey, apiKeyStore } from './index.ts';
 import * as http from 'node:http';
 import type { AddressInfo } from 'node:net';
@@ -193,7 +192,8 @@ describe('dashboard cost API endpoints (new tests)', () => {
     closes.push(close);
 
     // seed a trace so totalTraces > 0, and some agent usage for activeAgents
-    const runId = trace.startRun('health-run');
+    const _runId = trace.startRun('health-run');
+    void _runId;
     await trace.trace('health-op', async () => 'ok', {
       tokens: { promptTokens: 10, completionTokens: 5, totalTokens: 15 },
     });

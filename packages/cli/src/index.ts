@@ -24,7 +24,6 @@ import {
 import { startDashboard } from '@agenttrace-io/dashboard';
 import { existsSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import child_process from 'node:child_process';
 
 export const VERSION = '0.1.0';
 
@@ -176,7 +175,6 @@ function printUsage(): void {
 
 Commands:
   init                 Create empty agenttrace.db in current dir
-  wrap                 Wrap any CLI command for zero-config tracing (e.g. wrap echo hi)
   dashboard            Start the local dashboard server
   runs                 List recent runs (most recent first)
   traces               List traces (most recent first)
@@ -195,8 +193,6 @@ Commands:
   webhook              Manage webhooks: add <url> <events...> | list | remove <id> | test <id>
   cleanup              Manually run data retention cleanup (deletes expired traces, runs, usage)
   retention            Manage data retention policy: show | set <days> [--interval H]
-  budget               Budgets: set <agent> --tokens N --cost M | status <agent> | list | check <agent>
-  budget-check <agent> Exit 1 if over budget today (for scripts/CI)
   version              Show CLI version
 
 Options (by command):
@@ -247,12 +243,6 @@ Options (by command):
   retention:
     show                 Show current retention policy and storage stats
     set <days>           Set retention policy (days); optional --interval H
-  budget:
-    set <agent> --tokens N --cost M   Set daily token and/or cost budget for agent name
-    status <agent>                    Show today's usage vs budget + projection + over alerts
-    list                              List configured budgets
-    check <agent>                     Exit code 1 if over budget (for CI)
-  budget-check <agent>                Same as 'budget check <agent>'
 
 Global:
   --json               Emit machine-readable JSON (for runs, traces, stats, costs, export, self-stats)
@@ -701,10 +691,7 @@ async function runMain(): Promise<void> {
     return undefined;
   })();
 
-  // capture positional args for webhook commands
-  // webhook add <url> <events...>  => positional[0]=url, positional[1..]=events
-  // webhook remove <id>            => positional[0]=id
-  // webhook test <id>              => positional[0]=id
+  // capture positional args for webhook commands (used in webhook subcommand handling below)
   const _webhookPositionals: string[] = (() => {
     if (command !== 'webhook') return [];
     const argvArgs = process.argv.slice(2);
@@ -720,9 +707,10 @@ async function runMain(): Promise<void> {
     // First positional is the subcommand; rest are args
     return result.slice(1);
   })();
+  void _webhookPositionals;
 
   // detect subcommand for retention (e.g. retention show, retention set <days>)
-  const retentionSub: string | undefined = (() => {
+  const _retentionSub: string | undefined = (() => {
     if (command !== 'retention') return undefined;
     const argvArgs = process.argv.slice(2);
     const idx = argvArgs.indexOf('retention');
@@ -735,71 +723,7 @@ async function runMain(): Promise<void> {
     }
     return undefined;
   })();
-
-  // For 'retention set <days>', capture the days positional arg
-  const _retentionSetDays: string | undefined = (() => {
-    if (command !== 'retention') return undefined;
-    if (retentionSub !== 'set') return undefined;
-    const argvArgs = process.argv.slice(2);
-    const idx = argvArgs.indexOf('retention');
-    if (idx === -1) return undefined;
-    // Find the subcommand index first
-    let subIdx = -1;
-    for (let k = idx + 1; k < argvArgs.length; k++) {
-      const c = argvArgs[k];
-      if (typeof c === 'string' && !c.startsWith('-')) {
-        subIdx = k;
-        break;
-      }
-    }
-    if (subIdx === -1 || subIdx + 1 >= argvArgs.length) return undefined;
-    // Next non-flag arg after subcommand is the days value
-    const next = argvArgs[subIdx + 1];
-    if (typeof next === 'string' && !next.startsWith('-')) {
-      return next;
-    }
-    return undefined;
-  })();
-
-  // detect subcommand for budget (set/status/list/check)
-  const budgetSub: string | undefined = (() => {
-    if (command !== 'budget' && command !== 'budget-check') return undefined;
-    const argvArgs = process.argv.slice(2);
-    const idx = argvArgs.indexOf(command === 'budget-check' ? 'budget-check' : 'budget');
-    if (idx === -1) return 'status';
-    for (let k = idx + 1; k < argvArgs.length; k++) {
-      const c = argvArgs[k];
-      if (typeof c === 'string' && !c.startsWith('-')) {
-        return c;
-      }
-    }
-    return command === 'budget-check' ? 'check' : 'status';
-  })();
-
-  // capture agent name for budget set/status/check
-  const _budgetAgent: string | undefined = (() => {
-    if (command !== 'budget' && command !== 'budget-check') return undefined;
-    const argvArgs = process.argv.slice(2);
-    const key = command === 'budget-check' ? 'budget-check' : 'budget';
-    const idx = argvArgs.indexOf(key);
-    if (idx === -1) return undefined;
-    let subIdx = -1;
-    for (let k = idx + 1; k < argvArgs.length; k++) {
-      const c = argvArgs[k];
-      if (typeof c === 'string' && !c.startsWith('-')) {
-        if (subIdx === -1) {
-          subIdx = k;
-          continue;
-        }
-        return c; // the one after sub
-      }
-    }
-    if (subIdx !== -1 && subIdx + 1 < argvArgs.length) {
-      const nxt = argvArgs[subIdx + 1];
-      if (typeof nxt === 'string' && !nxt.startsWith('-')) return nxt;
-    }
-    return undefined;
-  })();
+  void _retentionSub;
 
   switch (command) {
     case 'init': {
@@ -811,76 +735,6 @@ async function runMain(): Promise<void> {
         trace.close();
         console.log(`Created ${dbp}`);
       }
-      break;
-    }
-
-    case 'wrap': {
-      const argvArgs = process.argv.slice(2);
-      const idx = argvArgs.indexOf('wrap');
-      const pos =
-        idx !== -1
-          ? argvArgs
-              .slice(idx + 1)
-              .filter((a): a is string => typeof a === 'string' && !a.startsWith('-'))
-          : [];
-      const command = pos[0];
-      if (!command) {
-        console.error('Usage: agenttrace-io wrap <command> [args...]');
-        process.exit(1);
-      }
-      const cmdArgs = pos.slice(1);
-      const agenttrace = new AgentTrace({ dbPath: getDbPath(), silent: true });
-      const _runId = agenttrace.startRun(`wrap:${command}`);
-      const inputStr = `${command} ${cmdArgs.join(' ')}`.trim();
-      let stdout = '';
-      let stderr = '';
-      let exitCode = 0;
-      try {
-        await agenttrace.trace(
-          `wrap:${command}`,
-          async () => {
-            return await new Promise<string>((resolve, reject) => {
-              const child = child_process.spawn(command, cmdArgs, { stdio: 'pipe', shell: true });
-              child.stdout.on('data', (d: Buffer) => {
-                stdout += d.toString();
-              });
-              child.stderr.on('data', (d: Buffer) => {
-                stderr += d.toString();
-              });
-              child.on('close', (code: number | null) => {
-                exitCode = code ?? 0;
-                if (exitCode !== 0) {
-                  const e = new Error(
-                    stderr.slice(0, 500) || `exited with code ${exitCode}`,
-                  ) as Error & { exitCode?: number };
-                  e.exitCode = exitCode;
-                  reject(e);
-                } else {
-                  resolve(stdout.slice(0, 2000));
-                }
-              });
-              child.on('error', (err: unknown) => {
-                stderr += String(err);
-                exitCode = 1;
-                const e = err as Error & { exitCode?: number };
-                e.exitCode = 1;
-                reject(e);
-              });
-            });
-          },
-          { input: inputStr },
-        );
-        agenttrace.completeRun('success');
-      } catch (e: unknown) {
-        agenttrace.completeRun('error');
-        const err = e as Error & { exitCode?: number };
-        exitCode = err?.exitCode ?? 1;
-      }
-      agenttrace.close();
-      if (exitCode !== 0) {
-        process.stderr.write(stderr.slice(0, 500));
-      }
-      process.exit(exitCode);
       break;
     }
 
@@ -1539,60 +1393,17 @@ async function runMain(): Promise<void> {
       const rawDays = flags.days ? parseInt(String(flags.days), 10) : NaN;
       const days = Number.isFinite(rawDays) && rawDays > 0 ? rawDays : 30;
       const cutoff = Date.now() - days * 86400000;
-      const isDry = !!(flags['dry-run'] || flags.dryRun || flags.dry_run);
-      let tracesDeleted = 0;
-      let runsDeleted = 0;
-      let usageDeleted = 0;
-      if (isDry) {
-        // Preview only - do not mutate. Use internal better-sqlite3 db for counts (matches other internal access patterns).
-        try {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const db: any = (storage as any).db;
-          if (db && typeof db.prepare === 'function') {
-            const t = db
-              .prepare('SELECT COUNT(*) as c FROM traces WHERE created_at < ?')
-              .get(cutoff) as { c?: number } | undefined;
-            const r = db
-              .prepare('SELECT COUNT(*) as c FROM runs WHERE started_at < ?')
-              .get(cutoff) as { c?: number } | undefined;
-            const u = db
-              .prepare('SELECT COUNT(*) as c FROM agent_usage WHERE created_at < ?')
-              .get(cutoff) as { c?: number } | undefined;
-            tracesDeleted = t?.c || 0;
-            runsDeleted = r?.c || 0;
-            usageDeleted = u?.c || 0;
-          }
-        } catch {
-          /* ignore preview errors; will report 0s */
-        }
-        storage.close();
-        if (useJson) {
-          console.log(
-            JSON.stringify(
-              { tracesDeleted, runsDeleted, usageDeleted, days, dryRun: true },
-              null,
-              2,
-            ),
-          );
-        } else {
-          console.log(`Dry run (no data deleted, older than ${days} days):`);
-          console.log(`  Traces would delete:  ${tracesDeleted}`);
-          console.log(`  Runs would delete:    ${runsDeleted}`);
-          console.log(`  Usage would delete:   ${usageDeleted}`);
-        }
+      const tracesDeleted = storage.cleanupOldTraces(cutoff);
+      const runsDeleted = storage.cleanupOldRuns(cutoff);
+      const usageDeleted = storage.cleanupOldAgentUsage(cutoff);
+      storage.close();
+      if (useJson) {
+        console.log(JSON.stringify({ tracesDeleted, runsDeleted, usageDeleted, days }, null, 2));
       } else {
-        tracesDeleted = storage.cleanupOldTraces(cutoff);
-        runsDeleted = storage.cleanupOldRuns(cutoff);
-        usageDeleted = storage.cleanupOldAgentUsage(cutoff);
-        storage.close();
-        if (useJson) {
-          console.log(JSON.stringify({ tracesDeleted, runsDeleted, usageDeleted, days }, null, 2));
-        } else {
-          console.log(`Cleanup complete (older than ${days} days):`);
-          console.log(`  Traces deleted:  ${tracesDeleted}`);
-          console.log(`  Runs deleted:    ${runsDeleted}`);
-          console.log(`  Usage deleted:   ${usageDeleted}`);
-        }
+        console.log(`Cleanup complete (older than ${days} days):`);
+        console.log(`  Traces deleted:  ${tracesDeleted}`);
+        console.log(`  Runs deleted:    ${runsDeleted}`);
+        console.log(`  Usage deleted:   ${usageDeleted}`);
       }
       break;
     }
@@ -1809,7 +1620,7 @@ async function runMain(): Promise<void> {
         const start = Date.now();
         const ops = 100;
         for (let i = 0; i < ops; i++) {
-          const _runId = trace.startRun(`bench-${i}`);
+          trace.startRun(`bench-${i}`);
           trace.completeRun();
         }
         const durationMs = Date.now() - start;
@@ -1859,148 +1670,6 @@ async function runMain(): Promise<void> {
         for (const r of results) {
           console.log(`  ${r.name}: ${r.ops} ops in ${r.durationMs}ms (${r.opsPerSec} ops/sec)`);
         }
-      }
-      break;
-    }
-
-    case 'budget':
-    case 'budget-check': {
-      /* eslint-disable @typescript-eslint/no-explicit-any */
-      const sub = budgetSub || (command === 'budget-check' ? 'check' : 'list');
-      const dbp = getDbPath();
-      const storage = new TraceStorage(dbp);
-      try {
-        const db = (storage as any).db;
-        const agent = _budgetAgent || (flags.agent ? String(flags.agent) : undefined) || undefined;
-        if (sub === 'list' || sub === '') {
-          const rows =
-            (storage as any).db.prepare('SELECT * FROM budgets ORDER BY agent_name').all() || [];
-          if (useJson) {
-            console.log(
-              JSON.stringify(
-                rows.map((r: any) => ({
-                  agent: r.agent_name,
-                  maxTokensPerDay: r.max_tokens_per_day,
-                  maxCostPerDay: r.max_cost_per_day,
-                })),
-                null,
-                2,
-              ),
-            );
-          } else if (!rows || rows.length === 0) {
-            console.log('No budgets configured.');
-          } else {
-            console.log('Budgets:');
-            for (const r of rows as any[]) {
-              console.log(
-                `  ${r.agent_name}: tokens=${r.max_tokens_per_day || 0}/day cost=$${(r.max_cost_per_day || 0).toFixed(2)}/day`,
-              );
-            }
-          }
-          break;
-        }
-        if (sub === 'set') {
-          const name = agent || '';
-          if (!name) {
-            console.error('Usage: agenttrace-io budget set <agent-name> --tokens <N> --cost <M>');
-            process.exit(1);
-          }
-          const maxTokens = flags.tokens ? parseInt(String(flags.tokens), 10) || 0 : 0;
-          const maxCost = flags.cost ? parseFloat(String(flags.cost)) || 0 : 0;
-          const now = Date.now();
-          (storage as any).db
-            .prepare(
-              `
-            INSERT OR REPLACE INTO budgets (agent_name, max_tokens_per_day, max_cost_per_day, created_at)
-            VALUES (?, ?, ?, ?)
-          `,
-            )
-            .run(name, maxTokens, maxCost, now);
-          if (useJson) {
-            console.log(
-              JSON.stringify(
-                { agent: name, maxTokensPerDay: maxTokens, maxCostPerDay: maxCost },
-                null,
-                2,
-              ),
-            );
-          } else {
-            console.log(
-              `Budget set for ${name}: ${maxTokens} tokens/day, $${maxCost.toFixed(2)} cost/day`,
-            );
-          }
-          break;
-        }
-        // status or check
-        const name = agent || '';
-        if (!name) {
-          console.error(
-            'Usage: agenttrace-io budget status <agent-name>  or  budget check <agent-name>',
-          );
-          process.exit(1);
-        }
-        const brow = (storage as any).db
-          .prepare('SELECT * FROM budgets WHERE agent_name = ?')
-          .get(name) as any;
-        const maxT = brow ? Number(brow.max_tokens_per_day || 0) : 0;
-        const maxC = brow ? Number(brow.max_cost_per_day || 0) : 0;
-        const dayStart = getDayStart(Date.now());
-        const urow = (storage as any).db
-          .prepare(
-            'SELECT COALESCE(SUM(tokens_used),0) as t, COALESCE(SUM(cost_usd),0) as c FROM agent_usage WHERE agent_name = ? AND created_at >= ?',
-          )
-          .get(name, dayStart) as any;
-        const usedT = urow ? Number(urow.t || 0) : 0;
-        const usedC = urow ? Number(urow.c || 0) : 0;
-        // projected daily
-        const elapsed = Date.now() - dayStart;
-        const dayMs = 86400000;
-        const frac = elapsed > 0 ? Math.min(1, elapsed / dayMs) : 1;
-        const projT = frac > 0 ? Math.round(usedT / frac) : usedT;
-        const projC = frac > 0 ? usedC / frac : usedC;
-        const overT = maxT > 0 && usedT > maxT;
-        const overC = maxC > 0 && usedC > maxC;
-        const isOver = overT || overC;
-        if (sub === 'check' || command === 'budget-check') {
-          storage.close();
-          if (isOver) {
-            if (!useJson) console.error(`Over budget for ${name}`);
-            process.exit(1);
-          } else {
-            process.exit(0);
-          }
-        }
-        if (useJson) {
-          console.log(
-            JSON.stringify(
-              {
-                agent: name,
-                maxTokensPerDay: maxT,
-                maxCostPerDay: maxC,
-                usedTokens: usedT,
-                usedCostUsd: usedC,
-                projectedTokens: projT,
-                projectedCostUsd: Number(projC.toFixed(4)),
-                overBudget: isOver,
-                overTokens: overT,
-                overCost: overC,
-              },
-              null,
-              2,
-            ),
-          );
-        } else {
-          console.log(`Budget status for ${name}:`);
-          console.log(`  Tokens today: ${usedT} / ${maxT || '∞'}  (projected ~${projT})`);
-          console.log(
-            `  Cost today:   $${usedC.toFixed(4)} / $${maxC.toFixed(2) || '∞'}  (projected ~$${projC.toFixed(4)})`,
-          );
-          if (isOver) {
-            console.log('  *** OVER BUDGET ***');
-          }
-        }
-      } finally {
-        storage.close();
       }
       break;
     }

@@ -40,30 +40,6 @@ function createAgent(dbPath?: string): {
   return { agent, dbPath: db, cleanup };
 }
 
-async function seedTraces(
-  agent: AgentTrace,
-  runId: string,
-  count: number,
-  baseName = 'trace',
-): Promise<string[]> {
-  const ids: string[] = [];
-  for (let i = 0; i < count; i++) {
-    const id = randomUUID();
-    await agent.trace(`${baseName}-${i}`, async () => `result-${i}`, {
-      input: { index: i },
-      tokens: {
-        promptTokens: (i + 1) * 10,
-        completionTokens: (i + 1) * 5,
-        totalTokens: (i + 1) * 15,
-        model: i % 2 === 0 ? 'gpt-4o' : 'claude-sonnet-4',
-      },
-      metadata: { batch: Math.floor(i / 10) },
-    });
-    ids.push(id);
-  }
-  return ids;
-}
-
 describe('AgentTrace export() -- JSON format', () => {
   it('1) JSON export: basic roundtrip — all trace fields present', async () => {
     const { agent, cleanup } = createAgent();
@@ -613,13 +589,13 @@ describe('AgentTrace export() -- default format and edge cases', () => {
   it('18) export with no filter exports all traces across runs', async () => {
     const { agent, cleanup } = createAgent();
     try {
-      const runId1 = agent.startRun('multi-run-1');
+      agent.startRun('multi-run-1');
       await agent.trace('multi-1', async () => 'a', {
         tokens: { promptTokens: 10, completionTokens: 5, totalTokens: 15 },
       });
       agent.completeRun();
 
-      const runId2 = agent.startRun('multi-run-2');
+      agent.startRun('multi-run-2');
       await agent.trace('multi-2', async () => 'b', {
         tokens: { promptTokens: 10, completionTokens: 5, totalTokens: 15 },
       });
