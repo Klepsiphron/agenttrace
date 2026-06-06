@@ -273,6 +273,7 @@ describe('multi-tenant: API key validation', () => {
 
     // Use direct storage on the agent's storage (same db) to get a usable key for validate,
     // because AgentTrace.createApiKey wrapper returns a key whose hash is not the one stored.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const stor = (agent as any).storage;
     const real = stor.createApiKey('real-validate-key');
     const result = agent.validateApiKey(real.key);
