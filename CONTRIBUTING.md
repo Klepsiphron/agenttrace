@@ -91,7 +91,7 @@ agenttrace/
 │   └── billing/                # Stripe billing integration
 ├── docs/                       # Documentation (API reference, architecture, roadmap)
 ├── examples/                   # Integration examples (LangGraph, CrewAI, Custom)
-└── scripts/                    # Utility scripts (e.g. hermes-bridge.py)
+└── scripts/                    # Utility scripts (e.g. import-bridge.py)
 ```
 
 ---
