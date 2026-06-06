@@ -771,11 +771,11 @@ const tracker = new SelfTracker({
 
 ### `SelfTrackerConfig`
 
-| Field       | Type     | Default             | Description                  |
-| ----------- | -------- | ------------------- | ---------------------------- |
-| `agentName` | `string` | (required)          | Name of the agent            |
+| Field       | Type     | Default             | Description              |
+| ----------- | -------- | ------------------- | ------------------------ |
+| `agentName` | `string` | (required)          | Name of the agent        |
 | `agentType` | `string` | (required)          | Type (e.g. `'ai-agent'`) |
-| `dbPath`    | `string` | `'./agenttrace.db'` | SQLite database path         |
+| `dbPath`    | `string` | `'./agenttrace.db'` | SQLite database path     |
 
 ### Methods
 
@@ -1630,13 +1630,13 @@ agenttrace-io health
 
 ### self-stats / who / cost / sessions / activity
 
-| Command      | Options                                                            | Description                        |
-| ------------ | ------------------------------------------------------------------ | ---------------------------------- |
-| `self-stats` | `--json`                                                           | Show self-tracked agent usage |
-| `who`        | `--active`, `--type TYPE`, `--limit N`                             | Show active agents                 |
-| `cost`       | `--from DATE`, `--to DATE`, `--agent NAME`, `--format json\|table` | Agent cost breakdown               |
-| `sessions`   | `--agent NAME`, `--active`, `--limit N`                            | List agent sessions                |
-| `activity`   | `--agent NAME`, `--type ACTION`, `--limit N`, `--since DUR`        | Recent agent activity timeline     |
+| Command      | Options                                                            | Description                    |
+| ------------ | ------------------------------------------------------------------ | ------------------------------ |
+| `self-stats` | `--json`                                                           | Show self-tracked agent usage  |
+| `who`        | `--active`, `--type TYPE`, `--limit N`                             | Show active agents             |
+| `cost`       | `--from DATE`, `--to DATE`, `--agent NAME`, `--format json\|table` | Agent cost breakdown           |
+| `sessions`   | `--agent NAME`, `--active`, `--limit N`                            | List agent sessions            |
+| `activity`   | `--agent NAME`, `--type ACTION`, `--limit N`, `--since DUR`        | Recent agent activity timeline |
 
 ```bash
 agenttrace-io self-stats
