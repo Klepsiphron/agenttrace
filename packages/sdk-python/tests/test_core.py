@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from agenttrace import AgentTrace, init, trace, get_agent_trace, VERSION, PACKAGE_NAME
+from agenttrace import AgentTrace, init, trace, get_agent_trace, VERSION, PACKAGE_NAME, TraceStorage
 from agenttrace.types import TokenUsage, TraceConfig
 
 
@@ -320,5 +320,60 @@ def test_filter_traces():
         errs = agent.get_traces({"status": ["error"]})
         assert len(errs) == 1
         agent.close()
+    finally:
+        cleanup_db(db)
+
+
+def test_close_idempotent_and_storage_close():
+    """AgentTrace.close() and TraceStorage.close() should be safe to call (and exported)."""
+    db = make_temp_db()
+    try:
+        agent = AgentTrace({"db_path": db, "silent": True})
+        agent.start_run("c1")
+        agent.trace("op", lambda: 1)
+        # close should not raise
+        agent.close()
+        agent.close()  # idempotent ok
+
+        # storage direct
+        st = TraceStorage(db)
+        st.record_agent_usage({"action": "test", "agentName": "t"})
+        st.close()
+        st.close()
+    finally:
+        cleanup_db(db)
+
+
+def test_init_exports_include_new_symbols():
+    """__init__ must export the full public surface per spec (including TraceStorage, RunStatus)."""
+    import agenttrace as at
+
+    assert hasattr(at, "TraceStorage")
+    assert hasattr(at, "RunStatus")
+    assert "TraceStorage" in at.__all__
+    assert "RunStatus" in at.__all__
+
+
+def test_schema_has_parent_id_and_tenant_id_columns():
+    """After open, traces has parent_id + tenant_id; runs/agent_usage have tenant_id (migrations)."""
+    db = make_temp_db()
+    try:
+        agent = AgentTrace({"db_path": db, "silent": True})
+        # touch to ensure schema
+        rid = agent.start_run("sch")
+        agent.trace("sch-op", lambda: "x")
+        agent.close()
+
+        # inspect via storage
+        st = TraceStorage(db)
+        cols_traces = [r[1] for r in st.conn.execute("PRAGMA table_info(traces)").fetchall()]
+        cols_runs = [r[1] for r in st.conn.execute("PRAGMA table_info(runs)").fetchall()]
+        cols_usage = [r[1] for r in st.conn.execute("PRAGMA table_info(agent_usage)").fetchall()]
+        st.close()
+
+        assert "parent_id" in cols_traces
+        assert "tenant_id" in cols_traces
+        assert "tenant_id" in cols_runs
+        assert "tenant_id" in cols_usage
     finally:
         cleanup_db(db)

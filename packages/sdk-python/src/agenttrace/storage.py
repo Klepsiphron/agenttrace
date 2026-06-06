@@ -59,6 +59,7 @@ class TraceStorage:
                 started_at INTEGER NOT NULL,
                 completed_at INTEGER,
                 metadata TEXT DEFAULT '{}',
+                tenant_id TEXT,
                 created_at INTEGER NOT NULL,
                 updated_at INTEGER NOT NULL
             );
@@ -79,6 +80,8 @@ class TraceStorage:
                 cost_usd REAL DEFAULT 0,
                 error TEXT,
                 metadata TEXT DEFAULT '{}',
+                parent_id TEXT,
+                tenant_id TEXT,
                 created_at INTEGER NOT NULL,
                 updated_at INTEGER NOT NULL,
                 FOREIGN KEY (run_id) REFERENCES runs(id) ON DELETE CASCADE
@@ -127,6 +130,7 @@ class TraceStorage:
                 duration_ms INTEGER DEFAULT 0,
                 status TEXT DEFAULT 'success',
                 metadata TEXT DEFAULT '{}',
+                tenant_id TEXT,
                 created_at INTEGER NOT NULL
             );
 
@@ -144,17 +148,45 @@ class TraceStorage:
         )
         self.conn.commit()
 
-        # Migration tracking
+        # Migration tracking + additive schema upgrades (parent_id, tenant_id on relevant tables)
         row = self.conn.execute(
             "SELECT value FROM version WHERE key = ?", ("schema_version",)
         ).fetchone()
-        if not row:
+        current_version = int(row[0]) if row else 0
+        if current_version < 1:
             self.conn.execute(
-                "INSERT INTO version (key, value) VALUES (?, ?)", ("schema_version", "1")
+                "INSERT OR REPLACE INTO version (key, value) VALUES (?, ?)", ("schema_version", "1")
+            )
+            self.conn.commit()
+            current_version = 1
+
+        # v2 adds tenant_id (and ensures parent_id) via ALTER for existing DBs; new DBs get them from CREATE
+        if current_version < 2:
+            self._ensure_column("runs", "tenant_id", "TEXT")
+            self._ensure_column("traces", "parent_id", "TEXT")
+            self._ensure_column("traces", "tenant_id", "TEXT")
+            self._ensure_column("agent_usage", "tenant_id", "TEXT")
+            self.conn.execute(
+                "INSERT OR REPLACE INTO version (key, value) VALUES (?, ?)", ("schema_version", "2")
             )
             self.conn.commit()
 
     # ---- Run operations ----
+
+    def _ensure_column(self, table: str, col: str, decl: str) -> None:
+        """Add column to table if it does not already exist (idempotent migration helper).
+        Uses string concatenation for the ALTER to avoid any brace interpolation issues.
+        """
+        try:
+            info = self.conn.execute("PRAGMA table_info(" + table + ")").fetchall()
+            cols = [r[1] for r in info]
+            if col not in cols:
+                sql = "ALTER TABLE " + table + " ADD COLUMN " + col + " " + decl
+                self.conn.execute(sql)
+                self.conn.commit()
+        except Exception:
+            # Best effort; column may already exist or DB is read-only etc.
+            pass
 
     def create_run(
         self, run: dict[str, Any] | Run
