@@ -3,7 +3,26 @@
 This document covers the public API of the TypeScript SDK (`@agenttrace-io/sdk`) v0.1.0. The Python SDK mirrors the same concepts with Pythonic naming.
 
 **Package:** `@agenttrace-io/sdk`  
-**Source:** [packages/sdk/src/index.ts](../..) and [packages/sdk/src/types.ts](../..)
+**Source:** [packages/sdk/src/index.ts](../../packages/sdk/src) and [packages/sdk/src/types.ts](../../packages/sdk/src)
+
+> **Note:** When viewed on the docs site, all code blocks have copy buttons and this page has a sticky table of contents.
+
+---
+
+## Table of Contents
+
+- [Installation](#installation)
+- [Initialization](#initialization)
+- [Core Tracing](#core-tracing)
+- [Query Methods](#query-methods)
+- [Agent Self-Tracking](#agent-self-tracking)
+- [Multi-Agent / Hierarchical Tracing](#multi-agent--hierarchical-tracing)
+- [Alerts](#alerts)
+- [Webhooks](#webhooks)
+- [Export & Evaluation](#export--evaluation)
+- [Cost Calculator & Model Rates](#cost-calculator--model-rates)
+- [Python SDK Parity](#python-sdk-parity)
+- [CLI Surface](#cli-surface)
 
 ---
 
@@ -11,8 +30,13 @@ This document covers the public API of the TypeScript SDK (`@agenttrace-io/sdk`)
 
 ```bash
 npm install @agenttrace-io/sdk
-# peer dependency (required):
+# peer dependency (required for persistence):
 npm install better-sqlite3
+```
+
+**Python**
+```bash
+pip install agenttrace-io
 ```
 
 ---
@@ -29,9 +53,15 @@ import { init } from '@agenttrace-io/sdk';
 const agent = init({ dbPath: './agenttrace.db' });
 ```
 
+**Python**
+```python
+from agenttrace import init
+agent = init(db_path="./agenttrace.db")
+```
+
 ### `new AgentTrace(config?: TraceConfig)`
 
-Direct constructor (also returned by `init`).
+Direct constructor.
 
 ```ts
 import { AgentTrace } from '@agenttrace-io/sdk';
@@ -44,6 +74,12 @@ const agent = new AgentTrace({
 });
 ```
 
+**Python**
+```python
+from agenttrace import AgentTrace
+agent = AgentTrace(db_path="./traces.db", max_traces=50000, retention_days=90)
+```
+
 ### `getAgentTrace(): AgentTrace`
 
 Returns the current singleton (creates a default one if none exists).
@@ -54,18 +90,18 @@ Returns the current singleton (creates a default one if none exists).
 
 ```ts
 interface TraceConfig {
-  dbPath?: string; // default: './agenttrace.db'
-  maxTraces?: number; // default: 10000
-  autoCleanup?: boolean; // default: true
+  dbPath?: string;                    // default: './agenttrace.db'
+  maxTraces?: number;                 // default: 10000
+  autoCleanup?: boolean;              // default: true
   costCalculator?: (tokens: TokenUsage, model?: string) => number;
   hallucinationDetector?: (output: unknown, expected?: unknown) => boolean;
-  silent?: boolean; // suppress console warnings
-  retentionDays?: number; // 0 = forever (default 30 in persisted policy)
-  cleanupIntervalHours?: number; // default 24
-  tenantId?: string; // multi-tenant scoping
-  maxTracesPerSecond?: number; // rate limit (0 = disabled)
+  silent?: boolean;                   // suppress console warnings
+  retentionDays?: number;             // 0 = forever
+  cleanupIntervalHours?: number;      // default 24
+  tenantId?: string;
+  maxTracesPerSecond?: number;
   maxTracesPerMinute?: number;
-  burstAllowance?: number; // default 10
+  burstAllowance?: number;            // default 10
 }
 ```
 
@@ -77,35 +113,76 @@ interface TraceConfig {
 
 Creates a new run (logical session) and sets it as current. Returns the generated `runId`.
 
+```ts
+const runId = agent.startRun('customer-support-42', { userId: 'u_123' });
+```
+
+**Python**
+```python
+run_id = agent.start_run("customer-support-42", metadata={"userId": "u_123"})
+```
+
 ### `completeRun(status?: 'success' | 'failure' | 'error' | 'running'): void`
 
-Completes the current run. Fires `run.complete` / `run.error` webhooks automatically.
+Completes the current run. Fires webhooks automatically.
 
-### `async trace<T>( name: string, fn: () => Promise<T>, options?: TraceOptions ): Promise<T>`
+```ts
+agent.completeRun('success');
+```
 
-The primary tracing primitive. Wraps an async operation, records latency, cost, tokens, tool calls (collected via `recordToolCall`), input/output, metadata, and parent linkage.
+### `async trace<T>(name: string, fn: () => Promise<T>, options?: TraceOptions): Promise<T>`
+
+The primary tracing primitive.
+
+```ts
+const result = await agent.trace('web-search', async () => {
+  return await myLLMCall(prompt);
+}, {
+  input: prompt,
+  tokens: { promptTokens: 120, completionTokens: 48, totalTokens: 168, model: 'gpt-4o' },
+  metadata: { userId: 'u_123' },
+});
+```
+
+**Python**
+```python
+result = await agent.trace("web-search", my_llm_call, input=prompt, tokens={...})
+# or decorator
+@agent.trace("web-search")
+async def my_fn(...): ...
+```
 
 **TraceOptions**
-
 ```ts
 {
   input?: unknown;
-  tokens?: TokenUsage;           // strongly recommended for accurate cost
+  tokens?: TokenUsage;
   model?: string;
   provider?: string;
   metadata?: Record<string, unknown>;
   parentId?: string;
-  context?: TraceContext;        // from createChild()
+  context?: TraceContext;
 }
 ```
 
-Inside the `fn`, call `agent.recordToolCall(...)` to attach tool invocations to the active trace.
-
 ### `recordToolCall(call: Omit<ToolCall, 'id' | 'timestamp'>): string`
 
-Record a tool call that occurred during the current `trace()` callback. Returns the generated call id.
+Record a tool call from inside an active `trace()`.
 
-Must be called from inside an active `trace()` — otherwise it warns (unless `silent`).
+```ts
+agent.recordToolCall({
+  name: 'db.query',
+  input: { sql: 'SELECT ...' },
+  output: { rows: 12 },
+  success: true,
+  latencyMs: 18,
+});
+```
+
+**Python**
+```python
+t.record_tool_call(name="db.query", input={...}, output={...}, success=True)
+```
 
 ---
 
@@ -119,19 +196,16 @@ Must be called from inside an active `trace()` — otherwise it warns (unless `s
 
 ### `getRun(id: string): Run | null`
 
-`TraceFilter` supports: `runId`, `status[]`, `name`, date ranges, cost/latency min/max, `limit`, `offset`.
-
 ### `getStats(): TraceStats`
 
-Returns aggregate statistics (totalRuns, totalTraces, successRate, avgLatency, totalCostUsd, costByModel, totalTokens, topTools, topErrors, droppedTraces, ...).
+Returns aggregate statistics including `totalRuns`, `totalTraces`, `successRate`, `avgLatencyMs`, `totalCostUsd`, `costByModel`, `totalTokens`, `topTools`, `topErrors`, etc.
 
 ### `getCostBreakdown(filter?: { runId?: string }): CostBreakdown`
 
-`{ totalCostUsd, costByModel: Record<string, number>, costByDay: Record<string, number> }`
-
-### `getDroppedTraces(): number`
-
-Number of traces skipped due to configured rate limits.
+```ts
+const bd = agent.getCostBreakdown();
+console.log(bd.totalCostUsd, bd.costByModel, bd.costByDay);
+```
 
 ---
 
@@ -139,14 +213,23 @@ Number of traces skipped due to configured rate limits.
 
 Useful for meta-agents, research agents, or any process that wants to log high-level actions.
 
-- `recordAgentUsage(record: Omit<AgentUsageRecord, 'id'|'createdAt'> & {id?, createdAt?})`
-- `getAgentUsage(filter?: AgentUsageFilter): AgentUsageRecord[]`
-- `getUsageStats(agentName?, fromDate?, toDate?): UsageStats`
-- `getActiveAgents(): { agentName, lastActive, totalActions }[]`
-- `getAgentWho(filter?: { activeOnly?, agentType?, limit? }): AgentWho[]`
-- `getAgentSessions(filter?: { agentName?, activeOnly?, limit? }): AgentSession[]`
+```ts
+agent.recordAgentUsage({
+  agentName: 'researcher-1',
+  action: 'web.search',
+  target: 'pricing',
+  tokensUsed: 1840,
+  costUsd: 0.0041,
+  status: 'success',
+});
+```
 
-CLI surfaces many of these via `self-stats`, `who`, `cost`, `sessions`, `activity`.
+**CLI surfaces:** `self-stats`, `who`, `cost`, `sessions`, `activity`.
+
+**Python**
+```python
+agent.record_agent_usage(agent_name="researcher-1", action="web.search", ...)
+```
 
 ---
 
@@ -154,15 +237,20 @@ CLI surfaces many of these via `self-stats`, `who`, `cost`, `sessions`, `activit
 
 ### `createChild(context: TraceContext): TraceContext`
 
-Creates a fresh child context (new traceId, parentSpanId set to parent's traceId). Pass via `options.context` to a nested `trace()` call (works across AgentTrace instances).
+Creates a fresh child context (new traceId, parentSpanId set to parent's traceId).
+
+```ts
+const childCtx = agent.createChild(parentContext);
+await agent.trace('sub-task', fn, { context: childCtx });
+```
 
 ### `linkTraces(traceIds: string[]): void`
 
-Manually declare a set of traces as related (for collaboration without strict parent/child).
+Manually declare a set of traces as related.
 
 ### `getTraceTree(traceId: string): TraceTreeNode`
 
-Returns the full tree (parent → children) following `parentId` links plus any manual `linkTraces` entries. Root is the ultimate ancestor.
+Returns the full parent → children tree.
 
 ```ts
 interface TraceTreeNode {
@@ -178,52 +266,34 @@ interface TraceTreeNode {
 ### `registerAlert(alert: AlertCondition): void`
 
 ```ts
-interface AlertCondition {
-  name: string;
-  condition: (stats: TraceStats) => boolean;
-  webhook?: string; // HTTPS only (except localhost / private for testing)
-  email?: string; // not yet implemented in v0.1
-  cooldown?: number; // seconds
-}
+agent.registerAlert({
+  name: 'high-cost',
+  condition: (stats) => stats.totalCostUsd > 100,
+  webhook: 'https://hooks.example.com/xxx',
+  cooldown: 300,
+});
 ```
 
-Alerts are checked automatically after every `trace()`. Conditions that fire are recorded in history and delivered (with HMAC if secret configured on matching webhook).
-
-### `async checkAlerts(): Promise<AlertHistory[]>`
-
-Force an immediate check (rarely needed — called internally).
+Alerts are checked automatically after every `trace()`.
 
 ### `getAlerts(): AlertCondition[]`
 
 ### `getAlertHistory(): AlertHistory[]`
 
-`getAlerts()` returns both persisted configs (with no-op conditions for CLI) and runtime-registered alerts with real functions.
+### `async checkAlerts(): Promise<AlertHistory[]>`
 
 ---
 
 ## Webhooks
 
 - `addWebhook(url: string, events: WebhookEvent[], secret?: string): string`
-- `registerWebhook(...)` — alias
 - `getWebhooks(): WebhookConfig[]`
 - `removeWebhook(id: string): void`
-- `deleteWebhook(id)` — alias
+- `async testWebhook(id: string): Promise<{ok, status?, error?}>`
 
 **Events:** `'trace.complete' | 'trace.error' | 'run.complete' | 'run.error' | 'cost.threshold' | 'agent.inactive'`
 
-### `async triggerWebhook(event, payload): Promise<WebhookDelivery[]>`
-
-### `async testWebhook(id: string): Promise<{ok, status?, error?}>`
-
-Deliveries are signed with `X-AgentTrace-Signature: sha256=...` when a secret is configured. SSRF protection and 10s timeout are enforced.
-
-### `onWebhook(handler): () => void`
-
-Subscribe to in-process webhook events (both auto-triggered and explicit). Returns unsubscribe function.
-
-### `async emitWebhookEvent(event, payload)` / `triggerAllWebhooks(event, payload)`
-
-Fire webhooks + in-process handlers for custom events.
+Deliveries are signed with `X-AgentTrace-Signature: sha256=...` when a secret is configured.
 
 ---
 
@@ -231,62 +301,28 @@ Fire webhooks + in-process handlers for custom events.
 
 ### `export(format: 'json' | 'csv' | 'otel' = 'json', filter?: TraceFilter): string`
 
-- `json`: full Trace objects
-- `csv`: flat columns (id, runId, name, status, latencyMs, costUsd, totalTokens, createdAt, ...)
+- `json`: full fidelity
+- `csv`: flat columns
 - `otel`: OTLP JSON resourceSpans (no external OpenTelemetry SDK required)
 
 ### `async evaluate(options: EvaluateOptions): Promise<ScorerResult[]>`
 
 ```ts
-interface EvaluateOptions {
-  scorers: Scorer[];
-  runId?: string;
-  traceIds?: string[];
-  concurrency?: number;
-}
-
-interface Scorer {
-  name: string;
-  fn: (trace: Trace) => number | Promise<number>;
-}
+const results = await agent.evaluate({
+  runId: 'xxx',
+  scorers: [
+    { name: 'latency-ok', fn: (t) => (t.latencyMs || 0) < 2000 ? 1 : 0 },
+  ],
+});
 ```
 
-Scores are stored in the DB and attached to future `getTraces` / exports.
-
-Helper: `score(name: string, fn: Scorer['fn']): Scorer`
-
-### `async evaluateTrace(traceId: string, scorers: Scorer[]): Promise<ScorerResult>`
-
----
-
-## API Keys, Projects, Multi-Tenancy
-
-- `createApiKey(name: string): CreatedApiKey` — returns secret once
-- `listApiKeys()`
-- `revokeApiKey(id: string)`
-- `validateApiKey(key: string): { valid: boolean; permissions: string[] }`
-
-Projects (basic multi-tenant isolation):
-
-- `createProject(name): { id, name, apiKey, createdAt }`
-- `getProject(apiKey)`
-- `deleteProject(id)`
-
----
-
-## Health, Retention, Storage
-
-- `getHealth(): HealthReport` — version, uptime, db size, integrity checks
-- `close(): void` — important: clears timers and closes the SQLite connection
-- `getStorageStats()`
-- `getRetentionPolicy()` / `setRetentionPolicy(days: number, intervalHours?)`
-- `cleanupOldTraces(before: number)`, `cleanupOldRuns(before)`, `cleanupOldAgentUsage(before)`
+Helper: `score(name, fn)` creates a scorer.
 
 ---
 
 ## Cost Calculator & Model Rates
 
-Built-in rates for gpt-4o, gpt-4o-mini, claude-_, gemini-_, llama-\* (and more). Rates are USD per 1 000 tokens.
+Built-in rates for gpt-4o, gpt-4o-mini, claude-*, gemini-*, llama-* (and more). Rates are USD per 1 000 tokens.
 
 ```ts
 import { registerModelRate } from '@agenttrace-io/sdk';
@@ -294,35 +330,17 @@ import { registerModelRate } from '@agenttrace-io/sdk';
 registerModelRate('my-fine-tuned', 0.0015, 0.0045);
 ```
 
-Custom `costCalculator` can be supplied in `TraceConfig`.
-
----
-
-## Types (selected)
-
-See `packages/sdk/src/types.ts` for full definitions:
-
-- `Trace`, `Run`, `ToolCall`, `TokenUsage`
-- `TraceStats`, `CostBreakdown`, `TraceFilter`
-- `AlertCondition`, `AlertHistory`, `WebhookEvent`, `WebhookConfig`
-- `TraceContext`, `TraceTreeNode`
-- `AgentUsageRecord`, `UsageStats`, `AgentWho`, `AgentSession`
-- `Scorer`, `ScorerResult`, `EvaluateOptions`
-- `ExportFormat`, `HealthReport`, etc.
-
-All types are re-exported from the package root.
-
----
-
-## Rate Limiting
-
-When `maxTracesPerSecond` or `maxTracesPerMinute` is set, excess traces execute the user function but are **not recorded**. `getDroppedTraces()` reports the count.
+**Python**
+```python
+from agenttrace import register_model_rate
+register_model_rate("my-fine-tuned", 0.0015, 0.0045)
+```
 
 ---
 
 ## Python SDK Parity
 
-The Python package (`agenttrace-io`) provides:
+The Python package provides full parity:
 
 - `init(db_path=..., ...)`
 - `agent.trace(name, fn, ...)` (sync + async)
@@ -337,7 +355,9 @@ See the Python package README and tests for exact surface.
 
 ## CLI Surface (for reference)
 
-`agenttrace-io` (and `agenttrace`) commands: `init`, `dashboard`, `runs`, `traces`, `stats`, `costs`, `export`, `tree`, `alerts`, `self-stats`, `who`, `cost`, `sessions`, `activity`, `webhook`, `health`, `benchmark`, `retention`, `cleanup`, `version`.
+`agenttrace-io` (and `agenttrace`) commands:
+
+`init`, `dashboard`, `runs`, `traces`, `stats`, `costs`, `export`, `tree`, `alerts`, `self-stats`, `who`, `cost`, `sessions`, `activity`, `webhook`, `health`, `benchmark`, `retention`, `cleanup`, `budget`, `budget-check`, `version`, `wrap`, `key`.
 
 All major SDK query methods are exposed via the CLI with `--json` support.
 

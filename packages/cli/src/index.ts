@@ -40,12 +40,20 @@ const RED = '\x1b[31m';
 const YELLOW = '\x1b[33m';
 const RESET = '\x1b[0m';
 
+const NO_COLOR = process.env.NO_COLOR === '1' || process.env.NO_COLOR === 'true' || process.argv.includes('--no-color');
+
+function color(s: string, c: string): string {
+  if (NO_COLOR) return s;
+  return c + s + RESET;
+}
+
 function colorizeStatus(status: string): string {
   const s = status.toLowerCase();
-  if (s === 'success') return `${GREEN}${status}${RESET}`;
-  if (s === 'error' || s === 'failure') return `${RED}${status}${RESET}`;
-  if (s === 'running' || s === 'timeout') return `${YELLOW}${status}${RESET}`;
-  return status;
+  const plain = status;
+  if (s === 'success') return color(plain, GREEN);
+  if (s === 'error' || s === 'failure') return color(plain, RED);
+  if (s === 'running' || s === 'timeout') return color(plain, YELLOW);
+  return plain;
 }
 
 function stripAnsi(str: string): string {
