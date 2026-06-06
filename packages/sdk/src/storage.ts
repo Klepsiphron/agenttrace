@@ -1478,6 +1478,11 @@ export class TraceStorage {
     };
   }
 
+  private safeJsonParse(val: unknown): unknown {
+    if (val == null || val === '' || val === 'null') return null;
+    try { return JSON.parse(val as string); } catch { return val; }
+  }
+
   private rowToTrace(row: unknown): Trace {
     const r = row as Record<string, unknown>;
     const toolCallsRows = this.db
@@ -1488,8 +1493,8 @@ export class TraceStorage {
       runId: r.run_id as string,
       name: r.name as string,
       status: r.status as Trace['status'],
-      input: JSON.parse((r.input as string) || 'null'),
-      output: JSON.parse((r.output as string) || 'null'),
+      input: this.safeJsonParse(r.input),
+      output: this.safeJsonParse(r.output),
       tokens: {
         promptTokens: Number(r.prompt_tokens),
         completionTokens: Number(r.completion_tokens),
