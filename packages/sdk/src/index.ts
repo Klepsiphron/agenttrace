@@ -591,7 +591,12 @@ export class AgentTrace {
    * Get aggregated usage statistics across agent actions.
    */
   getUsageStats(agentName?: string, fromDate?: number, toDate?: number): UsageStats {
-    return this.storage.getUsageStats(agentName, fromDate, toDate, this.config.tenantId || undefined);
+    return this.storage.getUsageStats(
+      agentName,
+      fromDate,
+      toDate,
+      this.config.tenantId || undefined,
+    );
   }
 
   /**

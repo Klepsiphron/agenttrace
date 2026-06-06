@@ -1,15 +1,18 @@
 # AgentTrace Fix Spec — Sprint 2 Remaining
 
 ## Goal
+
 Fix all 12 remaining test failures in the agenttrace project and get CI green.
 Build already passes. Only test failures remain.
 
 ## Current State
+
 - Build: PASSING
 - Tests: 349 passed, 12 failed, 15 skipped (376 total)
 - 2 failing test files: `index.test.ts` (3 failures), `multi-tenant.test.ts` (9 failures)
 
 ## Already Applied Fixes (in index.ts)
+
 These are ALREADY committed — do NOT re-apply:
 
 1. `getStats()` now passes tenant: `this.storage.getStats(this.config.tenantId || undefined)`
@@ -33,21 +36,27 @@ MockTraceStorage: vi.fn(function MockTraceStorage(_dbPath?: string, _tenantId?: 
 ### Group B: multi-tenant.test.ts (9 failures) — Two root causes
 
 #### B1: "Too many parameter values were provided" (1 failure)
+
 Test at line 160-162 in multi-tenant.test.ts:
+
 ```typescript
 (storage as any).db
   .prepare('INSERT INTO projects (id, name, api_key, created_at) VALUES (?, ?, ?, ?)')
   .run(id, 'My Project', apiKey, apiKey, now);
 ```
+
 This passes 5 values to 4 placeholders. The `id` param is duplicated — remove the duplicate `apiKey`:
+
 ```typescript
 .run(id, 'My Project', apiKey, now);
 ```
 
 #### B2: DB connection closed when multiple agents share same file (8 failures)
+
 Tests create multiple `AgentTrace` instances on the SAME db file path (e.g., `const db = tmpDb(); const agentA = makeAgent(db, 'tenant-a'); const agentB = makeAgent(db, 'tenant-b')`). Each creates a new `TraceStorage` which opens a new `better-sqlite3` connection. When `agentA.close()` closes the DB, agentB's storage breaks.
 
 The `getTraces()` calls return 0 results because:
+
 - The writes from agentA may not be visible to agentB's connection (WAL mode issue)
 - Or agentA.close() kills the DB connection that both were using
 
@@ -74,11 +83,13 @@ IMPORTANT: The `better-sqlite3` type declaration uses `export = Database` patter
 6. Push to origin/main
 
 ## Files to Modify
+
 1. `packages/sdk/src/storage.ts` — Add reference-counted connection pool
 2. `packages/sdk/src/index.test.ts` — Fix mock constructor signature
 3. `packages/sdk/src/multi-tenant.test.ts` — Fix project creation test (remove duplicate param)
 
 ## Constraints
+
 - Do NOT modify the core tracing logic, types, or any code besides the three files above
 - Do NOT add new features
 - Do NOT change test assertions — only fix the code so existing assertions pass
