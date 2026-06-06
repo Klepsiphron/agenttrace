@@ -584,14 +584,14 @@ export class AgentTrace {
    * Query recorded agent usage records.
    */
   getAgentUsage(filter: AgentUsageFilter = {}): AgentUsageRecord[] {
-    return this.storage.getAgentUsage(filter);
+    return this.storage.getAgentUsage(filter, this.config.tenantId || undefined);
   }
 
   /**
    * Get aggregated usage statistics across agent actions.
    */
   getUsageStats(agentName?: string, fromDate?: number, toDate?: number): UsageStats {
-    return this.storage.getUsageStats(agentName, fromDate, toDate);
+    return this.storage.getUsageStats(agentName, fromDate, toDate, this.config.tenantId || undefined);
   }
 
   /**
