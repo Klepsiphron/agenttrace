@@ -1,6 +1,6 @@
 /**
  * SelfTracker tests
- * Verifies thin self-tracking wrapper for OWL/Hermes
+ * Verifies thin self-tracking wrapper for AI agent usage
  */
 import { describe, expect, it, beforeEach, afterEach } from 'vitest';
 import { SelfTracker } from './self-track.js';

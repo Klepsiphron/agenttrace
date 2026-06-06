@@ -123,7 +123,7 @@ npx agenttrace-io traces --limit 30
 # Full multi-agent tree for a trace
 npx agenttrace-io tree --trace-id <trace-id>
 
-# Self-tracked agent usage (for meta-agents / OWL / Hermes patterns)
+# Self-tracked agent usage (for meta-agents and autonomous patterns)
 npx agenttrace-io self-stats
 
 # Export for audits or downstream tools

@@ -501,7 +501,7 @@ Commands:
   cost          Show agent cost breakdown
   sessions      List agent sessions with aggregates
   activity      Show recent agent activity timeline
-  self-stats    Show self-tracked (OWL/Hermes) usage
+  self-stats    Show self-tracked agent usage
   cleanup       Manually run data retention cleanup
   retention     Show or set retention policy
   benchmark     Run performance benchmarks

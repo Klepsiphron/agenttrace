@@ -1,6 +1,6 @@
 /**
  * AgentTrace Self-Tracker
- * Thin wrapper for OWL (Hermes Agent) to automatically track its own operations
+ * Thin wrapper for AI agents to automatically track their own operations
  * via AgentTrace storage + JSONL log for external consumption.
  */
 

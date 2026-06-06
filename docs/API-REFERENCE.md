@@ -1632,7 +1632,7 @@ agenttrace-io health
 
 | Command      | Options                                                            | Description                        |
 | ------------ | ------------------------------------------------------------------ | ---------------------------------- |
-| `self-stats` | `--json`                                                           | Show OWL/Hermes self-tracked usage |
+| `self-stats` | `--json`                                                           | Show self-tracked agent usage |
 | `who`        | `--active`, `--type TYPE`, `--limit N`                             | Show active agents                 |
 | `cost`       | `--from DATE`, `--to DATE`, `--agent NAME`, `--format json\|table` | Agent cost breakdown               |
 | `sessions`   | `--agent NAME`, `--active`, `--limit N`                            | List agent sessions                |
