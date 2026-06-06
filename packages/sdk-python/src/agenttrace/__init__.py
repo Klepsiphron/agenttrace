@@ -15,6 +15,7 @@ from .core import (
     evaluate,
     evaluate_trace,
 )
+from .storage import TraceStorage
 from .types import (
     AgentUsageFilter,
     AgentUsageRecord,
@@ -22,6 +23,7 @@ from .types import (
     EvaluateOptions,
     ExportFormat,
     Run,
+    RunStatus,
     Scorer,
     ScorerResult,
     TokenUsage,
@@ -36,6 +38,7 @@ from .types import (
 __all__ = [
     "AgentTrace",
     "AgentUsageTracker",
+    "TraceStorage",
     "init",
     "trace",
     "get_agent_trace",
@@ -60,4 +63,5 @@ __all__ = [
     "AgentUsageFilter",
     "UsageStats",
     "CostBreakdown",
+    "RunStatus",
 ]
