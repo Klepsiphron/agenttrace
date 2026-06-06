@@ -31,37 +31,13 @@ export class TraceStorage {
   private _droppedTraces: number = 0;
   private tenantId: string;
 
-  // Shared connection pool: dbPath -> { db, refCount }
-  private static connections = new Map<string, { db: Database; refCount: number }>();
-
   constructor(dbPath: string = './agenttrace.db', tenantId?: string) {
     this.dbPath = dbPath;
     this.tenantId = tenantId || '';
-
-    const existing = TraceStorage.connections.get(dbPath);
-    if (existing) {
-      this.db = existing.db;
-      existing.refCount++;
-    } else {
-      const db = new Database(dbPath);
-      db.pragma('journal_mode = WAL');
-      db.pragma('foreign_keys = ON');
-      TraceStorage.connections.set(dbPath, { db, refCount: 1 });
-      this.db = db;
-    }
-
+    this.db = new Database(dbPath);
+    this.db.pragma('journal_mode = WAL');
+    this.db.pragma('foreign_keys = ON');
     this.initSchema();
-  }
-
-  close(): void {
-    const entry = TraceStorage.connections.get(this.dbPath);
-    if (entry) {
-      entry.refCount--;
-      if (entry.refCount <= 0) {
-        entry.db.close();
-        TraceStorage.connections.delete(this.dbPath);
-      }
-    }
   }
 
   private initSchema(): void {
@@ -1793,5 +1769,9 @@ export class TraceStorage {
   deleteProject(id: string): boolean {
     const res = this.db.prepare('DELETE FROM projects WHERE id = ?').run(id);
     return (res.changes ?? 0) > 0;
+  }
+
+  close(): void {
+    this.db.close();
   }
 }
