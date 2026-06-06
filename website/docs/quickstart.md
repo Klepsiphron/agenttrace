@@ -142,6 +142,7 @@ npx agenttrace-io dashboard --port 4500 --host 0.0.0.0
 Opens a fast, private web UI at http://localhost:4317 (default). All data stays on your machine.
 
 **Keyboard shortcuts in the dashboard:**
+
 - `j` / `k` — navigate runs
 - `Enter` — open selected trace
 - `Esc` — close panels

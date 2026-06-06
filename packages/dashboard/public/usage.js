@@ -50,7 +50,9 @@
   function fmtTime(ts) {
     if (!ts) return '';
     var d = new Date(ts);
-    return isNaN(d.getTime()) ? '' : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    return isNaN(d.getTime())
+      ? ''
+      : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   }
   function fmtDay(d) {
     if (typeof d === 'string') return d.slice(5);
@@ -190,7 +192,16 @@
     if (max === 0) max = 1;
 
     var wrap = el('div', 'bar-chart');
-    var palette = ['#3b82f6', '#22c55e', '#eab308', '#f59e0b', '#a78bfa', '#60a5fa', '#34d399', '#facc15'];
+    var palette = [
+      '#3b82f6',
+      '#22c55e',
+      '#eab308',
+      '#f59e0b',
+      '#a78bfa',
+      '#60a5fa',
+      '#34d399',
+      '#facc15',
+    ];
     entries.forEach(function (e, i) {
       var pct = Math.max(8, Math.round((e.count / max) * 100));
       var b = el('div', 'bar');
@@ -214,7 +225,12 @@
     var byDay = {};
     (recs || []).forEach(function (r) {
       var d = new Date(r.createdAt || Date.now());
-      var k = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+      var k =
+        d.getFullYear() +
+        '-' +
+        String(d.getMonth() + 1).padStart(2, '0') +
+        '-' +
+        String(d.getDate()).padStart(2, '0');
       byDay[k] = (byDay[k] || 0) + (r.costUsd || 0);
     });
 
@@ -224,7 +240,12 @@
     for (var i = 6; i >= 0; i--) {
       var dt = new Date(base);
       dt.setDate(base.getDate() - i);
-      var k = dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0') + '-' + String(dt.getDate()).padStart(2, '0');
+      var k =
+        dt.getFullYear() +
+        '-' +
+        String(dt.getMonth() + 1).padStart(2, '0') +
+        '-' +
+        String(dt.getDate()).padStart(2, '0');
       days.push({ key: k, label: fmtDay(dt), cost: byDay[k] || 0 });
     }
 
@@ -297,7 +318,7 @@
           .map(function (p) {
             return p.x + ',' + p.y;
           })
-          .join(' ')
+          .join(' '),
       );
       poly.setAttribute('fill', 'none');
       poly.setAttribute('stroke', '#3b82f6');
@@ -412,7 +433,8 @@
     tbod.innerHTML = '';
     var rows = (state.todayStats && state.todayStats.topAgents) || state.topAgents || [];
     if (!rows.length) {
-      tbod.innerHTML = '<tr><td colspan="4" class="empty small">No per-agent data for today</td></tr>';
+      tbod.innerHTML =
+        '<tr><td colspan="4" class="empty small">No per-agent data for today</td></tr>';
       return;
     }
     rows.slice(0, 10).forEach(function (a) {
@@ -441,7 +463,8 @@
     var cnt = $('top-tools-count');
     if (cnt) cnt.textContent = tools.length + '';
     if (!tools.length) {
-      tbod.innerHTML = '<tr><td colspan="3" class="empty small">No tool calls recorded today</td></tr>';
+      tbod.innerHTML =
+        '<tr><td colspan="3" class="empty small">No tool calls recorded today</td></tr>';
       return;
     }
     tools.slice(0, 10).forEach(function (t) {
@@ -482,8 +505,14 @@
     var cs = el('span', 'activity-cost', fmtCost(rec.costUsd));
 
     var dot = el('span');
-    dot.style.cssText = 'display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:4px;vertical-align:middle;';
-    dot.style.background = rec.status === 'failure' ? 'var(--error)' : rec.status === 'timeout' ? '#f59e0b' : 'var(--success)';
+    dot.style.cssText =
+      'display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:4px;vertical-align:middle;';
+    dot.style.background =
+      rec.status === 'failure'
+        ? 'var(--error)'
+        : rec.status === 'timeout'
+          ? '#f59e0b'
+          : 'var(--success)';
 
     item.appendChild(tm);
     item.appendChild(dot);
@@ -535,8 +564,10 @@
             var ds = getTodayStart();
             if (rec.createdAt >= ds) {
               state.todayStats.totalActions = (state.todayStats.totalActions || 0) + 1;
-              state.todayStats.totalTokens = (state.todayStats.totalTokens || 0) + (rec.tokensUsed || 0);
-              state.todayStats.totalCostUsd = (state.todayStats.totalCostUsd || 0) + (rec.costUsd || 0);
+              state.todayStats.totalTokens =
+                (state.todayStats.totalTokens || 0) + (rec.tokensUsed || 0);
+              state.todayStats.totalCostUsd =
+                (state.todayStats.totalCostUsd || 0) + (rec.costUsd || 0);
               renderSummary();
               renderProjections();
             }
@@ -610,7 +641,9 @@
       })
       .catch(function (e) {
         var f = $('activity-feed');
-        if (f) f.innerHTML = '<div class="empty">Failed to load usage data. Is the server running?</div>';
+        if (f)
+          f.innerHTML =
+            '<div class="empty">Failed to load usage data. Is the server running?</div>';
         console.error('[Usage] init', e);
       });
 

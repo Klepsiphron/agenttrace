@@ -66,19 +66,19 @@ The local dashboard (`agenttrace-io dashboard`) is zero-config and private by de
 
 ## Enterprise Features (Free vs Team vs Enterprise)
 
-| Capability                               | Free (OSS)     | Team                  | Enterprise                  |
-| ---------------------------------------- | -------------- | --------------------- | --------------------------- |
-| Local SQLite + CLI + Dashboard           | Full           | Full                  | Full + air-gapped           |
-| All SDK tracing, alerts, webhooks, trees | Full           | Full                  | Full                        |
-| Self-hosted dashboard                    | Yes            | Yes                   | Yes + air-gapped support    |
-| Hosted team dashboard                    | —              | Yes                   | Yes                         |
-| SSO / SCIM / advanced RBAC               | —              | —                     | Yes                         |
-| Audit log export pipelines               | Manual         | Enhanced              | Full + OTEL streaming       |
-| Retention & legal hold                   | Basic          | Extended              | Custom policies             |
-| Dedicated support & SLA                  | Community      | Priority email        | Dedicated + SLA             |
-| On-prem / VPC deployment                 | Self-managed   | —                     | Supported                   |
-| Professional services                    | —              | —                     | Available                   |
-| Volume licensing & custom model cards    | —              | —                     | Available                   |
+| Capability                               | Free (OSS)   | Team           | Enterprise               |
+| ---------------------------------------- | ------------ | -------------- | ------------------------ |
+| Local SQLite + CLI + Dashboard           | Full         | Full           | Full + air-gapped        |
+| All SDK tracing, alerts, webhooks, trees | Full         | Full           | Full                     |
+| Self-hosted dashboard                    | Yes          | Yes            | Yes + air-gapped support |
+| Hosted team dashboard                    | —            | Yes            | Yes                      |
+| SSO / SCIM / advanced RBAC               | —            | —              | Yes                      |
+| Audit log export pipelines               | Manual       | Enhanced       | Full + OTEL streaming    |
+| Retention & legal hold                   | Basic        | Extended       | Custom policies          |
+| Dedicated support & SLA                  | Community    | Priority email | Dedicated + SLA          |
+| On-prem / VPC deployment                 | Self-managed | —              | Supported                |
+| Professional services                    | —            | —              | Available                |
+| Volume licensing & custom model cards    | —            | —              | Available                |
 
 **Contact Sales** for custom model rate cards, fine-grained cost center reporting, or integration with internal identity providers.
 
@@ -90,35 +90,55 @@ Use the simple calculator below (when viewed as HTML) or plug your own numbers:
 
 ```html
 <!-- Interactive ROI calculator (paste into any HTML viewer) -->
-<div id="roi" style="background:#111113;border:1px solid #242429;border-radius:8px;padding:16px 18px;max-width:520px">
+<div
+  id="roi"
+  style="background:#111113;border:1px solid #242429;border-radius:8px;padding:16px 18px;max-width:520px"
+>
   <div style="font-size:12px;color:#9a9aa0;margin-bottom:8px">MONTHLY TOKEN SPEND ESTIMATOR</div>
   <label style="display:block;font-size:12px;margin:8px 0 4px">Avg daily tokens (all agents)</label>
-  <input id="tokens" type="number" value="1200000" style="width:100%;padding:8px;background:#0a0a0c;border:1px solid #242429;color:#e8e8eb;border-radius:6px">
-  <label style="display:block;font-size:12px;margin:8px 0 4px">Avg cost per 1k tokens (blended)</label>
-  <input id="rate" type="number" step="0.0001" value="0.003" style="width:100%;padding:8px;background:#0a0a0c;border:1px solid #242429;color:#e8e8eb;border-radius:6px">
+  <input
+    id="tokens"
+    type="number"
+    value="1200000"
+    style="width:100%;padding:8px;background:#0a0a0c;border:1px solid #242429;color:#e8e8eb;border-radius:6px"
+  />
+  <label style="display:block;font-size:12px;margin:8px 0 4px"
+    >Avg cost per 1k tokens (blended)</label
+  >
+  <input
+    id="rate"
+    type="number"
+    step="0.0001"
+    value="0.003"
+    style="width:100%;padding:8px;background:#0a0a0c;border:1px solid #242429;color:#e8e8eb;border-radius:6px"
+  />
   <div style="margin-top:12px;font-size:13px">
-    Estimated monthly spend: <strong id="monthly">$—</strong><br>
-    With 18% waste from loops/retries: <strong id="waste">$—</strong><br>
-    <span style="color:#22c55e">Potential savings with AgentTrace visibility: <strong id="savings">$—</strong>/mo</span>
+    Estimated monthly spend: <strong id="monthly">$—</strong><br />
+    With 18% waste from loops/retries: <strong id="waste">$—</strong><br />
+    <span style="color:#22c55e"
+      >Potential savings with AgentTrace visibility: <strong id="savings">$—</strong>/mo</span
+    >
   </div>
 </div>
 <script>
-(function(){
-  function calc(){
-    var t = parseFloat(document.getElementById('tokens').value)||0;
-    var r = parseFloat(document.getElementById('rate').value)||0;
-    var monthly = (t/1000)*r*30;
-    var waste = monthly*0.18;
-    document.getElementById('monthly').textContent = '$'+monthly.toFixed(0);
-    document.getElementById('waste').textContent = '$'+waste.toFixed(0);
-    document.getElementById('savings').textContent = '$'+waste.toFixed(0);
-  }
-  ['tokens','rate'].forEach(function(id){
-    var el = document.getElementById(id);
-    if(el){ el.addEventListener('input',calc); }
-  });
-  calc();
-})();
+  (function () {
+    function calc() {
+      var t = parseFloat(document.getElementById('tokens').value) || 0;
+      var r = parseFloat(document.getElementById('rate').value) || 0;
+      var monthly = (t / 1000) * r * 30;
+      var waste = monthly * 0.18;
+      document.getElementById('monthly').textContent = '$' + monthly.toFixed(0);
+      document.getElementById('waste').textContent = '$' + waste.toFixed(0);
+      document.getElementById('savings').textContent = '$' + waste.toFixed(0);
+    }
+    ['tokens', 'rate'].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) {
+        el.addEventListener('input', calc);
+      }
+    });
+    calc();
+  })();
 </script>
 ```
 

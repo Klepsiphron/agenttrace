@@ -35,6 +35,7 @@ npm install better-sqlite3
 ```
 
 **Python**
+
 ```bash
 pip install agenttrace-io
 ```
@@ -54,6 +55,7 @@ const agent = init({ dbPath: './agenttrace.db' });
 ```
 
 **Python**
+
 ```python
 from agenttrace import init
 agent = init(db_path="./agenttrace.db")
@@ -75,6 +77,7 @@ const agent = new AgentTrace({
 ```
 
 **Python**
+
 ```python
 from agenttrace import AgentTrace
 agent = AgentTrace(db_path="./traces.db", max_traces=50000, retention_days=90)
@@ -90,18 +93,18 @@ Returns the current singleton (creates a default one if none exists).
 
 ```ts
 interface TraceConfig {
-  dbPath?: string;                    // default: './agenttrace.db'
-  maxTraces?: number;                 // default: 10000
-  autoCleanup?: boolean;              // default: true
+  dbPath?: string; // default: './agenttrace.db'
+  maxTraces?: number; // default: 10000
+  autoCleanup?: boolean; // default: true
   costCalculator?: (tokens: TokenUsage, model?: string) => number;
   hallucinationDetector?: (output: unknown, expected?: unknown) => boolean;
-  silent?: boolean;                   // suppress console warnings
-  retentionDays?: number;             // 0 = forever
-  cleanupIntervalHours?: number;      // default 24
+  silent?: boolean; // suppress console warnings
+  retentionDays?: number; // 0 = forever
+  cleanupIntervalHours?: number; // default 24
   tenantId?: string;
   maxTracesPerSecond?: number;
   maxTracesPerMinute?: number;
-  burstAllowance?: number;            // default 10
+  burstAllowance?: number; // default 10
 }
 ```
 
@@ -118,6 +121,7 @@ const runId = agent.startRun('customer-support-42', { userId: 'u_123' });
 ```
 
 **Python**
+
 ```python
 run_id = agent.start_run("customer-support-42", metadata={"userId": "u_123"})
 ```
@@ -135,16 +139,21 @@ agent.completeRun('success');
 The primary tracing primitive.
 
 ```ts
-const result = await agent.trace('web-search', async () => {
-  return await myLLMCall(prompt);
-}, {
-  input: prompt,
-  tokens: { promptTokens: 120, completionTokens: 48, totalTokens: 168, model: 'gpt-4o' },
-  metadata: { userId: 'u_123' },
-});
+const result = await agent.trace(
+  'web-search',
+  async () => {
+    return await myLLMCall(prompt);
+  },
+  {
+    input: prompt,
+    tokens: { promptTokens: 120, completionTokens: 48, totalTokens: 168, model: 'gpt-4o' },
+    metadata: { userId: 'u_123' },
+  },
+);
 ```
 
 **Python**
+
 ```python
 result = await agent.trace("web-search", my_llm_call, input=prompt, tokens={...})
 # or decorator
@@ -153,6 +162,7 @@ async def my_fn(...): ...
 ```
 
 **TraceOptions**
+
 ```ts
 {
   input?: unknown;
@@ -180,6 +190,7 @@ agent.recordToolCall({
 ```
 
 **Python**
+
 ```python
 t.record_tool_call(name="db.query", input={...}, output={...}, success=True)
 ```
@@ -227,6 +238,7 @@ agent.recordAgentUsage({
 **CLI surfaces:** `self-stats`, `who`, `cost`, `sessions`, `activity`.
 
 **Python**
+
 ```python
 agent.record_agent_usage(agent_name="researcher-1", action="web.search", ...)
 ```
@@ -310,9 +322,7 @@ Deliveries are signed with `X-AgentTrace-Signature: sha256=...` when a secret is
 ```ts
 const results = await agent.evaluate({
   runId: 'xxx',
-  scorers: [
-    { name: 'latency-ok', fn: (t) => (t.latencyMs || 0) < 2000 ? 1 : 0 },
-  ],
+  scorers: [{ name: 'latency-ok', fn: (t) => ((t.latencyMs || 0) < 2000 ? 1 : 0) }],
 });
 ```
 
@@ -322,7 +332,7 @@ Helper: `score(name, fn)` creates a scorer.
 
 ## Cost Calculator & Model Rates
 
-Built-in rates for gpt-4o, gpt-4o-mini, claude-*, gemini-*, llama-* (and more). Rates are USD per 1 000 tokens.
+Built-in rates for gpt-4o, gpt-4o-mini, claude-_, gemini-_, llama-\* (and more). Rates are USD per 1 000 tokens.
 
 ```ts
 import { registerModelRate } from '@agenttrace-io/sdk';
@@ -331,6 +341,7 @@ registerModelRate('my-fine-tuned', 0.0015, 0.0045);
 ```
 
 **Python**
+
 ```python
 from agenttrace import register_model_rate
 register_model_rate("my-fine-tuned", 0.0015, 0.0045)

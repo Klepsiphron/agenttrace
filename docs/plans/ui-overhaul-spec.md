@@ -1,11 +1,13 @@
 # AgentTrace UI Overhaul -- Complete Redesign
 
 ## Goal
+
 Modernize every customer-facing UI component in AgentTrace to look like a polished, production SaaS product. Think: Vercel dashboard meets Linear meets Stripe's documentation site.
 
 ## Design System
 
 ### Colors
+
 - Background: `#0a0a0c` (near-black, not dark gray)
 - Surface: `#111113` (cards, panels)
 - Surface elevated: `#16161a` (hovered cards, dropdowns)
@@ -19,18 +21,21 @@ Modernize every customer-facing UI component in AgentTrace to look like a polish
 - Error: `#ef4444`
 
 ### Typography
+
 - System font stack (no Google Fonts -- fast, local)
 - Monospace: `ui-monospace, SFMono-Regular, Menlo, monospace`
 - Base size: 14px, line-height 1.6
 - Headings: system-ui, tight letter-spacing (-0.2px to -0.5px)
 
 ### Spacing
+
 - 4px base unit
 - Cards: 16-20px padding
 - Sections: 24-32px margin-bottom
 - Tight groupings: 8-12px
 
 ### Components
+
 - Cards: `border-radius: 8px`, subtle border, no shadows
 - Buttons: `border-radius: 6px`, minimal padding (7px 12px)
 - Badges: `border-radius: 999px`, tiny font (10-11px)
@@ -39,9 +44,11 @@ Modernize every customer-facing UI component in AgentTrace to look like a polish
 ## Files to Redesign (in priority order)
 
 ### 1. Dashboard (packages/dashboard/public/)
+
 The main product UI. Currently functional but basic visual design.
 
 **Packages Dashboard Improvements:**
+
 - [ ] Hero/stats section: larger numbers, sparkline charts for token/cost trends
 - [ ] Add a "Token Burn Rate" indicator (tokens/min, cost/hour)
 - [ ] Add "Top Agents" panel showing agents by token usage
@@ -58,6 +65,7 @@ The main product UI. Currently functional but basic visual design.
 - [ ] Fix version display: should read actual version (0.1.0) not "v0.0.0"
 
 **Usage Page Improvements:**
+
 - [ ] Live indicator animation (pulsing green dot)
 - [ ] Add cost projection chart (spend rate → projected daily/monthly)
 - [ ] Add per-agent breakdown table
@@ -65,9 +73,11 @@ The main product UI. Currently functional but basic visual design.
 - [ ] Responsive layout
 
 ### 2. Landing Page (website/index.html)
+
 Currently a single long page. Needs to convert visitors.
 
 **Landing Page Improvements:**
+
 - [ ] Hero: add a screenshot/mockup of the dashboard in action
 - [ ] Hero: add social proof ("Used by X developers", GitHub stars badge)
 - [ ] Add a "How It Works" section (3 steps: install, wrap, view)
@@ -83,14 +93,18 @@ Currently a single long page. Needs to convert visitors.
 - [ ] Add `rel="noopener"` on all external links
 
 ### 3. Quickstart Docs (website/docs/quickstart.md)
+
 **Improvements:**
+
 - [ ] Add copy-to-clipboard buttons on all code blocks
 - [ ] Add "Next Steps" section at the bottom
 - [ ] Link to relevant examples
 - [ ] Add troubleshooting tips for common install issues
 
 ### 4. API Reference (website/docs/api.md)
+
 **Improvements:**
+
 - [ ] Add a sticky sidebar TOC for navigation
 - [ ] Add per-section anchor links
 - [ ] Code examples for every method
@@ -98,25 +112,33 @@ Currently a single long page. Needs to convert visitors.
 - [ ] Add Python equivalent for every TS example
 
 ### 5. Enterprise Page (website/docs/enterprise.md)
+
 **Improvements:**
+
 - [ ] Add comparison table (Free vs Pro vs Enterprise)
 - [ ] Add "Contact Sales" CTA
 - [ ] Add ROI calculator section ("How much are you spending on AI tokens?")
 - [ ] Add compliance badges (SOC 2, GDPR, HIPAA-ready)
 
 ### 6. Error pages
+
 **Create:**
+
 - `packages/dashboard/public/404.html` -- branded 404 page
 - `packages/dashboard/public/error.html` -- generic error with retry
 
 ### 7. Favicon and branding
+
 **Create:**
+
 - `packages/dashboard/public/favicon.svg` -- simple geometric logo
 - `packages/dashboard/public/apple-touch-icon.png`
 - `website/favicon.svg`
 
 ### 8. CLI output improvements
+
 **File: packages/cli/src/index.ts**
+
 - [ ] `runs` command: show sparkline bars for cost per run
 - [ ] `stats` command: add trend indicators (↑ 12% from last week)
 - [ ] `self-stats` command: add bar chart in terminal (using ASCII blocks)

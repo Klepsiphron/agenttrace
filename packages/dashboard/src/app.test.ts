@@ -60,7 +60,7 @@ describe('AgentTrace Dashboard Frontend (app.js)', () => {
             <div class="stat"><span id="total-cost">$0.00</span><label>Total Cost</label></div>
           </div>
 
-          <div id="filters">
+          <div id="status-filters">
             <button class="filter-btn active" data-status="all">All</button>
             <button class="filter-btn" data-status="success">Success</button>
             <button class="filter-btn" data-status="failure">Failure</button>

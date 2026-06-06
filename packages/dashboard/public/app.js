@@ -125,9 +125,11 @@
     try {
       return await fetchJSON('/api/traces/' + encodeURIComponent(id));
     } catch (_) {
-      return state.traces.find(function (x) {
-        return x.id === id;
-      }) || null;
+      return (
+        state.traces.find(function (x) {
+          return x.id === id;
+        }) || null
+      );
     }
   }
 
@@ -235,7 +237,7 @@
           : [1, 1, 0, 1, 1, 1],
         110,
         26,
-        '#22c55e'
+        '#22c55e',
       ) +
       '</div>' +
       '</div>';
@@ -258,7 +260,7 @@
           : [80, 120, 90, 140, 110, 95],
         110,
         26,
-        '#eab308'
+        '#eab308',
       ) +
       '</div>' +
       '</div>';
@@ -336,11 +338,7 @@
     b.top.forEach(function (a) {
       var row = el('div', 'row');
       row.innerHTML =
-        '<span class="name">' +
-        a.name +
-        '</span><span class="cost">' +
-        fmtCost(a.cost) +
-        '</span>';
+        '<span class="name">' + a.name + '</span><span class="cost">' + fmtCost(a.cost) + '</span>';
       list.appendChild(row);
     });
   }
@@ -376,7 +374,9 @@
         '<div>' +
         msg +
         '</div>' +
-        (state.runs.length ? '' : '<small>Run <code>npx agenttrace-io dashboard</code> after instrumenting.</small>');
+        (state.runs.length
+          ? ''
+          : '<small>Run <code>npx agenttrace-io dashboard</code> after instrumenting.</small>');
       c.appendChild(empty);
       return;
     }
@@ -449,7 +449,10 @@
     var list = $('traces-list');
     var nameEl = $('selected-run-name');
     if (sec) sec.style.display = '';
-    if (list) list.innerHTML = '<div class="skeleton skeleton-line" style="margin:12px 16px"></div>'.repeat(3);
+    if (list)
+      list.innerHTML = '<div class="skeleton skeleton-line" style="margin:12px 16px"></div>'.repeat(
+        3,
+      );
 
     var run = state.runs.find(function (r) {
       return r.id === runId;
@@ -471,7 +474,8 @@
     if (!c) return;
     c.innerHTML = '';
 
-    if (cnt) cnt.textContent = state.traces.length + ' trace' + (state.traces.length === 1 ? '' : 's');
+    if (cnt)
+      cnt.textContent = state.traces.length + ' trace' + (state.traces.length === 1 ? '' : 's');
 
     if (!state.traces.length) {
       c.appendChild(el('div', 'empty', 'No traces for this run'));
@@ -493,11 +497,16 @@
 
       var m = el('div', 'trace-meta');
       var tok = tr.tokens && tr.tokens.totalTokens ? tr.tokens.totalTokens + ' tokens' : '';
-      m.textContent = fmtLatency(tr.latencyMs || 0) + ' • ' + fmtCost(tr.costUsd || 0) + (tok ? ' • ' + tok : '');
+      m.textContent =
+        fmtLatency(tr.latencyMs || 0) + ' • ' + fmtCost(tr.costUsd || 0) + (tok ? ' • ' + tok : '');
       item.appendChild(m);
 
       if (tr.toolCalls && tr.toolCalls.length) {
-        var tsum = el('div', '', tr.toolCalls.length + ' tool call' + (tr.toolCalls.length > 1 ? 's' : ''));
+        var tsum = el(
+          'div',
+          '',
+          tr.toolCalls.length + ' tool call' + (tr.toolCalls.length > 1 ? 's' : ''),
+        );
         tsum.style.fontSize = '11px';
         tsum.style.color = 'var(--text-muted)';
         item.appendChild(tsum);
@@ -543,10 +552,7 @@
   function makeCollapsibleSection(title, bodyEl) {
     var sec = el('div', 'detail-section');
     var hdr = el('div', 'detail-section-header');
-    hdr.innerHTML =
-      '<h4>' +
-      title +
-      '</h4><span class="chevron" aria-hidden="true">▾</span>';
+    hdr.innerHTML = '<h4>' + title + '</h4><span class="chevron" aria-hidden="true">▾</span>';
     var body = el('div', 'detail-section-body');
     body.appendChild(bodyEl);
     sec.appendChild(hdr);
@@ -610,7 +616,9 @@
         var tcEl = el('div', 'tool-call');
         var th = el('div', 'tool-header');
         th.appendChild(el('span', '', tc.name || 'tool'));
-        th.appendChild(el('span', 'badge ' + (tc.success ? 'success' : 'failure'), tc.success ? 'ok' : 'fail'));
+        th.appendChild(
+          el('span', 'badge ' + (tc.success ? 'success' : 'failure'), tc.success ? 'ok' : 'fail'),
+        );
         if (tc.latencyMs != null) th.appendChild(el('span', '', fmtLatency(tc.latencyMs)));
         tcEl.appendChild(th);
 
@@ -631,7 +639,9 @@
         }
         toolsWrap.appendChild(tcEl);
       });
-      c.appendChild(makeCollapsibleSection('Tool Calls (' + trace.toolCalls.length + ')', toolsWrap));
+      c.appendChild(
+        makeCollapsibleSection('Tool Calls (' + trace.toolCalls.length + ')', toolsWrap),
+      );
     }
 
     // Error
@@ -726,12 +736,14 @@
   function setupExports() {
     var j = $('export-json-btn');
     var c = $('export-csv-btn');
-    if (j) j.addEventListener('click', function () {
-      doExport('json');
-    });
-    if (c) c.addEventListener('click', function () {
-      doExport('csv');
-    });
+    if (j)
+      j.addEventListener('click', function () {
+        doExport('json');
+      });
+    if (c)
+      c.addEventListener('click', function () {
+        doExport('csv');
+      });
   }
 
   // Refresh button + keyboard

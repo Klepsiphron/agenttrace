@@ -40,7 +40,10 @@ const RED = '\x1b[31m';
 const YELLOW = '\x1b[33m';
 const RESET = '\x1b[0m';
 
-const NO_COLOR = process.env.NO_COLOR === '1' || process.env.NO_COLOR === 'true' || process.argv.includes('--no-color');
+const NO_COLOR =
+  process.env.NO_COLOR === '1' ||
+  process.env.NO_COLOR === 'true' ||
+  process.argv.includes('--no-color');
 
 function color(s: string, c: string): string {
   if (NO_COLOR) return s;
@@ -86,14 +89,17 @@ function fmtLatency(ms: number | null | undefined): string {
   return (ms / 1000).toFixed(1) + 's';
 }
 
-function asciiSpark(values: number[], width = 10): string {
+function _asciiSpark(values: number[], width = 10): string {
   if (!values || values.length === 0) return '';
   const max = Math.max(...values, 1);
   const blocks = ' ▁▂▃▄▅▆▇█';
   let out = '';
   for (let i = 0; i < Math.min(width, values.length); i++) {
     const v = values[values.length - Math.min(width, values.length) + i] || 0;
-    const idx = Math.min(blocks.length - 1, Math.max(0, Math.floor((v / max) * (blocks.length - 1))));
+    const idx = Math.min(
+      blocks.length - 1,
+      Math.max(0, Math.floor((v / max) * (blocks.length - 1))),
+    );
     out += blocks[idx];
   }
   return out;
@@ -166,7 +172,8 @@ function printStats(stats: TraceStats): void {
   console.log(`Avg Tokens:     ${fmtNum(stats.avgTokensPerTrace ?? 0)}`);
 
   // Simple trend hint (computed if we can infer from SDK; otherwise neutral)
-  const trendNote = stats.totalCostUsd && stats.totalCostUsd > 0 ? '  (↑ track daily with `costs --daily`)' : '';
+  const trendNote =
+    stats.totalCostUsd && stats.totalCostUsd > 0 ? '  (↑ track daily with `costs --daily`)' : '';
   console.log(`Cost trend:${trendNote}`);
 
   if (stats.topTools && stats.topTools.length > 0) {
@@ -1726,6 +1733,149 @@ async function runMain(): Promise<void> {
       break;
     }
 
+    case 'budget':
+    case 'budget-check': {
+      /* eslint-disable @typescript-eslint/no-explicit-any */
+      const sub = budgetSub || (command === 'budget-check' ? 'check' : 'list');
+      const dbp = getDbPath();
+      const storage = new TraceStorage(dbp);
+      try {
+        const _db = (storage as any).db;
+        const agent = _budgetAgent || (flags.agent ? String(flags.agent) : undefined) || undefined;
+        if (sub === 'list' || sub === '') {
+          const rows =
+            (storage as any).db.prepare('SELECT * FROM budgets ORDER BY agent_name').all() || [];
+          if (useJson) {
+            console.log(
+              JSON.stringify(
+                rows.map((r: any) => ({
+                  agent: r.agent_name,
+                  maxTokensPerDay: r.max_tokens_per_day,
+                  maxCostPerDay: r.max_cost_per_day,
+                })),
+                null,
+                2,
+              ),
+            );
+          } else if (!rows || rows.length === 0) {
+            console.log('No budgets configured.');
+          } else {
+            console.log('Budgets:');
+            for (const r of rows as any[]) {
+              console.log(
+                `  ${r.agent_name}: tokens=${r.max_tokens_per_day || 0}/day cost=$${(r.max_cost_per_day || 0).toFixed(2)}/day`,
+              );
+            }
+          }
+          break;
+        }
+        if (sub === 'set') {
+          const name = agent || '';
+          if (!name) {
+            console.error('Usage: agenttrace-io budget set <agent-name> --tokens <N> --cost <M>');
+            process.exit(1);
+          }
+          const maxTokens = flags.tokens ? parseInt(String(flags.tokens), 10) || 0 : 0;
+          const maxCost = flags.cost ? parseFloat(String(flags.cost)) || 0 : 0;
+          const now = Date.now();
+          (storage as any).db
+            .prepare(
+              `
+            INSERT OR REPLACE INTO budgets (agent_name, max_tokens_per_day, max_cost_per_day, created_at)
+            VALUES (?, ?, ?, ?)
+          `,
+            )
+            .run(name, maxTokens, maxCost, now);
+          if (useJson) {
+            console.log(
+              JSON.stringify(
+                { agent: name, maxTokensPerDay: maxTokens, maxCostPerDay: maxCost },
+                null,
+                2,
+              ),
+            );
+          } else {
+            console.log(
+              `Budget set for ${name}: ${maxTokens} tokens/day, $${maxCost.toFixed(2)} cost/day`,
+            );
+          }
+          break;
+        }
+        // status or check
+        const name = agent || '';
+        if (!name) {
+          console.error(
+            'Usage: agenttrace-io budget status <agent-name>  or  budget check <agent-name>',
+          );
+          process.exit(1);
+        }
+        const brow = (storage as any).db
+          .prepare('SELECT * FROM budgets WHERE agent_name = ?')
+          .get(name) as any;
+        const maxT = brow ? Number(brow.max_tokens_per_day || 0) : 0;
+        const maxC = brow ? Number(brow.max_cost_per_day || 0) : 0;
+        const dayStart = getDayStart(Date.now());
+        const urow = (storage as any).db
+          .prepare(
+            'SELECT COALESCE(SUM(tokens_used),0) as t, COALESCE(SUM(cost_usd),0) as c FROM agent_usage WHERE agent_name = ? AND created_at >= ?',
+          )
+          .get(name, dayStart) as any;
+        const usedT = urow ? Number(urow.t || 0) : 0;
+        const usedC = urow ? Number(urow.c || 0) : 0;
+        // projected daily
+        const elapsed = Date.now() - dayStart;
+        const dayMs = 86400000;
+        const frac = elapsed > 0 ? Math.min(1, elapsed / dayMs) : 1;
+        const projT = frac > 0 ? Math.round(usedT / frac) : usedT;
+        const projC = frac > 0 ? usedC / frac : usedC;
+        const overT = maxT > 0 && usedT > maxT;
+        const overC = maxC > 0 && usedC > maxC;
+        const isOver = overT || overC;
+        if (sub === 'check' || command === 'budget-check') {
+          storage.close();
+          if (isOver) {
+            if (!useJson) console.error(`Over budget for ${name}`);
+            process.exit(1);
+          } else {
+            process.exit(0);
+          }
+        }
+        if (useJson) {
+          console.log(
+            JSON.stringify(
+              {
+                agent: name,
+                maxTokensPerDay: maxT,
+                maxCostPerDay: maxC,
+                usedTokens: usedT,
+                usedCostUsd: usedC,
+                projectedTokens: projT,
+                projectedCostUsd: Number(projC.toFixed(4)),
+                overBudget: isOver,
+                overTokens: overT,
+                overCost: overC,
+              },
+              null,
+              2,
+            ),
+          );
+        } else {
+          console.log(`Budget status for ${name}:`);
+          console.log(`  Tokens today: ${usedT} / ${maxT || '∞'}  (projected ~${projT})`);
+          console.log(
+            `  Cost today:   $${usedC.toFixed(4)} / $${maxC.toFixed(2) || '∞'}  (projected ~$${projC.toFixed(4)})`,
+          );
+          if (isOver) {
+            console.log('  *** OVER BUDGET ***');
+          }
+        }
+      } finally {
+        storage.close();
+      }
+      break;
+    }
+
+>>>>>>> da435dc (feat(ui): complete dashboard and landing page redesign)
     default: {
       console.error(`Unknown command: ${command}`);
       printUsage();
