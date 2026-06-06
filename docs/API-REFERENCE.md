@@ -756,7 +756,7 @@ pending migrations.
 
 **Module:** `@agenttrace-io/sdk` (re-exported)
 
-Thin wrapper for AI agents (e.g. OWL/Hermes) to automatically track their own
+Thin wrapper for AI agents to automatically track their own
 operations via AgentTrace storage + JSONL log for external consumption.
 
 ```typescript
