@@ -8,6 +8,8 @@ Zero modifications to Hermes required.
 
 Pure stdlib only: sqlite3, json, argparse, pathlib, time, sys, datetime, uuid.
 
+Written from scratch per production-sprint.md (f-strings for SQL, full error handling, idempotent).
+
 Usage:
     python3 scripts/hermes-bridge.py --full          # Sync all historical data
     python3 scripts/hermes-bridge.py --incremental   # Only new sessions since last sync
