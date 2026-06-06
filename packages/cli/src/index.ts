@@ -1865,11 +1865,12 @@ async function runMain(): Promise<void> {
 
     case 'budget':
     case 'budget-check': {
+      /* eslint-disable @typescript-eslint/no-explicit-any */
       const sub = budgetSub || (command === 'budget-check' ? 'check' : 'list');
       const dbp = getDbPath();
       const storage = new TraceStorage(dbp);
       try {
-        const db = (storage as unknown as { db: import('better-sqlite3').Database }).db;
+        const db = (storage as any).db;
         if (sub === 'list' || sub === '') {
           const rows =
             (storage as any).db.prepare('SELECT * FROM budgets ORDER BY agent_name').all() || [];
