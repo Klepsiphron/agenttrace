@@ -234,6 +234,7 @@ Commands:
   init                 Create empty agenttrace.db in current dir
   wrap                 Trace any CLI command (zero-config)
   dashboard            Start the local dashboard server
+  watch                Auto-detect and monitor running agents (real-time)
   runs                 List recent runs (most recent first)
   traces               List traces (most recent first)
   stats                Show summary statistics
