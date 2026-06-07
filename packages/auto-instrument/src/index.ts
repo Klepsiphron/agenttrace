@@ -44,29 +44,23 @@ export function initAutoInstrument(config: AutoInstrumentConfig = {}): void {
   setupProcessHooks(dbPath, config);
 }
 
-function setupProcessHooks(dbPath: string, config: AutoInstrumentConfig): void {
+function setupProcessHooks(dbPath: string, _config: AutoInstrumentConfig): void {
   // Hook into common agent framework imports
-  // @ts-ignore - Module is available in Node.js CJS context
+  // @ts-ignore - Module is available in Node.js
   const Module = require('node:module');
-  const originalRequire = Module.prototype.require as (id: string) => unknown;
+  const origRequire = Module.prototype.require as (id: string) => unknown;
   
-  // @ts-ignore
   Module.prototype.require = function(id: string): unknown {
-    const result = originalRequire.apply(this, arguments as any);
-    const result = originalRequire.apply(this, arguments);
+    const result = origRequire.apply(this, arguments as any);
     
     // Auto-detect LangChain
     if (id.includes('langchain') || id.includes('@langchain')) {
-      try {
-        patchLangChain(result, dbPath);
-      } catch { /* ignore */ }
+      try { patchLangChain(result, dbPath); } catch { /* ignore */ }
     }
     
     // Auto-detect OpenAI SDK
     if (id === 'openai' || id.includes('openai')) {
-      try {
-        patchOpenAI(result, dbPath);
-      } catch { /* ignore */ }
+      try { patchOpenAI(result, dbPath); } catch { /* ignore */ }
     }
     
     return result;
