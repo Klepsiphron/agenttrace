@@ -4,6 +4,9 @@
   "description": "CLI for AgentTrace — trace, dashboard, stats, costs, alerts, wrap any agent",
   "license": "MIT",
   "type": "module",
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "bin": {
     "agenttrace-io": "./dist/index.js",
     "agenttrace": "./dist/index.js"
