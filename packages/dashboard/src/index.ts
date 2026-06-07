@@ -573,7 +573,11 @@ export function createDashboardApp(dbPath?: string): DashboardApp {
  * Start the dashboard HTTP server and return the listening server instance.
  */
 export function startDashboard(config: DashboardConfig = {}) {
-  const { port = 4317, host = '127.0.0.1', dbPath } = config;
+  const { port = 4317, host = '127.0.0.1', dbPath, noAuth } = config;
+
+  if (noAuth) {
+    noAuthMode = true;
+  }
 
   const { app, close } = createDashboardApp(dbPath);
 
