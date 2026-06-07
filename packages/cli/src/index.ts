@@ -818,7 +818,7 @@ async function runMain(): Promise<void> {
       try {
         const { spawn } = await import('node:child_process');
         const result = await new Promise<string>((resolve, reject) => {
-          const child = spawn(cmd, cmdArgs, { stdio: 'pipe', shell: true });
+          const child = spawn(cmd, cmdArgs, { stdio: 'pipe', shell: process.platform === 'win32' });
           child.stdout.on('data', (d: Buffer) => {
             stdout += d.toString();
           });
