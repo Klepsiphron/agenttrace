@@ -1,9 +1,13 @@
 /**
  * AgentTrace -- SQLite Storage Layer
  * Local storage for agent traces with zero cloud dependency
+ *
+ * NOTE: better-sqlite3 requires native compilation. On Windows without
+ * Visual Studio Build Tools, install them from:
+ *   https://visualstudio.microsoft.com/visual-cpp-build-tools/
+ * Or use the CLI from WSL where it works out of the box.
  */
 
-import Database from 'better-sqlite3';
 import { randomUUID, randomBytes, createHash } from 'node:crypto';
 import { statSync } from 'node:fs';
 import {
@@ -24,6 +28,19 @@ import {
   Project,
 } from './types.js';
 
+// better-sqlite3 is a native module that requires compilation.
+// On platforms without build tools (e.g. Windows without VS Build Tools),
+// this import will fail at runtime. We handle this gracefully.
+let Database: any;
+let nativeDbAvailable = false;
+try {
+  Database = require('better-sqlite3');
+  nativeDbAvailable = true;
+} catch {
+  // better-sqlite3 not available - storage operations will throw
+  // a helpful error message at runtime
+}
+
 export class TraceStorage {
   private db: Database;
   private dbPath: string;
@@ -33,6 +50,13 @@ export class TraceStorage {
   private static _connections = new Map<string, { db: any; refCount: number }>();
 
   constructor(dbPath: string = './agenttrace.db', tenantId?: string) {
+    if (!nativeDbAvailable) {
+      throw new Error(
+        'better-sqlite3 is not available. On Windows, install Visual Studio Build Tools:\n' +
+        '  https://visualstudio.microsoft.com/visual-cpp-build-tools/\n' +
+        'Or run the CLI from WSL where native modules compile automatically.'
+      );
+    }
     this.dbPath = dbPath;
     this.tenantId = tenantId || '';
     const existing = TraceStorage._connections.get(dbPath);
