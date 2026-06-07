@@ -12,8 +12,7 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "require": "./dist/index.cjs"
+      "import": "./dist/index.js"
     }
   },
   "bin": {
@@ -30,58 +29,19 @@
     "agents",
     "observability",
     "auto-instrumentation",
-    "opentelemetry",
-    "tracing",
-    "langchain",
-    "crewai"
+    "tracing"
   ],
   "dependencies": {
-    "@agenttrace-io/sdk": "workspace:*",
-    "@opentelemetry/api": "^1.9.0",
-    "@opentelemetry/sdk-trace-node": "^1.30.0",
-    "@opentelemetry/sdk-trace-base": "^1.30.0",
-    "@opentelemetry/resources": "^1.30.0",
-    "@opentelemetry/semantic-conventions": "^1.30.0",
-    "@opentelemetry/context-async-hooks": "^1.30.0",
-    "@opentelemetry/instrumentation-http": "^0.57.0",
-    "@opentelemetry/instrumentation-fetch": "^0.57.0"
-  },
-  "optionalDependencies": {
-    "@arizeai/openinference-instrumentation-langchain": "^0.15.0",
-    "@opentelemetry/instrumentation-openai": "^0.55.0",
-    "openinference-instrumentation-crewai": "^0.1.0",
-    "openinference-instrumentation-autogen": "^0.1.0"
-  },
-  "peerDependenciesMeta": {
-    "@arizeai/openinference-instrumentation-langchain": {
-      "optional": true
-    },
-    "@opentelemetry/instrumentation-openai": {
-      "optional": true
-    },
-    "openinference-instrumentation-crewai": {
-      "optional": true
-    },
-    "openinference-instrumentation-autogen": {
-      "optional": true
-    }
+    "@agenttrace-io/sdk": "workspace:*"
   },
   "files": [
     "dist"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json && tsc -p tsconfig.cjs.json",
+    "build": "tsc -p tsconfig.json && cp src/cli.js dist/cli.js",
     "dev": "tsc -p tsconfig.json --watch"
   },
   "devDependencies": {
-    "@opentelemetry/api": "^1.9.0",
-    "@opentelemetry/sdk-trace-node": "^1.30.0",
-    "@opentelemetry/sdk-trace-base": "^1.30.0",
-    "@opentelemetry/resources": "^1.30.0",
-    "@opentelemetry/semantic-conventions": "^1.30.0",
-    "@opentelemetry/context-async-hooks": "^1.30.0",
-    "@opentelemetry/instrumentation-http": "^0.57.0",
-    "@opentelemetry/instrumentation-fetch": "^0.57.0",
     "@types/node": "^22.0.0"
   }
 }
