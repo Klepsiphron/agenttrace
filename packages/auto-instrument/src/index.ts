@@ -46,10 +46,13 @@ export function initAutoInstrument(config: AutoInstrumentConfig = {}): void {
 
 function setupProcessHooks(dbPath: string, config: AutoInstrumentConfig): void {
   // Hook into common agent framework imports
-  const originalRequire = Module.prototype.require;
+  // @ts-ignore - Module is available in Node.js CJS context
+  const Module = require('node:module');
+  const originalRequire = Module.prototype.require as (id: string) => unknown;
   
   // @ts-ignore
-  Module.prototype.require = function(id: string) {
+  Module.prototype.require = function(id: string): unknown {
+    const result = originalRequire.apply(this, arguments as any);
     const result = originalRequire.apply(this, arguments);
     
     // Auto-detect LangChain
