@@ -32,7 +32,7 @@
     "token-tracking"
   ],
   "peerDependencies": {
-    "better-sqlite3": "^11.0.0"
+    "better-sqlite3": "^12.0.0"
   },
   "peerDependenciesMeta": {
     "better-sqlite3": {
@@ -48,7 +48,8 @@
     "test": "vitest run --config ../../vitest.config.ts packages/sdk"
   },
   "devDependencies": {
-    "@types/better-sqlite3": "^7.6.11"
+    "@types/better-sqlite3": "^7.6.11",
+    "better-sqlite3": "^12.0.0"
   },
   "dependencies": {
     "sql.js": "^1.14.1"
