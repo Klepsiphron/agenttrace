@@ -1,6 +1,6 @@
 {
   "name": "@agenttrace-io/cli",
-  "version": "0.3.3",
+  "version": "0.4.1",
   "description": "CLI for AgentTrace — trace, dashboard, stats, costs, alerts, wrap any agent",
   "license": "MIT",
   "type": "module",
