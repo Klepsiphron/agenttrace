@@ -1533,7 +1533,9 @@ async function runMain(): Promise<void> {
         if (latest && /^\d+\.\d+\.\d+$/.test(latest)) {
           const [lMaj = 0, lMin = 0, lPat = 0] = latest.split('.').map(Number);
           const [vMaj = 0, vMin = 0, vPat = 0] = VERSION.split('.').map(Number);
-          const isNewer = lMaj > vMaj || (lMaj === vMaj && lMin > vMin) ||
+          const isNewer =
+            lMaj > vMaj ||
+            (lMaj === vMaj && lMin > vMin) ||
             (lMaj === vMaj && lMin === vMin && lPat > vPat);
           if (!isNewer) {
             console.log(`Already up to date (v${VERSION}).`);
@@ -2305,13 +2307,17 @@ async function checkForUpdates(): Promise<void> {
   try {
     const { execSync } = await import('node:child_process');
     const latest = execSync(`npm view ${PACKAGE_NAME} version --prefer-online`, {
-      encoding: 'utf-8', timeout: 5000, stdio: ['pipe', 'pipe', 'pipe'],
+      encoding: 'utf-8',
+      timeout: 5000,
+      stdio: ['pipe', 'pipe', 'pipe'],
     }).trim();
     if (latest && /^\d+\.\d+\.\d+$/.test(latest)) {
       // Only notify if npm version is strictly newer
       const [lMaj = 0, lMin = 0, lPat = 0] = latest.split('.').map(Number);
       const [vMaj = 0, vMin = 0, vPat = 0] = VERSION.split('.').map(Number);
-      const isNewer = lMaj > vMaj || (lMaj === vMaj && lMin > vMin) ||
+      const isNewer =
+        lMaj > vMaj ||
+        (lMaj === vMaj && lMin > vMin) ||
         (lMaj === vMaj && lMin === vMin && lPat > vPat);
       if (isNewer) {
         console.log(
@@ -2319,7 +2325,9 @@ async function checkForUpdates(): Promise<void> {
         );
       }
     }
-  } catch { /* silent */ }
+  } catch {
+    /* silent */
+  }
 }
 
 function main(): void | Promise<void> {
