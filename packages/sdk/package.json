@@ -5,7 +5,7 @@
   "license": "MIT",
   "type": "module",
   "engines": {
-    "node": ">=20.0.0 <25.0.0"
+    "node": ">=20.0.0"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -37,11 +37,10 @@
   "dependencies": {
     "better-sqlite3": "^12.0.0"
   },
-  "engines": {
-    "node": ">=20.0.0"
-  },
+  "files": [
+    "dist"
+  ],
   "scripts": {
-    "postinstall": "node -e \"try{require('better-sqlite3');console.log('✓ better-sqlite3 loaded successfully')}catch(e){console.error('✗ better-sqlite3 failed to load:',e.message);console.error('If you are on Windows with Node 24, install Visual Studio Build Tools:');console.error('  https://visualstudio.microsoft.com/visual-cpp-build-tools/');console.error('Or downgrade to Node 22: nvm install 22 && nvm use 22');process.exit(1)}\"",
     "build": "tsc -p tsconfig.json",
     "dev": "tsc -p tsconfig.json --watch",
     "test": "vitest run --config ../../vitest.config.ts packages/sdk"
