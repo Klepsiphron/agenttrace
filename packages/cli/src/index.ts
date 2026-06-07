@@ -27,6 +27,63 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { homedir } from 'node:os';
 
+// Agent framework signatures for auto-detection
+const AGENT_SIGNATURES: Record<string, { framework: string; patterns: string[] }> = {
+  langchain: { framework: 'LangChain', patterns: ['langchain', '@langchain', 'langchainjs', 'ChatOpenAI', 'ChatAnthropic'] },
+  crewai: { framework: 'CrewAI', patterns: ['crewai', 'CrewAI', 'Crew('] },
+  autogen: { framework: 'AutoGen', patterns: ['autogen', 'AutoGen', 'ConversableAgent', 'AssistantAgent'] },
+  openai: { framework: 'OpenAI SDK', patterns: ['openai', 'OpenAI', 'from_openai', 'AzureOpenAI'] },
+  anthropic: { framework: 'Anthropic SDK', patterns: ['anthropic', 'Anthropic'] },
+  llamaindex: { framework: 'LlamaIndex', patterns: ['llamaindex', 'llama-index', 'LlamaIndex'] },
+  dspy: { framework: 'DSPy', patterns: ['dspy', 'DSPy'] },
+  agno: { framework: 'Agno', patterns: ['agno', 'Agent('] },
+  semanticKernel: { framework: 'Semantic Kernel', patterns: ['semantic-kernel', 'SemanticKernel'] },
+};
+
+function detectAgents(processList: string, platform: string): Array<{
+  pid: string; name: string; cmdline: string; runtime: string;
+  platform: string; framework: string;
+}> {
+  const agents: Array<{ pid: string; name: string; cmdline: string; runtime: string; platform: string; framework: string }> = [];
+  if (!processList) return agents;
+  const lines = processList.split('\n').filter((l) => l.trim());
+  for (const line of lines) {
+    const lower = line.toLowerCase();
+    let runtime = 'unknown';
+    if (lower.includes('node ') || lower.includes('node.exe')) runtime = 'node';
+    else if (lower.includes('python') || lower.includes('python3') || lower.includes('python.exe')) runtime = 'python';
+    else if (lower.includes('java ') || lower.includes('java.exe')) runtime = 'java';
+    else if (lower.includes('dotnet ') || lower.includes('dotnet.exe')) runtime = 'dotnet';
+    if (runtime === 'unknown') continue;
+    let detectedFramework = '';
+    for (const [, sig] of Object.entries(AGENT_SIGNATURES)) {
+      if (sig.patterns.some((p) => lower.includes(p.toLowerCase()))) {
+        detectedFramework = sig.framework;
+        break;
+      }
+    }
+    if (!detectedFramework) {
+      const isAgentLike = lower.includes('agent') || lower.includes('llm') ||
+        lower.includes('gpt') || lower.includes('claude') ||
+        lower.includes('chat') || lower.includes('ai-agent');
+      if (isAgentLike) detectedFramework = 'Unknown Agent';
+    }
+    if (!detectedFramework) continue;
+    const parts = line.trim().split(/[,\s]+/).filter(Boolean);
+    const pid = process.platform === 'win32' ? (parts[1] || '0').replace(/"/g, '') : (parts[1] || '0');
+    let name = 'unknown';
+    if (runtime === 'node') {
+      const m = line.match(/node(?:\.exe)?\s+(.+?)(?:\s|$)/);
+      if (m?.[1]) name = m[1].split(/[/\\]/).pop() || m[1];
+    } else if (runtime === 'python') {
+      const m = line.match(/python(?:3)?(?:\.exe)?\s+(.+?)(?:\s|$)/);
+      if (m?.[1]) name = m[1].split(/[/\\]/).pop() || m[1];
+    }
+    agents.push({ pid, name, cmdline: line.trim().substring(0, 200), runtime, platform, framework: detectedFramework });
+  }
+  return agents;
+}
+
 // Version is read from package.json at runtime (no hardcoded version)
 function readVersion(): string {
   try {
@@ -37,6 +94,43 @@ function readVersion(): string {
   } catch {
     return '0.0.0';
   }
+}
+
+// Backfill: scan existing processes and import them as historical runs
+async function backfillFromExistingProcesses(storage: TraceStorage): Promise<number> {
+  const { execSync } = await import('node:child_process');
+  let imported = 0;
+  let localList = '';
+  try {
+    if (process.platform === 'win32') {
+      localList = execSync('tasklist /fo csv /nh', { encoding: 'utf8', timeout: 5000 });
+    } else {
+      localList = execSync('ps aux', { encoding: 'utf8', timeout: 5000 });
+    }
+  } catch { /* ignore */ }
+  const agents = detectAgents(localList, process.platform);
+  const isWSL = process.platform === 'linux' && existsSync('/proc/version') &&
+    readFileSync('/proc/version', 'utf-8').toLowerCase().includes('microsoft');
+  if (isWSL) {
+    try {
+      const winList = execSync('cmd.exe /c tasklist /fo csv /nh', { encoding: 'utf8', timeout: 10000 });
+      agents.push(...detectAgents(winList, 'windows'));
+    } catch { /* ignore */ }
+  }
+  for (const agent of agents) {
+    const runId = `backfill-${agent.pid}-${agent.name}`;
+    try {
+      const existing = storage.getRun(runId);
+      if (!existing) {
+        storage.createRun({
+          id: runId, name: agent.name, startedAt: Date.now(),
+          metadata: { pid: agent.pid, runtime: agent.runtime, platform: agent.platform, framework: agent.framework || 'unknown', cmdline: agent.cmdline?.substring(0, 200), autoDetected: true, backfilled: true },
+        });
+        imported++;
+      }
+    } catch { /* ignore duplicates */ }
+  }
+  return imported;
 }
 
 export const VERSION = readVersion();
@@ -838,6 +932,18 @@ async function runMain(): Promise<void> {
         trace.close();
         console.log(`Created ${dbp}`);
       }
+      // Backfill: scan existing processes and import as historical runs
+      try {
+        const storage = new TraceStorage(dbp);
+        const imported = await backfillFromExistingProcesses(storage);
+        if (imported > 0) {
+          console.log(`Backfilled ${imported} existing agent process(es) from this machine.`);
+        }
+        storage.close();
+      } catch (e) {
+        // Non-fatal: backfill is best-effort
+        if (flags.verbose) console.error('Backfill skipped:', e);
+      }
       break;
     }
 
@@ -905,8 +1011,108 @@ async function runMain(): Promise<void> {
       const port = Number.isFinite(rawPort) && rawPort > 0 ? rawPort : undefined;
       const host = typeof flags.host === 'string' ? String(flags.host) : undefined;
       startDashboard({ dbPath: getDbPath(), port, host });
-      // server keeps process alive
       return;
+    }
+
+    case 'watch': {
+      // Background watcher: auto-discovers and traces all running agents
+      const scanInterval = flags.interval
+        ? parseInt(String(flags.interval), 10) * 1000
+        : 10000;
+      const isWSL =
+        process.platform === 'linux' &&
+        existsSync('/proc/version') &&
+        readFileSync('/proc/version', 'utf-8').toLowerCase().includes('microsoft');
+
+      console.log(`[AgentTrace] Starting agent watcher (scan every ${scanInterval / 1000}s)...`);
+      if (isWSL) console.log('[AgentTrace] WSL detected — will scan both WSL and Windows processes');
+
+      const dbPath = getDbPath();
+      const storage = new TraceStorage(dbPath);
+      let scanCount = 0;
+
+      const doScan = async (): Promise<void> => {
+        scanCount++;
+        try {
+          const { execSync } = await import('node:child_process');
+          let localList = '';
+          try {
+            if (process.platform === 'win32') {
+              localList = execSync('tasklist /fo csv /nh', { encoding: 'utf8', timeout: 5000 });
+            } else {
+              localList = execSync('ps aux', { encoding: 'utf8', timeout: 5000 });
+            }
+          } catch { /* ignore */ }
+
+          const agents = detectAgents(localList, process.platform);
+
+          if (isWSL) {
+            try {
+              const winList = execSync('cmd.exe /c tasklist /fo csv /nh', { encoding: 'utf8', timeout: 10000 });
+              agents.push(...detectAgents(winList, 'windows'));
+            } catch { /* ignore */ }
+          }
+
+          if (agents.length > 0) {
+            // Record discovered agents as runs
+            for (const agent of agents) {
+              const runId = `watch-${agent.pid}-${agent.name}`;
+              try {
+                // Check if we already have this run
+                const existing = storage.getRun(runId);
+                if (!existing) {
+                  storage.createRun({
+                    id: runId,
+                    name: agent.name,
+                    startedAt: Date.now(),
+                    metadata: {
+                      pid: agent.pid,
+                      runtime: agent.runtime,
+                      platform: agent.platform,
+                      framework: agent.framework || 'unknown',
+                      cmdline: agent.cmdline?.substring(0, 200),
+                      autoDetected: true,
+                      watcherScan: scanCount,
+                    },
+                  });
+                }
+              } catch {
+                /* ignore duplicates */
+              }
+            }
+            if (flags.verbose) {
+              console.log(`[Watch] Scan #${scanCount}: ${agents.length} agent(s) detected`);
+              for (const a of agents) {
+                console.log(`  ${a.platform} | ${a.pid} | ${a.runtime} | ${a.framework || '?'} | ${a.name}`);
+              }
+            }
+          }
+        } catch (e) {
+          if (flags.verbose) {
+            console.error(`[Watch] Scan error:`, e);
+          }
+        }
+      };
+
+      // Run immediately, then on interval
+      await doScan();
+      const intervalId = setInterval(doScan, scanInterval);
+
+      // Keep process alive
+      process.on('SIGINT', () => {
+        console.log('\n[AgentTrace] Watcher stopped.');
+        clearInterval(intervalId);
+        storage.close();
+        process.exit(0);
+      });
+      process.on('SIGTERM', () => {
+        clearInterval(intervalId);
+        storage.close();
+        process.exit(0);
+      });
+
+      // Block forever
+      return new Promise(() => {});
     }
 
     case 'runs': {
