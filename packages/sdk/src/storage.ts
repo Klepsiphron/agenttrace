@@ -2,10 +2,8 @@
  * AgentTrace -- SQLite Storage Layer
  * Local storage for agent traces with zero cloud dependency
  *
- * NOTE: better-sqlite3 requires native compilation. On Windows without
- * Visual Studio Build Tools, install them from:
- *   https://visualstudio.microsoft.com/visual-cpp-build-tools/
- * Or use the CLI from WSL where it works out of the box.
+ * Uses better-sqlite3 with prebuilt binaries for Node 20/22/24.
+ * No build tools required on any platform.
  */
 
 import Database from 'better-sqlite3';
