@@ -84,16 +84,13 @@ importers:
 
   packages/sdk:
     dependencies:
-      sql.js:
-        specifier: ^1.14.1
-        version: 1.14.1
+      better-sqlite3:
+        specifier: ^12.0.0
+        version: 12.10.0
     devDependencies:
       '@types/better-sqlite3':
         specifier: ^7.6.11
         version: 7.6.13
-      better-sqlite3:
-        specifier: ^12.0.0
-        version: 12.10.0
 
 packages:
 
@@ -1225,9 +1222,6 @@ packages:
   source-map-js@1.2.1:
     resolution: {integrity: sha512-UXWMKhLOwVKb728IUtQPXxfYU+usdybtUrK/8uGE8CQMvrhOpwvzDBwj0QhSL7MQc7vIsISBG8VQ8+IDQxpfQA==}
     engines: {node: '>=0.10.0'}
-
-  sql.js@1.14.1:
-    resolution: {integrity: sha512-gcj8zBWU5cFsi9WUP+4bFNXAyF1iRpA3LLyS/DP5xlrNzGmPIizUeBggKa8DbDwdqaKwUcTEnChtd2grWo/x/A==}
 
   stackback@0.0.2:
     resolution: {integrity: sha512-1XMJE5fQo1jGH6Y/7ebnwPOBEkIEnT4QF32d5R1+VXdXveM0IBMJt8zfaxX1P3QhVwrYe+576+jkANtSS2mBbw==}
@@ -2616,8 +2610,6 @@ snapshots:
       simple-concat: 1.0.1
 
   source-map-js@1.2.1: {}
-
-  sql.js@1.14.1: {}
 
   stackback@0.0.2: {}
 
