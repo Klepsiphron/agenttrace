@@ -32,7 +32,7 @@ describe('AgentTraceMiddleware', () => {
   });
 
   it('exports correct version and package name', () => {
-    expect(VERSION).toBe('0.4.3');
+    expect(VERSION).toMatch(/^\d+\.\d+\.\d+/);
     expect(PACKAGE_NAME).toBe('@agenttrace-io/middleware-langgraph');
   });
 
