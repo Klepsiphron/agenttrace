@@ -16,7 +16,7 @@
     }
   },
   "bin": {
-    "agenttrace-instrument": "./dist/cli.js"
+    "agenttrace-instrument": "./dist/cli.cjs"
   },
   "repository": {
     "type": "git",
