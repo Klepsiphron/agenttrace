@@ -22,16 +22,56 @@ import {
   TraceStorage,
 } from '@agenttrace-io/sdk';
 import { startDashboard } from '@agenttrace-io/dashboard';
-import { existsSync, writeFileSync } from 'node:fs';
+import { existsSync, writeFileSync, readFileSync, mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
+import { homedir } from 'node:os';
 
-export const VERSION = '0.4.3';
+// Version is read from package.json at runtime (no hardcoded version)
+function readVersion(): string {
+  try {
+    const __dirname = dirname(fileURLToPath(import.meta.url));
+    const pkgPath = join(__dirname, '..', 'package.json');
+    const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'));
+    return pkg.version;
+  } catch {
+    return '0.0.0';
+  }
+}
+
+export const VERSION = readVersion();
 
 /** Published npm package name. */
 export const PACKAGE_NAME = '@agenttrace-io/cli';
 
+function getDefaultDbPath(): string {
+  // Use platform-appropriate data directory
+  const home = homedir();
+  // Check for explicit env override first
+  if (process.env.AGENTTRACE_DB_PATH) {
+    return process.env.AGENTTRACE_DB_PATH;
+  }
+  // Windows: %APPDATA%/agenttrace/agenttrace.db
+  if (process.platform === 'win32' && process.env.APPDATA) {
+    const dir = join(process.env.APPDATA, 'agenttrace');
+    if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+    return join(dir, 'agenttrace.db');
+  }
+  // macOS ~/Library/Application Support/agenttrace/agenttrace.db
+  if (process.platform === 'darwin') {
+    const dir = join(home, 'Library', 'Application Support', 'agenttrace');
+    if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+    return join(dir, 'agenttrace.db');
+  }
+  // Linux/other: ~/.local/share/agenttrace/agenttrace.db (XDG)
+  const xdgData = process.env.XDG_DATA_HOME || join(home, '.local', 'share');
+  const dir = join(xdgData, 'agenttrace');
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+  return join(dir, 'agenttrace.db');
+}
+
 function getDbPath(): string {
-  return process.env.AGENTTRACE_DB_PATH || './agenttrace.db';
+  return getDefaultDbPath();
 }
 
 // ANSI colors for status
@@ -253,6 +293,7 @@ Commands:
   cleanup              Manually run data retention cleanup (deletes expired traces, runs, usage)
   retention            Manage data retention policy: show | set <days> [--interval H]
   version              Show CLI version
+  update               Update to latest version (npm install -g)
 
 Options (by command):
   runs, traces:
@@ -1212,6 +1253,27 @@ async function runMain(): Promise<void> {
       break;
     }
 
+    case 'update': {
+      // Self-update: reinstall from npm globally
+      const { execSync } = await import('node:child_process');
+      console.log(`Current version: ${VERSION}`);
+      console.log('Checking for updates...');
+      try {
+        const latest = execSync(`npm view ${PACKAGE_NAME} version`, { encoding: 'utf-8' }).trim();
+        if (latest === VERSION) {
+          console.log(`Already up to date (v${VERSION}).`);
+        } else {
+          console.log(`Updating from v${VERSION} to v${latest}...`);
+          execSync(`npm install -g ${PACKAGE_NAME}@${latest}`, { stdio: 'inherit' });
+          console.log(`Updated to v${latest}.`);
+        }
+      } catch (e: unknown) {
+        console.error('Update failed:', e instanceof Error ? e.message : String(e));
+        process.exit(1);
+      }
+      break;
+    }
+
     case 'self-stats': {
       const dbp = getDbPath();
       // self-stats creates db on demand (no error if missing; will just show zeros)
@@ -1961,7 +2023,29 @@ async function runMain(): Promise<void> {
   }
 }
 
+async function checkForUpdates(): Promise<void> {
+  // Only check for globally installed CLI (not during dev)
+  try {
+    const { execSync } = await import('node:child_process');
+    // Quick timeout to avoid slowing down CLI
+    const latest = execSync(`npm view ${PACKAGE_NAME} version --prefer-online`, {
+      encoding: 'utf-8',
+      timeout: 5000,
+      stdio: ['pipe', 'pipe', 'pipe'],
+    }).trim();
+    if (latest && latest !== VERSION && /^\d+\.\d+\.\d+/.test(latest)) {
+      console.log(
+        `\n  \x1b[33m▲ AgentTrace update available: v${VERSION} → v${latest}\x1b[0m\n  \x1b[2m  Run: agenttrace update\x1b[0m\n`,
+      );
+    }
+  } catch {
+    // Silent failure -- version check is best-effort
+  }
+}
+
 function main(): void | Promise<void> {
+  // Non-blocking version check (runs in background, prints notice if outdated)
+  checkForUpdates().catch(() => {/* silent */});
   try {
     const result = runMain();
     if (result && typeof (result as Promise<unknown>).then === 'function') {
