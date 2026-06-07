@@ -15,7 +15,9 @@
 
 ---
 
-**AgentTrace** gives you full visibility into your AI agents -- every token, tool call, and cost. It stores everything locally in SQLite. No cloud. No accounts. No lock-in.
+**AgentTrace** gives you full visibility into your AI agents — every token, tool call, and cost. It stores everything locally in SQLite. No cloud. No accounts. No lock-in.
+
+A clean, modern, universal tool for tracing any agentic system. One wrapper. Complete insight. Built for developers who value simplicity and ownership.
 
 ```bash
 # Trace any agent in one line
