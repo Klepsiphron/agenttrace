@@ -68,6 +68,8 @@ pnpm lint           # ESLint checks
 pnpm format:check   # Prettier checks
 ```
 
+**Windows note:** Native modules like `better-sqlite3` may require Visual Studio Build Tools (C++ workload) for compilation. Install them or use WSL for easier local dev. The CI runs on Ubuntu and handles prebuilts fine.
+
 ---
 
 ## Project Structure
