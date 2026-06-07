@@ -877,6 +877,59 @@ async function runMain(): Promise<void> {
       return;
     }
 
+    case 'watch': {
+      const interval = flags.interval ? parseInt(String(flags.interval), 10) : 10;
+      const jsonMode = flags.json === true;
+      const dbPath = getDbPath();
+      console.log(`[AgentTrace] Watching for agents (interval: ${interval}s, db: ${dbPath})`);
+      console.log(`[AgentTrace] Press Ctrl+C to stop\n`);
+      const scan = () => {
+        try {
+          const ps = require('child_process').execSync('ps aux', { encoding: 'utf8', timeout: 5000 });
+          const agents = [];
+          for (const line of ps.split('\n')) {
+            if (!line.trim()) continue;
+            const lower = line.toLowerCase();
+            const isNode = lower.includes('node ') || lower.includes('node.exe');
+            const isPython = lower.includes('python') || lower.includes('python.exe');
+            if (!isNode && !isPython) continue;
+            let framework = null;
+            const frameworks = {
+              langchain: ['langchain', '@langchain', 'langgraph'],
+              crewai: ['crewai'],
+              autogen: ['autogen', 'conversableagent'],
+              openai: ['openai'],
+              anthropic: ['anthropic'],
+            };
+            for (const [fw, patterns] of Object.entries(frameworks)) {
+              if (patterns.some(p => lower.includes(p))) { framework = fw; break; }
+            }
+            if (!framework && (lower.includes('agent') || lower.includes('llm') || lower.includes('gpt') || lower.includes('claude'))) {
+              framework = 'unknown';
+            }
+            if (framework) {
+              const parts = line.trim().split(/\s+/);
+              agents.push({ pid: parts[1] || '0', name: parts.slice(10).join(' ') || parts[0], runtime: isNode ? 'node' : 'python', framework });
+            }
+          }
+          if (jsonMode) {
+            console.log(JSON.stringify({ timestamp: new Date().toISOString(), agents }, null, 2));
+          } else if (agents.length > 0) {
+            console.log(`[${new Date().toLocaleTimeString()}] ${agents.length} agent(s) detected:`);
+            for (const a of agents) {
+              console.log(`  ${a.pid.padStart(7)} ${a.runtime.padEnd(6)} ${(a.framework || '?').padEnd(12)} ${a.name.substring(0, 60)}`);
+            }
+            console.log();
+          }
+        } catch { /* ignore scan errors */ }
+      };
+      scan();
+      const timer = setInterval(scan, interval * 1000);
+      process.on('SIGINT', () => { clearInterval(timer); process.exit(0); });
+      process.on('SIGTERM', () => { clearInterval(timer); process.exit(0); });
+      return;
+    }
+
     case 'runs': {
       const trace = getAgentTrace();
       const rawLimit = flags.limit ? parseInt(String(flags.limit), 10) : NaN;
