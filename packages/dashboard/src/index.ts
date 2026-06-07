@@ -70,8 +70,9 @@ function validateApiKey(key: string | undefined): ApiKeyRecord | null {
 
 /**
  * Authentication middleware.
- * Checks the X-API-Key header on API routes.
- * Allows /api/health without authentication.
+ * For localhost access (127.0.0.1, ::1, localhost), no auth is required.
+ * For non-localhost access, X-API-Key header is required.
+ * Always allows /api/health without authentication.
  */
 function authMiddleware(req: Request, res: Response, next: NextFunction): void {
   // Allow health check without auth
@@ -79,20 +80,39 @@ function authMiddleware(req: Request, res: Response, next: NextFunction): void {
     next();
     return;
   }
-
   // Only protect /api/* routes
   if (!req.path.startsWith('/api/')) {
     next();
     return;
   }
+  // Check if request is from localhost (no auth needed for local dashboard)
+  const remoteAddr = req.socket.remoteAddress || '';
+  const hostHeader = req.headers.host || '';
+  const isLocal =
+    remoteAddr === '127.0.0.1' ||
+    remoteAddr === '::1' ||
+    remoteAddr === '::ffff:127.0.0.1' ||
+    hostHeader.startsWith('localhost:') ||
+    hostHeader.startsWith('127.0.0.1:');
 
+  // Auth logic:
+  // - Non-localhost: always require valid API key
+  // - Localhost without key: allow (convenient for local dashboard)
+  // - Localhost with key: validate it (allows key-based auth even locally)
   const key = req.headers['x-api-key'] as string | undefined;
-  const record = validateApiKey(key);
-  if (!record) {
-    res.status(401).json({ error: 'Invalid or missing API key', code: 'UNAUTHORIZED' });
+  if (key) {
+    // Key provided -- always validate it
+    const record = validateApiKey(key);
+    if (!record) {
+      res.status(401).json({ error: 'Invalid API key', code: 'UNAUTHORIZED' });
+      return;
+    }
+  } else if (!isLocal) {
+    // No key and non-localhost -- require auth
+    res.status(401).json({ error: 'Missing API key', code: 'UNAUTHORIZED' });
     return;
   }
-
+  // Localhost without key, or valid key: proceed
   next();
 }
 

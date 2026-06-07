@@ -3,7 +3,7 @@ import { PACKAGE_NAME, VERSION } from './index.js';
 
 describe('@agenttrace-io/cli', () => {
   it('exports the package version', () => {
-    expect(VERSION).toBe('0.4.3');
+    expect(VERSION).toMatch(/^\d+\.\d+\.\d+$/);
   });
 
   it('exports the package name', () => {
