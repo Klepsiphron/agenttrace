@@ -1525,18 +1525,25 @@ async function runMain(): Promise<void> {
     }
 
     case 'update': {
-      // Self-update: reinstall from npm globally
       const { execSync } = await import('node:child_process');
       console.log(`Current version: ${VERSION}`);
       console.log('Checking for updates...');
       try {
         const latest = execSync(`npm view ${PACKAGE_NAME} version`, { encoding: 'utf-8' }).trim();
-        if (latest === VERSION) {
-          console.log(`Already up to date (v${VERSION}).`);
+        if (latest && /^\d+\.\d+\.\d+$/.test(latest)) {
+          const [lMaj = 0, lMin = 0, lPat = 0] = latest.split('.').map(Number);
+          const [vMaj = 0, vMin = 0, vPat = 0] = VERSION.split('.').map(Number);
+          const isNewer = lMaj > vMaj || (lMaj === vMaj && lMin > vMin) ||
+            (lMaj === vMaj && lMin === vMin && lPat > vPat);
+          if (!isNewer) {
+            console.log(`Already up to date (v${VERSION}).`);
+          } else {
+            console.log(`Updating from v${VERSION} to v${latest}...`);
+            execSync(`npm install -g ${PACKAGE_NAME}@${latest}`, { stdio: 'inherit' });
+            console.log(`Updated to v${latest}.`);
+          }
         } else {
-          console.log(`Updating from v${VERSION} to v${latest}...`);
-          execSync(`npm install -g ${PACKAGE_NAME}@${latest}`, { stdio: 'inherit' });
-          console.log(`Updated to v${latest}.`);
+          console.log(`Already up to date (v${VERSION}).`);
         }
       } catch (e: unknown) {
         console.error('Update failed:', e instanceof Error ? e.message : String(e));
