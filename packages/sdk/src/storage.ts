@@ -8,6 +8,7 @@
  * Or use the CLI from WSL where it works out of the box.
  */
 
+import Database from 'better-sqlite3';
 import { randomUUID, randomBytes, createHash } from 'node:crypto';
 import { statSync } from 'node:fs';
 import {
