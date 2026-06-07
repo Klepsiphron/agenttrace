@@ -49,12 +49,12 @@ Auto-detected frameworks:
 }
 
 // Parse options
-let dbPath: string | undefined;
-let serviceName: string | undefined;
+let dbPath;
+let serviceName;
 let doScan = false;
 let jsonOutput = false;
 let verbose = false;
-const passthroughArgs: string[] = [];
+const passthroughArgs = [];
 
 for (let i = 0; i < args.length; i++) {
   const arg = args[i];
@@ -101,7 +101,7 @@ const child = spawn(runtime, scriptArgs, {
   shell: process.platform === 'win32',
 });
 
-child.on('close', (code: number | null) => {
+child.on('close', (code) => {
   process.exit(code ?? 0);
 });
 
@@ -111,16 +111,16 @@ process.on('SIGTERM', () => { child.kill('SIGTERM'); });
 // ── Process Scanner ────────────────────────────────────────────────
 
 interface DetectedAgent {
-  pid: string;
-  name: string;
-  cmdline: string;
-  runtime: string;
+  pid;
+  name;
+  cmdline;
+  runtime;
   platform: 'wsl' | 'windows';
-  framework: string | null;
-  agentType: string | null;
+  framework | null;
+  agentType | null;
 }
 
-const AGENT_FRAMEWORKS: Record<string, { framework: string; patterns: string[] }> = {
+const AGENT_FRAMEWORKS: Record<string, { framework; patterns }> = {
   langchain: { framework: 'LangChain', patterns: ['langchain', '@langchain', 'langgraph', 'ChatOpenAI', 'ChatAnthropic'] },
   crewai: { framework: 'CrewAI', patterns: ['crewai', 'Crew('] },
   autogen: { framework: 'AutoGen', patterns: ['autogen', 'ConversableAgent', 'AssistantAgent'] },
@@ -131,7 +131,7 @@ const AGENT_FRAMEWORKS: Record<string, { framework: string; patterns: string[] }
   semantic: { framework: 'Semantic Kernel', patterns: ['semantic-kernel', 'SemanticKernel'] },
 };
 
-function scanAgents(json: boolean, verbose: boolean) {
+function scanAgents(json, verbose) {
   const agents: DetectedAgent[] = [];
 
   // Scan WSL/Linux processes
@@ -143,10 +143,10 @@ function scanAgents(json: boolean, verbose: boolean) {
       const isPython = lower.includes('python') || lower.includes('python.exe');
       if (!isNode && !isPython) continue;
 
-      let framework: string | null = null;
-      let agentType: string | null = null;
+      let framework | null = null;
+      let agentType | null = null;
       for (const [key, sig] of Object.entries(AGENT_FRAMEWORKS)) {
-        if (sig.patterns.some((p: string) => lower.includes(p.toLowerCase()))) {
+        if (sig.patterns.some((p) => lower.includes(p.toLowerCase()))) {
           framework = sig.framework;
           agentType = key;
           break;
@@ -171,10 +171,10 @@ function scanAgents(json: boolean, verbose: boolean) {
       const isPython = lower.includes('python.exe');
       if (!isNode && !isPython) continue;
 
-      let framework: string | null = null;
-      let agentType: string | null = null;
+      let framework | null = null;
+      let agentType | null = null;
       for (const [key, sig] of Object.entries(AGENT_FRAMEWORKS)) {
-        if (sig.patterns.some((p: string) => lower.includes(p.toLowerCase()))) {
+        if (sig.patterns.some((p) => lower.includes(p.toLowerCase()))) {
           framework = sig.framework;
           agentType = key;
           break;
