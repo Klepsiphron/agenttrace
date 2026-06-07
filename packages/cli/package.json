@@ -10,7 +10,8 @@
   },
   "dependencies": {
     "@agenttrace-io/dashboard": "workspace:*",
-    "@agenttrace-io/sdk": "workspace:*"
+    "@agenttrace-io/sdk": "workspace:*",
+    "better-sqlite3": "^12.0.0"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
