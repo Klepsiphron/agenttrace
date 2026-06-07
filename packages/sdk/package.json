@@ -49,5 +49,8 @@
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.11"
+  },
+  "dependencies": {
+    "sql.js": "^1.14.1"
   }
 }
