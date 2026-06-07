@@ -9,5 +9,5 @@ __all__ = [
     "AgentTraceCrewAI",
 ]
 
-VERSION = "0.4.3"
+VERSION = "0.4.7"
 PACKAGE_NAME = "agenttrace-io-middleware-crewai"
