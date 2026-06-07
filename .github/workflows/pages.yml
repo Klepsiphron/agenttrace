@@ -31,12 +31,14 @@ jobs:
           cache: pnpm
 
       - name: Install docs site dependencies
-        run: pnpm install --ignore-workspace
-        working-directory: docs/site
+        run: |
+          cd docs/site
+          pnpm install --ignore-workspace
 
       - name: Build docs site
-        run: pnpm build
-        working-directory: docs/site
+        run: |
+          cd docs/site
+          npx astro build
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
