@@ -255,6 +255,10 @@ Commands:
   version              Show CLI version
 
 Options (by command):
+  dashboard:
+    --port N             Port to listen on (default: 4317)
+    --host HOST          Host to bind to (default: 127.0.0.1)
+    --no-auth            Disable API key auth (for local dev)
   runs, traces:
     --limit N            Number of results (default: runs=20, traces=50)
     --status FILTER      Comma-separated statuses (success,error,failure,running,timeout)

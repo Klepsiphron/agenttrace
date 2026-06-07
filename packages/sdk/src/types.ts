@@ -184,6 +184,7 @@ export interface DashboardConfig {
   host?: string;
   openBrowser?: boolean;
   dbPath?: string;
+  noAuth?: boolean;
 }
 
 /** Scorer function that evaluates a trace and returns a numeric score */
