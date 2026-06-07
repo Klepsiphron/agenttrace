@@ -14,7 +14,8 @@
     "lint": "eslint \"packages/**/*.ts\" \"vitest.config.ts\"",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "dev": "pnpm -r --parallel run dev"
+    "dev": "pnpm -r --parallel run dev",
+    "prepare": "husky install"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -30,6 +31,7 @@
     "prettier": "^3.5.3",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.60.1",
-    "vitest": "^4.1.8"
+    "vitest": "^4.1.8",
+    "husky": "^8.0.0"
   }
 }
