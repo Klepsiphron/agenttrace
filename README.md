@@ -55,6 +55,8 @@ npm install -g @agenttrace-io/cli
 npx agenttrace-io <command>
 ```
 
+**Works on macOS, Linux, and Windows.** No build tools required.
+
 ### Trace Your First Agent
 
 ```bash

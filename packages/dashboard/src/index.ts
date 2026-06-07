@@ -10,7 +10,7 @@ import os from 'node:os';
 import crypto from 'node:crypto';
 import { AgentTrace, DashboardConfig, ExportFormat, AgentUsageRecord } from '@agenttrace-io/sdk';
 
-export const VERSION = '0.1.0';
+export const VERSION = '0.3.0';
 export const PACKAGE_NAME = '@agenttrace-io/dashboard';
 
 const __filename = fileURLToPath(import.meta.url);
