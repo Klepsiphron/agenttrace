@@ -25,7 +25,7 @@ import { startDashboard } from '@agenttrace-io/dashboard';
 import { existsSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-export const VERSION = '0.2.1';
+export const VERSION = '0.2.2';
 
 /** Published npm package name. */
 export const PACKAGE_NAME = '@agenttrace-io/cli';
