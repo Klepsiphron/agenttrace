@@ -1,0 +1,18 @@
+/* AgentTrace Docs Custom Styles — Dark Theme */
+
+:root {
+  --sl-color-accent: #3b82f6;
+  --sl-color-accent-high: #60a5fa;
+  --sl-color-bg: #0f172a;
+  --sl-color-bg-sidebar: #1e293b;
+}
+
+/* Make hero section match the dark aesthetic */
+.hero {
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+}
+
+/* Code blocks: dark with accent border */
+pre {
+  border-left: 3px solid var(--sl-color-accent);
+}

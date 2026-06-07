@@ -21,11 +21,11 @@
 - [x] OpenTelemetry export -- industry standard, enables integration with existing tools
 - [x] Python SDK -- must-have, 70%+ of AI agent code is Python
 - [x] Framework middleware -- LangGraph callback handler (27 tests), CrewAI integration (7 tests)
-- [ ] Documentation site -- proper docs with search, examples, API reference
+- [x] Documentation site -- Starlight docs with search, API reference, guides (docs/site/)
 - [ ] README demo GIF -- visual proof for landing page
 - [ ] GitHub Sponsors -- enable sponsorship
-- [ ] npm publishing -- `npm install @agenttrace-io/sdk` works (needs NPM_TOKEN)
-- [ ] PyPI publishing -- `pip install agenttrace-io` works (needs PYPI_TOKEN)
+- [x] npm publishing -- `npm install @agenttrace-io/sdk` works (v0.1.9 on npm)
+- [ ] PyPI publishing -- `pip install agenttrace-io` works (needs OIDC trusted publisher setup)
 
 ## v0.3.0 📋 Planned -- Growth
 

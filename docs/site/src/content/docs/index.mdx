@@ -1,0 +1,29 @@
+---
+title: AgentTrace Docs
+template: splash
+hero:
+  tagline: Local-first, privacy-first observability for AI agents. Zero cloud. No accounts. CLI-first.
+  actions:
+    - text: Get Started
+      link: /getting-started/quick-start
+      variant: primary
+    - text: View on GitHub
+      link: https://github.com/Klepsiphron/agenttrace
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+<CardGrid stagger>
+  <Card title="Privacy-First" icon="shield">
+    No cloud. No telemetry. No accounts. Every trace stays on your machine in a local SQLite file. Data never leaves unless you explicitly export it.
+  </Card>
+  <Card title="CLI-First" icon="terminal">
+    Inspect runs, traces, costs, and errors from your terminal. `npx agenttrace-io stats` — no dashboard required.
+  </Card>
+  <Card title="Multi-Agent" icon="workflow">
+    Trace hierarchical agent trees with parent/child contexts. LangGraph and CrewAI middleware included out of the box.
+  </Card>
+  <Card title="Dashboard" icon="chart">
+    Optional Express dashboard with dark theme. View runs, latency, costs, tool calls, and errors at `http://localhost:4317`.
+  </Card>
+</CardGrid>
