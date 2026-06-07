@@ -7,74 +7,122 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- All package versions bumped to 0.4.3 (package.json, pyproject.toml, hardcoded VERSION constants)
+- All test assertions updated to match 0.4.3
+- Landing page: added `rel="noopener"` to all external links
+- Landing page: added missing `.prose-custom` CSS class
+- Landing page: fixed CSS quote consistency
+- `pages.yml`: removed trailing null bytes
+
+## [0.4.3] - 2026-06-07
+
+### Added
+
+- Auto-instrument package (`@agenttrace-io/auto-instrument`) for zero-code tracing
+- Process scanning: `agenttrace-io watch` auto-detects running agents
+- Module-level hooks intercept `require()` to auto-patch LangChain, OpenAI SDK
+- WSL-to-Windows process bridge
+- Dashboard `--no-auth` flag for local dev
+- Starlight documentation site with search, guides, and API reference (16 pages)
+- Python SDK: `close()` method, fixed exports, schema migrations
+- CLI: `wrap` command for zero-config agent tracing
+- CLI: budget tracking and alerting commands
+- CLI: budget tracking and alerting commands
+- Hermes bridge script to import session data into AgentTrace
+- Comprehensive CLI command tests (24 tests)
+- LangGraph middleware integration tests (27 tests)
+- Multi-tenant test coverage (23 tests)
+- Agent usage tracking tests (5 tests)
+- Retention policy tests (30 tests)
+- Export format tests (20 tests)
+- Integration tests for Python SDK (full filter/stats/export coverage)
+
+### Changed
+
+- better-sqlite3 upgraded to v12 with prebuilt binaries for clean Windows install
+- Engine constraint: Node 20-23 (prebuilt binary compatibility)
+- Landing page: modernized with Tailwind CSS, dark theme, indigo accent
+- Landing page: dashboard UI redesign with polished modern look
+- README: overhauled with professional structure
+- CI/CD workflows consolidated with PyPI OIDC + Docker publishing
+- Dependabot for npm and GitHub Actions updates
+- Pre-commit hook: format + lint check on staged files
+
+### Fixed
+
+- TraceContext constructor error on Node 22 (isolatedModules import erasure)
+- 41 CI lint errors across all packages
+- 12 CI test failures in multi-tenant and SDK
+- recordToolCall now stores tool calls in active trace context
+- safe JSON parsing for bridged data
+- Multi-tenant test failures (tenantId pass-through, connection pooling)
+- Retention test transform error
+- CI lint errors from eslint 10 + flat config migration
+- VERSION strings in all packages now consistent at 0.4.3
+
+### Security
+
+- Comprehensive security audit: 0 hits across 10 categories
+- Removed all internal references (hermes, owl, ryano paths) from public files
+- Removed AGENTS.md, benchmarks/, docs/plans/, billing/, docker-compose.prod.yml, FUNDING.yml, RELEAS.md, hermes-bridge.py, QUICKREF.md
+- All tokens/secrets stored as GitHub secrets only
+
+### Documentation
+
+- Added CONTRIBUTING.md, SECURITY.md, CODE_OF_CONDUCT.md
+- Added debugging, evaluation, getting-started tutorials
+- Added LangGraph, CrewAI, custom agent, Discord bot, Slack bot, FastAPI examples
+- Added Windows dev setup note for native modules
+- Updated ROADMAP with completed items
+
+## [0.3.0] - 2026-06-06
+
+### Added
+
+- OpenTelemetry export (OTLP JSON format)
+- Dockerfile and docker-compose.yml for self-hosting
+- Evaluation framework and alerting webhooks
+- GitHub Pages landing page
+- Social preview HTML, logo SVG, demo GIF description
+- Comparison page (vs Langfuse/LangSmith)
+- LangGraph middleware package
+- CrewAI middleware package
+- Branch protection, CODEOWNERS, repo metadata
+
+### Changed
+
+- Package naming: `@agenttrace-io/*` / `agenttrace-io`
+- README with v0.2.0 features and comparison table
+- Contributing guide with project structure and workflow
+
+### Fixed
+
+- ESLint no-unused-vars in catch clauses
+- `any` types in OpenTelemetry tests
+
 ## [0.2.0] - 2026-06-02
 
 ### Added
 
-- OpenTelemetry export (OTLP JSON format) for integration with external tools
-- Dockerfile and docker-compose.yml for easy self-hosting
-- Evaluation framework specification and alerting webhooks spec
-- Documentation site (GitHub Pages) with landing page
-- Social preview HTML, logo SVG, and demo GIF description guide
-- Comparison page (vs Langfuse/LangSmith) and docs-site scaffolding
-- LangGraph middleware package (`@agenttrace-io/middleware-langgraph`)
-- CrewAI middleware package (`agenttrace-io-middleware-crewai`)
-- Branch protection rules, CODEOWNERS, and repo metadata
-- GitHub Actions CI matrix for Node 20/22 (carried from 0.1)
-
-### Changed
-
-- Package naming reverted to `@agenttrace-io/*` / `agenttrace-io` (from collision with existing packages)
-- README updated with v0.2.0 features and full comparison table
-- Contributing guide rewritten with project structure and development workflow
-- Roadmap updated with completed v0.1/v0.2 items
-- Numerous auto-format, lint fixes, and prettier runs across 16+ files
-- Pre-commit hook fixes for auto-formatting
-
-### Fixed
-
-- ESLint no-unused-vars issues in catch clauses
-- `any` types replaced in OpenTelemetry tests
-- Removed broken screenshot script
-
-### Documentation
-
-- Added launch posts, market analysis, launch materials, social preview brief
-- Added Code of Conduct (Contributor Covenant 2.1)
-- Added SECURITY.md
-- Added LangGraph, CrewAI, and custom agent examples
-- Polished README
-- Updated changelog for prior release
-
-## [0.1.0] - 2026-06-02
-
-### Added
-
-- TypeScript SDK (`@agenttrace-io/sdk`): trace wrapper, cost tracking, SQLite storage
-- Python SDK (`agenttrace-io`): same API, context manager + decorator, expanded to 23 unit tests
-- Full CLI (`@agenttrace-io/cli`): init, dashboard, runs, traces, stats, export, version, costs, benchmark, health, self-stats, alerts
+- TypeScript SDK: trace wrapper, cost tracking, SQLite storage
+- Python SDK: context manager + decorator, 23 unit tests
+- Full CLI: init, dashboard, runs, traces, stats, export, version, costs, benchmark, health, self-stats, alerts
 - Express dashboard: dark theme, runs list, trace details, stats, export
 - GitHub Actions CI with Node 20 + 22 matrix
-- Publish pipeline: PyPI + npm triggered on GitHub release tag (v\*)
+- Publish pipeline: PyPI + npm on GitHub release tag
 - Issue templates, PR template, CODEOWNERS, branch protection
-- Dependabot for npm and GitHub Actions updates
+- Dependabot for npm and GitHub Actions
 - Pre-commit hook for auto-formatting
-- Initial project scaffolding (core tracing, storage, types)
 
 ### Changed
 
 - Set initial version 0.1.0 across core packages
-- Prepared repository for launch (metadata, etc.)
+- Prepared repository for launch
 
 ### Documentation
 
 - Added changelog, SECURITY.md, CONTRIBUTING.md
-- Added market analysis, roadmap, launch materials, repo metadata
-- Added LangGraph, CrewAI, and custom agent integration examples (docs/examples)
-
-### Package Structure (at 0.1.0)
-
-- `@agenttrace-io/sdk` (npm) -- TypeScript SDK
-- `agenttrace-io` (PyPI) -- Python SDK
-- `@agenttrace-io/dashboard` (npm) -- Local web dashboard
-- `@agenttrace-io/cli` (npm) -- CLI tool
+- Added market analysis, roadmap, launch materials
+- Added LangGraph, CrewAI, custom agent integration examples

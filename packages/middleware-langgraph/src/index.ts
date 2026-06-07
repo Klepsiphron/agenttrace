@@ -10,7 +10,7 @@ import {
   type TraceStorage,
 } from '@agenttrace-io/sdk';
 
-export const VERSION = '0.2.0';
+export const VERSION = '0.4.3';
 export const PACKAGE_NAME = '@agenttrace-io/middleware-langgraph';
 
 export type { TraceConfig } from '@agenttrace-io/sdk';

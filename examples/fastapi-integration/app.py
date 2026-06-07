@@ -118,7 +118,7 @@ async def lifespan(_app: FastAPI):
 app = FastAPI(
     title="AgentTrace + FastAPI Example",
     description="Demonstrates AgentTrace tracing in FastAPI endpoints",
-    version="0.1.0",
+    version="0.4.3",
     lifespan=lifespan,
 )
 
