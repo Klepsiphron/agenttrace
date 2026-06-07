@@ -72,10 +72,19 @@ function validateApiKey(key: string | undefined): ApiKeyRecord | null {
  * Authentication middleware.
  * Checks the X-API-Key header on API routes.
  * Allows /api/health without authentication.
+ * When noAuthMode is true, all API routes are accessible without a key.
  */
+let noAuthMode = false;
+
 function authMiddleware(req: Request, res: Response, next: NextFunction): void {
   // Allow health check without auth
   if (req.path === '/api/health') {
+    next();
+    return;
+  }
+
+  // In no-auth mode, skip all auth checks
+  if (noAuthMode) {
     next();
     return;
   }
