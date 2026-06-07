@@ -999,7 +999,9 @@ async function runMain(): Promise<void> {
             console.log(`Backfilled ${imported} existing agent process(es) from this machine.`);
           }
           storage.close();
-        } catch { /* non-fatal */ }
+        } catch {
+          /* non-fatal */
+        }
       })();
       break;
     }
