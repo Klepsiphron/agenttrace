@@ -2295,23 +2295,24 @@ async function runMain(): Promise<void> {
 }
 
 async function checkForUpdates(): Promise<void> {
-  // Only check for globally installed CLI (not during dev)
   try {
     const { execSync } = await import('node:child_process');
-    // Quick timeout to avoid slowing down CLI
     const latest = execSync(`npm view ${PACKAGE_NAME} version --prefer-online`, {
-      encoding: 'utf-8',
-      timeout: 5000,
-      stdio: ['pipe', 'pipe', 'pipe'],
+      encoding: 'utf-8', timeout: 5000, stdio: ['pipe', 'pipe', 'pipe'],
     }).trim();
-    if (latest && latest !== VERSION && /^\d+\.\d+\.\d+/.test(latest)) {
-      console.log(
-        `\n  \x1b[33m▲ AgentTrace update available: v${VERSION} → v${latest}\x1b[0m\n  \x1b[2m  Run: agenttrace update\x1b[0m\n`,
-      );
+    if (latest && /^\d+\.\d+\.\d+$/.test(latest)) {
+      // Only notify if npm version is strictly newer
+      const [lMaj, lMin, lPat] = latest.split('.').map(Number);
+      const [vMaj, vMin, vPat] = VERSION.split('.').map(Number);
+      const isNewer = lMaj > vMaj || (lMaj === vMaj && lMin > vMin) ||
+        (lMaj === vMaj && lMin === vMin && lPat > vPat);
+      if (isNewer) {
+        console.log(
+          `\n  \x1b[33m▲ AgentTrace update available: v${VERSION} → v${latest}\x1b[0m\n  \x1b[2m  Run: agenttrace update\x1b[0m\n`,
+        );
+      }
     }
-  } catch {
-    // Silent failure -- version check is best-effort
-  }
+  } catch { /* silent */ }
 }
 
 function main(): void | Promise<void> {
