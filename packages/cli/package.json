@@ -5,7 +5,7 @@
   "license": "MIT",
   "type": "module",
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=20.0.0 <24.0.0"
   },
   "bin": {
     "agenttrace-io": "./dist/index.js",
