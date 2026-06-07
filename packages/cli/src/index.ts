@@ -2302,8 +2302,8 @@ async function checkForUpdates(): Promise<void> {
     }).trim();
     if (latest && /^\d+\.\d+\.\d+$/.test(latest)) {
       // Only notify if npm version is strictly newer
-      const [lMaj, lMin, lPat] = latest.split('.').map(Number);
-      const [vMaj, vMin, vPat] = VERSION.split('.').map(Number);
+      const [lMaj = 0, lMin = 0, lPat = 0] = latest.split('.').map(Number);
+      const [vMaj = 0, vMin = 0, vPat = 0] = VERSION.split('.').map(Number);
       const isNewer = lMaj > vMaj || (lMaj === vMaj && lMin > vMin) ||
         (lMaj === vMaj && lMin === vMin && lPat > vPat);
       if (isNewer) {
