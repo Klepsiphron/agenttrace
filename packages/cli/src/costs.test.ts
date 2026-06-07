@@ -113,7 +113,7 @@ describe('CLI cost commands (new tests)', () => {
 
   it('exports package name and version unchanged', () => {
     expect(PACKAGE_NAME).toBe('@agenttrace-io/cli');
-    expect(VERSION).toBe('0.1.0');
+    expect(VERSION).toBe('0.2.0');
   });
 
   it('costs command prints breakdown by model (default)', async () => {
