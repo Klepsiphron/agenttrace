@@ -98,7 +98,7 @@ describe('@agenttrace-io/sdk', () => {
   });
 
   it('exports the package version', () => {
-    expect(VERSION).toBe('0.3.0');
+    expect(VERSION).toBe('0.3.1');
   });
 
   it('exports the package name', () => {
