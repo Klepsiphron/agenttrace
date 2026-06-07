@@ -1,0 +1,87 @@
+{
+  "name": "@agenttrace-io/auto-instrument",
+  "version": "0.4.0",
+  "description": "Zero-code auto-instrumentation for AI agents. Detects and traces LangChain, CrewAI, AutoGen, OpenAI, Anthropic, and raw HTTP calls automatically.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=20.0.0 <24.0.0"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "bin": {
+    "agenttrace-instrument": "./dist/cli.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Klepsiphron/agenttrace.git",
+    "directory": "packages/auto-instrument"
+  },
+  "homepage": "https://github.com/Klepsiphron/agenttrace#readme",
+  "keywords": [
+    "ai",
+    "agents",
+    "observability",
+    "auto-instrumentation",
+    "opentelemetry",
+    "tracing",
+    "langchain",
+    "crewai"
+  ],
+  "dependencies": {
+    "@agenttrace-io/sdk": "workspace:*",
+    "@opentelemetry/api": "^1.9.0",
+    "@opentelemetry/sdk-trace-node": "^1.30.0",
+    "@opentelemetry/sdk-trace-base": "^1.30.0",
+    "@opentelemetry/resources": "^1.30.0",
+    "@opentelemetry/semantic-conventions": "^1.30.0",
+    "@opentelemetry/context-async-hooks": "^1.30.0",
+    "@opentelemetry/instrumentation-http": "^0.57.0",
+    "@opentelemetry/instrumentation-fetch": "^0.57.0"
+  },
+  "optionalDependencies": {
+    "@arizeai/openinference-instrumentation-langchain": "^0.15.0",
+    "@opentelemetry/instrumentation-openai": "^0.55.0",
+    "openinference-instrumentation-crewai": "^0.1.0",
+    "openinference-instrumentation-autogen": "^0.1.0"
+  },
+  "peerDependenciesMeta": {
+    "@arizeai/openinference-instrumentation-langchain": {
+      "optional": true
+    },
+    "@opentelemetry/instrumentation-openai": {
+      "optional": true
+    },
+    "openinference-instrumentation-crewai": {
+      "optional": true
+    },
+    "openinference-instrumentation-autogen": {
+      "optional": true
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json && tsc -p tsconfig.cjs.json",
+    "dev": "tsc -p tsconfig.json --watch"
+  },
+  "devDependencies": {
+    "@opentelemetry/api": "^1.9.0",
+    "@opentelemetry/sdk-trace-node": "^1.30.0",
+    "@opentelemetry/sdk-trace-base": "^1.30.0",
+    "@opentelemetry/resources": "^1.30.0",
+    "@opentelemetry/semantic-conventions": "^1.30.0",
+    "@opentelemetry/context-async-hooks": "^1.30.0",
+    "@opentelemetry/instrumentation-http": "^0.57.0",
+    "@opentelemetry/instrumentation-fetch": "^0.57.0",
+    "@types/node": "^22.0.0"
+  }
+}
