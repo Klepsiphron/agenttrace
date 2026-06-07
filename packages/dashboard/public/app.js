@@ -106,7 +106,9 @@
       const h = await fetchJSON('/api/health');
       const badge = document.getElementById('version-badge');
       if (badge && h.version) badge.textContent = 'v' + h.version;
-    } catch (_) {/* silent */}
+    } catch (_) {
+      /* silent */
+    }
   }
   async function loadStats() {
     state.stats = await fetchJSON('/api/stats');
