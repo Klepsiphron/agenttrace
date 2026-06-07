@@ -25,7 +25,41 @@ import { startDashboard } from '@agenttrace-io/dashboard';
 import { existsSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-export const VERSION = '0.3.3';
+export const VERSION = '0.4.1';
+
+import { createRequire } from 'node:module';
+const require = createRequire(import.meta.url);
+
+// ── Version Check ──────────────────────────────────────────────────
+// Check npm for latest version on every launch (non-blocking, best-effort)
+let _versionChecked = false;
+function checkLatestVersion(): void {
+  if (_versionChecked) return;
+  _versionChecked = true;
+  // Fire-and-forget version check - never block the CLI
+  try {
+    const https = require('node:https');
+    const url = 'https://registry.npmjs.org/@agenttrace-io/cli/latest';
+    const req = https.get(url, { timeout: 3000 }, (res: { on: (event: string, fn: (chunk?: unknown) => void) => void; statusCode: number }) => {
+      let data = '';
+      res.on('data', (chunk: unknown) => { if (typeof chunk === 'string') data += chunk; });
+      res.on('end', () => {
+        try {
+          const latest = JSON.parse(data);
+          if (latest.version && latest.version !== VERSION) {
+            console.error(`\n[AgentTrace] Update available: ${VERSION} → ${latest.version}`);
+            console.error(`[AgentTrace] Run: npm install -g @agenttrace-io/cli@latest\n`);
+          }
+        } catch { /* ignore parse errors */ }
+      });
+    });
+    req.on('error', () => { /* ignore network errors */ });
+    req.on('timeout', () => { req.destroy(); });
+  } catch { /* ignore if https not available */ }
+}
+
+// Schedule version check after a short delay so it doesn't block
+setTimeout(checkLatestVersion, 100);
 
 /** Published npm package name. */
 export const PACKAGE_NAME = '@agenttrace-io/cli';
