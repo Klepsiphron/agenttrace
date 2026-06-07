@@ -989,18 +989,18 @@ async function runMain(): Promise<void> {
         trace.close();
         console.log(`Created ${dbp}`);
       }
-      // Backfill: scan existing processes and import as historical runs
-      try {
-        const storage = new TraceStorage(dbp);
-        const imported = await backfillFromExistingProcesses(storage);
-        if (imported > 0) {
-          console.log(`Backfilled ${imported} existing agent process(es) from this machine.`);
-        }
-        storage.close();
-      } catch (e) {
-        // Non-fatal: backfill is best-effort
-        if (flags.verbose) console.error('Backfill skipped:', e);
-      }
+      // Backfill: scan existing processes and import as historical runs (non-blocking)
+      // Fire and forget -- don't block the init command
+      (async () => {
+        try {
+          const storage = new TraceStorage(dbp);
+          const imported = await backfillFromExistingProcesses(storage);
+          if (imported > 0) {
+            console.log(`Backfilled ${imported} existing agent process(es) from this machine.`);
+          }
+          storage.close();
+        } catch { /* non-fatal */ }
+      })();
       break;
     }
 
