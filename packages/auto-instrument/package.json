@@ -38,7 +38,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json && cp src/cli.js dist/cli.js",
+    "build": "tsc -p tsconfig.json && cp src/cli.cjs dist/cli.cjs",
     "dev": "tsc -p tsconfig.json --watch"
   },
   "devDependencies": {
