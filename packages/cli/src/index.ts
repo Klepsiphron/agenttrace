@@ -26,7 +26,7 @@ import { existsSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 
-export const VERSION = '0.4.1';
+export const VERSION = '0.4.2';
 
 // ── Version Check ──────────────────────────────────────────────────
 let _versionChecked = false;
