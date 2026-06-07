@@ -42,7 +42,7 @@ try {
 }
 
 export class TraceStorage {
-  private db: Database;
+  private db: any;
   private dbPath: string;
   private _droppedTraces: number = 0;
   private tenantId: string;
