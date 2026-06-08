@@ -133,7 +133,9 @@ function readVersion(): string {
       try {
         const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'));
         if (pkg.version) return pkg.version;
-      } catch { /* try next */ }
+      } catch {
+        /* try next */
+      }
     }
     return '0.0.0';
   } catch {

@@ -21,7 +21,9 @@ function readVersion(): string {
       const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'));
       if (pkg.version) return pkg.version;
     }
-  } catch { /* fallback */ }
+  } catch {
+    /* fallback */
+  }
   return '0.0.0';
 }
 export const VERSION = readVersion();
