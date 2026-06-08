@@ -16,7 +16,7 @@
     "dist"
   ],
   "dependencies": {
-    "@agenttrace-io/sdk": "0.4.15"
+    "@agenttrace-io/sdk": "workspace:*"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
