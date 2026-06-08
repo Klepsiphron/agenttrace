@@ -5,6 +5,9 @@
 
 import { randomUUID, createHash, createHmac } from 'node:crypto';
 import { EventEmitter } from 'node:events';
+import { existsSync, readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { TraceStorage } from './storage.js';
 import { TokenBucketRateLimiter } from './rate-limiter.js';
 import {
