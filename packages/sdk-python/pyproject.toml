@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "agenttrace-io"
-version = "0.4.7"
+version = "0.4.14"
 description = "AgentTrace Python SDK - Drop-in tracing for any AI agent"
 readme = "README.md"
 license = { text = "MIT" }

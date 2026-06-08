@@ -1069,8 +1069,24 @@ async function runMain(): Promise<void> {
       const rawPort = flags.port ? parseInt(String(flags.port), 10) : NaN;
       const port = Number.isFinite(rawPort) && rawPort > 0 ? rawPort : undefined;
       const host = typeof flags.host === 'string' ? String(flags.host) : undefined;
-      startDashboard({ dbPath: getDbPath(), port, host });
-      return;
+      try {
+        const server = startDashboard({ dbPath: getDbPath(), port, host });
+        return new Promise<void>((resolve) => {
+          server.on('close', () => resolve());
+          process.on('SIGINT', () => {
+            server.close();
+            resolve();
+          });
+          process.on('SIGTERM', () => {
+            server.close();
+            resolve();
+          });
+        });
+      } catch (e) {
+        console.error('Failed to start dashboard:', e);
+        process.exit(1);
+        return; // eslint-disable-line no-unreachable
+      }
     }
 
     case 'watch': {
@@ -2357,17 +2373,21 @@ const isMain = (() => {
   try {
     const invoked = process.argv[1];
     if (!invoked) return false;
-    const thisFile = fileURLToPath(import.meta.url);
-    // Normalize for cross-platform (esp. Windows backslashes)
-    return invoked === thisFile || invoked.replace(/\\/g, '/') === thisFile.replace(/\\/g, '/');
+    // Check if this file is being run directly (handles bin symlinks)
+    return invoked.includes('agenttrace-io') && invoked.endsWith('dist/index.js');
   } catch (_) {
-    /* ignore */
     return false;
   }
 })();
 
 if (isMain) {
-  main();
+  const result = main();
+  if (result && typeof (result as any).then === 'function') {
+    (result as Promise<void>).catch((err: unknown) => {
+      console.error('Error:', err instanceof Error ? err.message : String(err));
+      process.exit(1);
+    });
+  }
 }
 
 export { main };

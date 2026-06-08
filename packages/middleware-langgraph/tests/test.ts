@@ -18,7 +18,7 @@ function makeTempDb(): { path: string; cleanup: () => void } {
 
 describe('@agenttrace-io/middleware-langgraph', () => {
   it('exports version and package name', () => {
-    expect(VERSION).toBe('0.4.7');
+    expect(VERSION).toBe('0.4.12');
     expect(PACKAGE_NAME).toBe('@agenttrace-io/middleware-langgraph');
   });
 });
