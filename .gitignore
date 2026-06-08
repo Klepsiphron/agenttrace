@@ -8,10 +8,11 @@ coverage/
 !.env.example
 *.log
 .vscode/
-.idea/
+*.db
 *.sqlite
 *.sqlite-journal
-*.db
+*.db-shm
+*.wal
 .agenttrace/
 
 # Python
