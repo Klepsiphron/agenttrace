@@ -2377,7 +2377,13 @@ const isMain = (() => {
 })();
 
 if (isMain) {
-  main();
+  const result = main();
+  if (result && typeof result.then === 'function') {
+    result.catch((err: unknown) => {
+      console.error('Error:', err instanceof Error ? err.message : String(err));
+      process.exit(1);
+    });
+  }
 }
 
 export { main };
