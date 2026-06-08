@@ -35,7 +35,7 @@ import {
   WebhookDelivery,
 } from './types.js';
 
-export const VERSION = '0.4.14'; by sync-version.mjs
+export const VERSION = '0.4.14';
 export const PACKAGE_NAME = '@agenttrace-io/sdk';
 
 export type {
