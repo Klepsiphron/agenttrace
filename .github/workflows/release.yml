@@ -95,27 +95,7 @@ jobs:
             echo "No landing page to update"
           fi
 
-      # --- npm publish (OIDC trusted publishing, no token needed) ---
-      - name: Publish @agenttrace-io/sdk to npm
-        run: npm publish --access public --provenance
-        working-directory: packages/sdk
-        env:
-          NODE_AUTH_TOKEN: ""
-        continue-on-error: true
-
-      - name: Publish @agenttrace-io/dashboard to npm
-        run: npm publish --access public --provenance
-        working-directory: packages/dashboard
-        env:
-          NODE_AUTH_TOKEN: ""
-        continue-on-error: true
-
-      - name: Publish @agenttrace-io/cli to npm
-        run: npm publish --access public --provenance
-        working-directory: packages/cli
-        env:
-          NODE_AUTH_TOKEN: ""
-        continue-on-error: true
+      # --- npm publish (token-based) ---\n      - name: Publish @agenttrace-io/sdk to npm\n        run: npm publish --access public\n        working-directory: packages/sdk\n        env:\n          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}\n        continue-on-error: true\n\n      - name: Publish @agenttrace-io/dashboard to npm\n        run: npm publish --access public\n        working-directory: packages/dashboard\n        env:\n          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}\n        continue-on-error: true\n\n      - name: Publish @agenttrace-io/cli to npm\n        run: npm publish --access public\n        working-directory: packages/cli\n        env:\n          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}\n        continue-on-error: true
 
       # --- PyPI publish (OIDC Trusted Publishing, with token fallback) ---
       - name: Build Python package
