@@ -38,7 +38,7 @@ def cleanup_db(path: str) -> None:
 
 
 def test_version_and_package():
-    assert VERSION == "0.4.8"
+    assert VERSION == "0.4.12"
     assert PACKAGE_NAME == "agenttrace-io"
 
 

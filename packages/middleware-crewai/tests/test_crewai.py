@@ -66,7 +66,7 @@ class _FakeToolEnd:
 def test_version_exports():
     from agenttrace_middleware import VERSION, PACKAGE_NAME
 
-    assert VERSION == "0.4.8"
+    assert VERSION == "0.4.12"
     assert PACKAGE_NAME == "agenttrace-io-middleware-crewai"
 
 
