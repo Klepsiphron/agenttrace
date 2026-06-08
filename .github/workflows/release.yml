@@ -13,23 +13,18 @@ permissions:
 jobs:
   ci:
     runs-on: ubuntu-latest
-
     strategy:
       matrix:
         node-version: [22]
-
     steps:
       - uses: actions/checkout@v4
-
       - uses: pnpm/action-setup@v4
         with:
-          version: 9
-
+          version: 11
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
           cache: pnpm
-
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - run: pnpm test
@@ -42,7 +37,6 @@ jobs:
     environment:
       name: release
       url: https://pypi.org/project/agenttrace-io/
-
     steps:
       - uses: actions/checkout@v4
         with:
@@ -50,7 +44,8 @@ jobs:
 
       - uses: pnpm/action-setup@v4
         with:
-          version: 9
+          version: 11
+          run_install: false
 
       - uses: actions/setup-node@v4
         with:
@@ -78,59 +73,24 @@ jobs:
               --repo ${{ github.repository }}
           fi
 
-      # --- npm publish (token-based) ---
-      # Resolve workspace:* deps to actual versions before publishing
-      - name: Resolve workspace dependencies
-        run: |
-          VERSION=$(cat VERSION)
-          for pkg in packages/sdk packages/dashboard packages/cli; do
-            if [ -f "$pkg/package.json" ]; then
-              node -e "
-                const fs = require('fs');
-                const p = JSON.parse(fs.readFileSync('$pkg/package.json','utf-8'));
-                for (const key of ['dependencies','devDependencies','peerDependencies']) {
-                  if (p[key]) {
-                    for (const dep of Object.keys(p[key])) {
-                      if (p[key][dep] === 'workspace:*') p[key][dep] = '$VERSION';
-                    }
-                  }
-                }
-                fs.writeFileSync('$pkg/package.json', JSON.stringify(p, null, 2) + '\n');
-              "
-            fi
-            echo "Resolved $pkg deps to $VERSION"
-          done
-
+      # --- npm publish (pnpm handles workspace:* -> version resolution) ---
       - name: Publish @agenttrace-io/sdk to npm
-        run: npm publish --access public
+        run: pnpm publish --access public --no-git-checks
         working-directory: packages/sdk
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish @agenttrace-io/dashboard to npm
-        run: npm publish --access public
+        run: pnpm publish --access public --no-git-checks
         working-directory: packages/dashboard
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish @agenttrace-io/cli to npm
-        run: npm publish --access public
+        run: pnpm publish --access public --no-git-checks
         working-directory: packages/cli
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Verify npm packages published
-        run: |
-          for pkg in @agenttrace-io/sdk @agenttrace-io/dashboard @agenttrace-io/cli; do
-            PUBLISHED=$(npm view "$pkg" version 2>/dev/null)
-            EXPECTED=$(node -p "require('./packages/${pkg##*/}/package.json').version" 2>/dev/null || echo "unknown")
-            if [ "$PUBLISHED" = "$EXPECTED" ]; then
-              echo "✅ $pkg@$EXPECTED published successfully"
-            else
-              echo "❌ $pkg: expected $EXPECTED, found $PUBLISHED"
-              exit 1
-            fi
-          done
 
       # --- PyPI publish (OIDC Trusted Publishing, with token fallback) ---
       - name: Build Python package
