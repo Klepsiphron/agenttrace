@@ -1071,7 +1071,6 @@ async function runMain(): Promise<void> {
       const host = typeof flags.host === 'string' ? String(flags.host) : undefined;
       try {
         const server = startDashboard({ dbPath: getDbPath(), port, host });
-        // Keep process alive until server closes
         return new Promise<void>((resolve) => {
           server.on('close', () => resolve());
           process.on('SIGINT', () => { server.close(); resolve(); });
@@ -1080,7 +1079,9 @@ async function runMain(): Promise<void> {
       } catch (e) {
         console.error('Failed to start dashboard:', e);
         process.exit(1);
+        return; // eslint-disable-line no-unreachable
       }
+    }
     }
 
     case 'watch': {
