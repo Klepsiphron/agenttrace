@@ -6,8 +6,8 @@
   "type": "module",
   "bin": "./dist/index.js",
   "dependencies": {
-    "@agenttrace-io/dashboard": "workspace:*",
-    "@agenttrace-io/sdk": "workspace:*"
+    "@agenttrace-io/dashboard": "0.4.17",
+    "@agenttrace-io/sdk": "0.4.17"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
