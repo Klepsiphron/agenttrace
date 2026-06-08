@@ -1097,7 +1097,7 @@ async function runMain(): Promise<void> {
         console.error('Failed to start dashboard:', e);
         process.exit(1);
       }
-    }
+    } // eslint-disable-next-line no-fallthrough
 
     case 'watch': {
       // Background watcher: auto-discovers and traces all running agents
