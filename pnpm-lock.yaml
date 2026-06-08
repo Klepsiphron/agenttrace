@@ -66,8 +66,8 @@ importers:
   packages/dashboard:
     dependencies:
       '@agenttrace-io/sdk':
-        specifier: 0.4.7
-        version: 0.4.7(better-sqlite3@12.10.0)
+        specifier: 0.4.13
+        version: 0.4.13(better-sqlite3@12.10.0)
       express:
         specifier: ^5.2.1
         version: 5.2.1
@@ -82,8 +82,8 @@ importers:
   packages/middleware-langgraph:
     dependencies:
       '@agenttrace-io/sdk':
-        specifier: 0.4.7
-        version: 0.4.7(better-sqlite3@12.10.0)
+        specifier: 0.4.13
+        version: 0.4.13(better-sqlite3@12.10.0)
 
   packages/sdk:
     dependencies:
