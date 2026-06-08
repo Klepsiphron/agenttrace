@@ -36,7 +36,7 @@ agenttrace-io stats
 
 - **Zero-config tracing** -- `agenttrace-io wrap <command>` traces any CLI agent with zero code changes
 - **Token & cost tracking** -- Every LLM call tracked with per-model pricing
-- **Multi-agent correlation** -- Trace across subagent trees with parent/child linking
+- **Multi-agent correlation** -- Trace across agent trees with parent/child linking
 - **Budget alerts** -- Set per-agent token limits, get alerts before overspend
 - **Local dashboard** -- Dark-themed web UI, runs on localhost, no cloud dependency
 - **SQLite storage** -- All data stays on your machine. No external database needed.

@@ -30,7 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CLI: `wrap` command for zero-config agent tracing
 - CLI: budget tracking and alerting commands
 - CLI: budget tracking and alerting commands
-- Hermes bridge script to import session data into AgentTrace
+- Session bridge script to import session data into AgentTrace
 - Comprehensive CLI command tests (24 tests)
 - LangGraph middleware integration tests (27 tests)
 - Multi-tenant test coverage (23 tests)
