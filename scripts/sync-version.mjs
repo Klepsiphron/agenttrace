@@ -23,7 +23,11 @@ for (const pkg of packages) {
   if (existsSync(pkgJsonPath)) {
     const pkgJson = JSON.parse(readFileSync(pkgJsonPath, 'utf-8'));
     pkgJson.version = version;
-    // Replace workspace refs
+    // Replace workspace refs with exact version for publishing
+    // NOTE: Only do this at publish time, not during prebuild/pretest.
+    // workspace:* refs are needed for local pnpm install to work.
+    // Uncomment the block below before publishing:
+    /*
     for (const key of ['dependencies', 'devDependencies', 'peerDependencies']) {
       if (pkgJson[key]) {
         for (const dep of Object.keys(pkgJson[key])) {
@@ -33,6 +37,7 @@ for (const pkg of packages) {
         }
       }
     }
+    */
     writeFileSync(pkgJsonPath, JSON.stringify(pkgJson, null, 2) + '\n');
   }
   // Also handle pyproject.toml for Python packages
