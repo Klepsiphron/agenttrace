@@ -2384,6 +2384,8 @@ if (isMain) {
       process.exit(1);
     });
   }
+  // Keep process alive for commands that start servers (dashboard, watch)
+  process.stdin.resume();
 }
 
 export { main };
