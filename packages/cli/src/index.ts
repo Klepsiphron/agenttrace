@@ -1069,7 +1069,7 @@ async function runMain(): Promise<void> {
       const rawPort = flags.port ? parseInt(String(flags.port), 10) : NaN;
       const port = Number.isFinite(rawPort) && rawPort > 0 ? rawPort : undefined;
       const host = typeof flags.host === 'string' ? String(flags.host) : undefined;
-      startDashboard({ dbPath: getDbPath(), port, host });
+      await startDashboard({ dbPath: getDbPath(), port, host });
       return;
     }
 
