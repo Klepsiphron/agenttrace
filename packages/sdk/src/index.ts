@@ -38,7 +38,18 @@ import {
   WebhookDelivery,
 } from './types.js';
 
-export const VERSION = '0.4.14';
+function readVersion(): string {
+  try {
+    const __dirname = dirname(fileURLToPath(import.meta.url));
+    const pkgPath = join(__dirname, '..', 'package.json');
+    if (existsSync(pkgPath)) {
+      const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'));
+      if (pkg.version) return pkg.version;
+    }
+  } catch { /* fallback */ }
+  return '0.0.0';
+}
+export const VERSION = readVersion();
 export const PACKAGE_NAME = '@agenttrace-io/sdk';
 
 export type {

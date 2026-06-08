@@ -10,7 +10,18 @@ import os from 'node:os';
 import crypto from 'node:crypto';
 import { AgentTrace, DashboardConfig, ExportFormat, AgentUsageRecord } from '@agenttrace-io/sdk';
 
-export const VERSION = '0.4.14';
+function readVersion(): string {
+  try {
+    const __dirname = path.dirname(fileURLToPath(import.meta.url));
+    const pkgPath = path.join(__dirname, '..', 'package.json');
+    if (fs.existsSync(pkgPath)) {
+      const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
+      if (pkg.version) return pkg.version;
+    }
+  } catch { /* fallback */ }
+  return '0.0.0';
+}
+export const VERSION = readVersion();
 export const PACKAGE_NAME = '@agenttrace-io/dashboard';
 
 const __filename = fileURLToPath(import.meta.url);
