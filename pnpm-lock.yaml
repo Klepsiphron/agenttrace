@@ -57,17 +57,17 @@ importers:
   packages/cli:
     dependencies:
       '@agenttrace-io/dashboard':
-        specifier: 0.4.17
-        version: 0.4.17
+        specifier: workspace:*
+        version: link:../dashboard
       '@agenttrace-io/sdk':
-        specifier: 0.4.17
-        version: 0.4.17(better-sqlite3@12.10.0)
+        specifier: workspace:*
+        version: link:../sdk
 
   packages/dashboard:
     dependencies:
       '@agenttrace-io/sdk':
-        specifier: 0.4.17
-        version: 0.4.17(better-sqlite3@12.10.0)
+        specifier: workspace:*
+        version: link:../sdk
       express:
         specifier: ^5.2.1
         version: 5.2.1
@@ -96,14 +96,6 @@ importers:
         version: 7.6.13
 
 packages:
-
-  '@agenttrace-io/dashboard@0.4.17':
-    resolution: {integrity: sha512-Qe7TpeD64iSLYrmszHRB8du+gksb7TI9cOrYsIHbNPEskI6Jj2OeiFfVt8bK8PRelQlj3IVGN4++Ce2Aglf1Qw==}
-
-  '@agenttrace-io/sdk@0.4.17':
-    resolution: {integrity: sha512-MHsfrjoeYH8RflX2YIwvq9ePQrt3sjK17E7AZ7XQH6KIxJi15H6CAx7qgqajLMGuvH4/Ix7ek8Bi6mm1IqfJbQ==}
-    peerDependencies:
-      better-sqlite3: ^12.10.0
 
   '@asamuzakjp/css-color@5.1.11':
     resolution: {integrity: sha512-KVw6qIiCTUQhByfTd78h2yD1/00waTmm9uy/R7Ck/ctUyAPj+AEDLkQIdJW0T8+qGgj3j5bpNKK7Q3G+LedJWg==}
@@ -1479,17 +1471,6 @@ packages:
     engines: {node: '>=10'}
 
 snapshots:
-
-  '@agenttrace-io/dashboard@0.4.17':
-    dependencies:
-      '@agenttrace-io/sdk': link:packages/sdk
-      express: 5.2.1
-    transitivePeerDependencies:
-      - supports-color
-
-  '@agenttrace-io/sdk@0.4.17(better-sqlite3@12.10.0)':
-    dependencies:
-      better-sqlite3: 12.10.0
 
   '@asamuzakjp/css-color@5.1.11':
     dependencies:

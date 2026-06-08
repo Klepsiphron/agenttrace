@@ -1,6 +1,6 @@
 {
   "name": "@agenttrace-io/middleware-langgraph",
-  "version": "0.4.18",
+  "version": "0.4.19",
   "description": "LangGraph middleware for AgentTrace - automatic tracing of node executions",
   "license": "MIT",
   "type": "module",
@@ -16,7 +16,7 @@
     "dist"
   ],
   "dependencies": {
-    "@agenttrace-io/sdk": "0.4.18"
+    "@agenttrace-io/sdk": "workspace:*"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
