@@ -54,6 +54,11 @@ for (const pkg of packages) {
       if (existsSync(tsPath)) {
         let content = readFileSync(tsPath, 'utf-8');
         content = content.replace(
+          /export const VERSION = '[^']*';?\s*\/\/.*$/,
+          `export const VERSION = '${version}';`
+        );
+        // Also handle any remaining placeholder
+        content = content.replace(
           /export const VERSION = '0\.0\.0';.*/,
           `export const VERSION = '${version}';`
         );
