@@ -35,17 +35,8 @@ import {
   WebhookDelivery,
 } from './types.js';
 
-let _version: string | undefined;
-export function getVersion(): string {
-  if (_version) return _version;
-  try {
-    const pkg = JSON.parse(readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'package.json'), 'utf-8'));
-    _version = pkg.version;
-  } catch { _version = '0.0.0'; }
-  return _version;
-}
-// Keep VERSION as a lazy constant for backwards compat
-export const VERSION = getVersion();
+export const VERSION = '0.0.0'; // Replaced at build time by sync-version.mjs
+export const PACKAGE_NAME = '@agenttrace-io/sdk';
 
 export type {
   Trace,
