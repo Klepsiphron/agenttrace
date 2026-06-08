@@ -2374,10 +2374,12 @@ const isMain = (() => {
     const invoked = process.argv[1];
     if (!invoked) return false;
     const thisFile = fileURLToPath(import.meta.url);
-    // Normalize for cross-platform (esp. Windows backslashes)
-    return invoked === thisFile || invoked.replace(/\\/g, '/') === thisFile.replace(/\\/g, '/');
+    // Resolve symlinks for both paths
+    const { realpathSync } = require('node:fs');
+    const invokedReal = realpathSync(invoked);
+    const thisReal = realpathSync(thisFile);
+    return invokedReal === thisReal;
   } catch (_) {
-    /* ignore */
     return false;
   }
 })();
