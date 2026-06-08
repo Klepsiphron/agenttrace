@@ -1069,9 +1069,18 @@ async function runMain(): Promise<void> {
       const rawPort = flags.port ? parseInt(String(flags.port), 10) : NaN;
       const port = Number.isFinite(rawPort) && rawPort > 0 ? rawPort : undefined;
       const host = typeof flags.host === 'string' ? String(flags.host) : undefined;
-      startDashboard({ dbPath: getDbPath(), port, host });
-      // Keep process alive
-      return new Promise(() => {});
+      try {
+        const server = startDashboard({ dbPath: getDbPath(), port, host });
+        // Keep process alive until server closes
+        return new Promise<void>((resolve) => {
+          server.on('close', () => resolve());
+          process.on('SIGINT', () => { server.close(); resolve(); });
+          process.on('SIGTERM', () => { server.close(); resolve(); });
+        });
+      } catch (e) {
+        console.error('Failed to start dashboard:', e);
+        process.exit(1);
+      }
     }
 
     case 'watch': {
