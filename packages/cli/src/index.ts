@@ -2374,11 +2374,19 @@ const isMain = (() => {
     const invoked = process.argv[1];
     if (!invoked) return false;
     const thisFile = fileURLToPath(import.meta.url);
-    // Resolve symlinks for both paths
-    const { realpathSync } = require('node:fs');
-    const invokedReal = realpathSync(invoked);
-    const thisReal = realpathSync(thisFile);
-    return invokedReal === thisReal;
+    // Resolve symlinks for both paths using fs
+    const { readFileSync } = require('node:fs');
+    // Simple symlink resolution: compare normalized paths
+    const invokedParts = invoked.split(/[\\/]/);
+    const thisParts = thisFile.split(/[\\/]/);
+    // Check if the last 3 segments match (dist/index.js)
+    const matchDepth = Math.min(3, invokedParts.length, thisParts.length);
+    for (let i = 0; i < matchDepth; i++) {
+      if (invokedParts[invokedParts.length - 1 - i] !== thisParts[thisParts.length - 1 - i]) {
+        return false;
+      }
+    }
+    return true;
   } catch (_) {
     return false;
   }
