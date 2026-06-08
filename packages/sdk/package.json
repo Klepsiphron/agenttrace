@@ -32,16 +32,16 @@
     "token-tracking"
   ],
   "peerDependencies": {
-    "better-sqlite3": "^11.0.0"
+    "better-sqlite3": "^12.10.0"
   },
   "peerDependenciesMeta": {
     "better-sqlite3": {
       "optional": false
     }
   },
-  "files": [
-    "dist"
-  ],
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12"
+  }
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "dev": "tsc -p tsconfig.json --watch",
