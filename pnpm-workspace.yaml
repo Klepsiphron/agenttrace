@@ -11,4 +11,7 @@ minimumReleaseAgeExclude:
   - '@agenttrace-io/sdk@0.4.8'
   - '@agenttrace-io/dashboard@0.4.13'
   - '@agenttrace-io/sdk@0.4.13'
-minimumReleaseAge: 0
+  - '@agenttrace-io/dashboard@0.4.14'
+  - '@agenttrace-io/sdk@0.4.14'
+  - '@agenttrace-io/dashboard@0.4.15'
+  - '@agenttrace-io/sdk@0.4.15'
