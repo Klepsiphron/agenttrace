@@ -1069,8 +1069,13 @@ async function runMain(): Promise<void> {
       const rawPort = flags.port ? parseInt(String(flags.port), 10) : NaN;
       const port = Number.isFinite(rawPort) && rawPort > 0 ? rawPort : undefined;
       const host = typeof flags.host === 'string' ? String(flags.host) : undefined;
-      await startDashboard({ dbPath: getDbPath(), port, host });
-      return;
+      const server = startDashboard({ dbPath: getDbPath(), port, host });
+      // Keep process alive until server closes
+      return new Promise<void>((resolve) => {
+        server.on('close', () => resolve());
+        process.on('SIGINT', () => { server.close(); resolve(); });
+        process.on('SIGTERM', () => { server.close(); resolve(); });
+      });
     }
 
     case 'watch': {
