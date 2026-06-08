@@ -124,9 +124,18 @@ function detectAgents(
 function readVersion(): string {
   try {
     const __dirname = dirname(fileURLToPath(import.meta.url));
-    const pkgPath = join(__dirname, '..', 'package.json');
-    const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'));
-    return pkg.version;
+    // Try multiple paths: dist/../package.json (normal), dist/../../package.json (workspace root)
+    const candidates = [
+      join(__dirname, '..', 'package.json'),
+      join(__dirname, '..', '..', 'package.json'),
+    ];
+    for (const pkgPath of candidates) {
+      try {
+        const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'));
+        if (pkg.version) return pkg.version;
+      } catch { /* try next */ }
+    }
+    return '0.0.0';
   } catch {
     return '0.0.0';
   }
@@ -2373,12 +2382,30 @@ const isMain = (() => {
   try {
     const invoked = process.argv[1];
     if (!invoked) return false;
-    // Check if this file is being run directly (handles bin symlinks, relative paths, etc.)
-    return (
-      invoked.endsWith('dist/index.js') ||
-      invoked.includes('@agenttrace-io/cli') ||
-      invoked.includes('agenttrace-io/cli')
-    );
+    // Resolve symlinks (npm bin symlinks point to dist/index.js)
+    let resolved: string;
+    try {
+      resolved = require('node:fs').realpathSync(invoked);
+    } catch {
+      resolved = invoked;
+    }
+    // Check resolved path and raw path for all known entry points
+    const targets = [resolved, invoked];
+    for (const t of targets) {
+      if (
+        t.endsWith('dist/index.js') ||
+        t.includes('@agenttrace-io/cli') ||
+        t.includes('agenttrace-io/cli') ||
+        t.endsWith('/agenttrace-io') ||
+        t.endsWith('/agenttrace')
+      ) {
+        return true;
+      }
+    }
+    // Fallback: check if this module is the entry point via import.meta.url
+    const thisFile = fileURLToPath(import.meta.url);
+    if (resolved === thisFile || invoked === thisFile) return true;
+    return false;
   } catch (_) {
     return false;
   }
