@@ -1096,7 +1096,6 @@ async function runMain(): Promise<void> {
       } catch (e) {
         console.error('Failed to start dashboard:', e);
         process.exit(1);
-        return; // eslint-disable-line no-unreachable
       }
     }
 
