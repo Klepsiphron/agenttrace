@@ -80,19 +80,19 @@ jobs:
 
       # --- npm publish (token-based) ---
       - name: Publish @agenttrace-io/sdk to npm
-        run: npm publish --access public
+        run: pnpm publish --access public --no-git-checks
         working-directory: packages/sdk
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish @agenttrace-io/dashboard to npm
-        run: npm publish --access public
+        run: pnpm publish --access public --no-git-checks
         working-directory: packages/dashboard
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish @agenttrace-io/cli to npm
-        run: npm publish --access public
+        run: pnpm publish --access public --no-git-checks
         working-directory: packages/cli
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
