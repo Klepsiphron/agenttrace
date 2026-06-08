@@ -3,6 +3,9 @@
  * Automatic tracing for LangGraph node executions (JS/TS)
  */
 import { randomUUID } from 'node:crypto';
+import { existsSync, readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import {
   AgentTrace,
   type TraceConfig,
@@ -10,7 +13,18 @@ import {
   type TraceStorage,
 } from '@agenttrace-io/sdk';
 
-export const VERSION = '0.4.14';
+function readVersion(): string {
+  try {
+    const __dirname = dirname(fileURLToPath(import.meta.url));
+    const pkgPath = join(__dirname, '..', 'package.json');
+    if (existsSync(pkgPath)) {
+      const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'));
+      if (pkg.version) return pkg.version;
+    }
+  } catch { /* fallback */ }
+  return '0.0.0';
+}
+export const VERSION = readVersion();
 export const PACKAGE_NAME = '@agenttrace-io/middleware-langgraph';
 
 export type { TraceConfig } from '@agenttrace-io/sdk';
