@@ -1073,8 +1073,14 @@ async function runMain(): Promise<void> {
         const server = startDashboard({ dbPath: getDbPath(), port, host });
         return new Promise<void>((resolve) => {
           server.on('close', () => resolve());
-          process.on('SIGINT', () => { server.close(); resolve(); });
-          process.on('SIGTERM', () => { server.close(); resolve(); });
+          process.on('SIGINT', () => {
+            server.close();
+            resolve();
+          });
+          process.on('SIGTERM', () => {
+            server.close();
+            resolve();
+          });
         });
       } catch (e) {
         console.error('Failed to start dashboard:', e);
