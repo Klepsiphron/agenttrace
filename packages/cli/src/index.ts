@@ -1082,7 +1082,6 @@ async function runMain(): Promise<void> {
         return; // eslint-disable-line no-unreachable
       }
     }
-    }
 
     case 'watch': {
       // Background watcher: auto-discovers and traces all running agents
