@@ -2384,8 +2384,8 @@ const isMain = (() => {
 
 if (isMain) {
   const result = main();
-  if (result instanceof Promise) {
-    result.catch((err: unknown) => {
+  if (result && typeof (result as any).then === 'function') {
+    (result as Promise<void>).catch((err: unknown) => {
       console.error('Error:', err instanceof Error ? err.message : String(err));
       process.exit(1);
     });
