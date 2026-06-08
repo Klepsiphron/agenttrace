@@ -427,7 +427,9 @@ class TraceStorage:
             return None
         return self._row_to_trace(row)
 
-    def get_traces(self, filter: TraceFilter | dict[str, Any] = {}) -> list[Trace]:
+    def get_traces(self, filter: TraceFilter | dict[str, Any] | int = {}) -> list[Trace]:
+        if isinstance(filter, int):
+            filter = {"limit": filter}
         if isinstance(filter, dict):
             f = filter
         else:
