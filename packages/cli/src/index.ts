@@ -2373,8 +2373,8 @@ const isMain = (() => {
   try {
     const invoked = process.argv[1];
     if (!invoked) return false;
-    // Check if this file is being run directly (handles bin symlinks)
-    return invoked.includes('agenttrace-io') && invoked.endsWith('dist/index.js');
+    // Check if this file is being run directly (handles bin symlinks, relative paths, etc.)
+    return invoked.endsWith('dist/index.js') || invoked.includes('@agenttrace-io/cli') || invoked.includes('agenttrace-io/cli');
   } catch (_) {
     return false;
   }
