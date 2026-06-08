@@ -57,11 +57,11 @@ importers:
   packages/cli:
     dependencies:
       '@agenttrace-io/dashboard':
-        specifier: 0.4.8
-        version: 0.4.8(better-sqlite3@12.10.0)
+        specifier: 0.4.13
+        version: 0.4.13(better-sqlite3@12.10.0)
       '@agenttrace-io/sdk':
-        specifier: 0.4.8
-        version: 0.4.8(better-sqlite3@12.10.0)
+        specifier: 0.4.13
+        version: 0.4.13(better-sqlite3@12.10.0)
 
   packages/dashboard:
     dependencies:
@@ -97,16 +97,16 @@ importers:
 
 packages:
 
-  '@agenttrace-io/dashboard@0.4.8':
-    resolution: {integrity: sha512-WfXEUEFvbxx/1+Pi+ECP6mFTPv0lNqf7o60wcdIE/1nLEAoau3l149IgtI3GkMKON7Tbu8/ZyJazZG6tidnyeA==}
+  '@agenttrace-io/dashboard@0.4.13':
+    resolution: {integrity: sha512-1MJqXbON70Nu+N8fBBfYMiCSIaDk0xlYB8uS1DvPThujaFxqsG95To34XqLOALVRwI2+++WgYq7VW6MlgdBjzQ==}
+
+  '@agenttrace-io/sdk@0.4.13':
+    resolution: {integrity: sha512-bQbheh914OEjCEM7ZbBCHr3qeyF/S11Yt8KBdoZfUAa1BzkfI4sgM8CO/DJTMlNsPrUl2QRsLmRid9KF8ZcEwg==}
+    peerDependencies:
+      better-sqlite3: ^12.10.0
 
   '@agenttrace-io/sdk@0.4.7':
     resolution: {integrity: sha512-uWY9x9E4C1sOFYWoWvW4xklYc358KkkPHp9AdwtnIak0jfAVEsX2CUscQvwqFKRydmS6sld1+cQtrwSwMW+AUw==}
-    peerDependencies:
-      better-sqlite3: ^11.0.0
-
-  '@agenttrace-io/sdk@0.4.8':
-    resolution: {integrity: sha512-KNwK9ftarxxLlKj4o2A1VSyaURyVxVff5TmPDZpBnM7v0ILLFHd5rDN6Lv9xsE6BpSw9MYwVKoHmHwU9DzcLQA==}
     peerDependencies:
       better-sqlite3: ^11.0.0
 
@@ -1485,7 +1485,7 @@ packages:
 
 snapshots:
 
-  '@agenttrace-io/dashboard@0.4.8(better-sqlite3@12.10.0)':
+  '@agenttrace-io/dashboard@0.4.13(better-sqlite3@12.10.0)':
     dependencies:
       '@agenttrace-io/sdk': 0.4.7(better-sqlite3@12.10.0)
       express: 5.2.1
@@ -1493,11 +1493,11 @@ snapshots:
       - better-sqlite3
       - supports-color
 
-  '@agenttrace-io/sdk@0.4.7(better-sqlite3@12.10.0)':
+  '@agenttrace-io/sdk@0.4.13(better-sqlite3@12.10.0)':
     dependencies:
       better-sqlite3: 12.10.0
 
-  '@agenttrace-io/sdk@0.4.8(better-sqlite3@12.10.0)':
+  '@agenttrace-io/sdk@0.4.7(better-sqlite3@12.10.0)':
     dependencies:
       better-sqlite3: 12.10.0
 
