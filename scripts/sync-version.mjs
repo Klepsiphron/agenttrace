@@ -45,6 +45,35 @@ for (const pkg of packages) {
     );
     writeFileSync(pyprojectPath, content);
   }
+  // Also replace VERSION placeholder in TypeScript source files
+  const srcDir = join(rootDir, pkg, 'src');
+  if (existsSync(srcDir)) {
+    const tsFiles = ['index.ts'];
+    for (const tsFile of tsFiles) {
+      const tsPath = join(srcDir, tsFile);
+      if (existsSync(tsPath)) {
+        let content = readFileSync(tsPath, 'utf-8');
+        content = content.replace(
+          /export const VERSION = '0\.0\.0'; \/\/ Replaced at build time/,
+          `export const VERSION = '${version}';`
+        );
+        writeFileSync(tsPath, content);
+      }
+    }
+  }
+  // Also handle Python VERSION constants
+  const pyCore = join(srcDir, 'agenttrace', 'core.py');
+  if (existsSync(pyCore)) {
+    let content = readFileSync(pyCore, 'utf-8');
+    content = content.replace(/VERSION = "0\.0\.0"/, `VERSION = "${version}"`);
+    writeFileSync(pyCore, content);
+  }
+  const pyInit = join(srcDir, 'agenttrace_middleware', '__init__.py');
+  if (existsSync(pyInit)) {
+    let content = readFileSync(pyInit, 'utf-8');
+    content = content.replace(/VERSION = "0\.0\.0"/, `VERSION = "${version}"`);
+    writeFileSync(pyInit, content);
+  }
 }
 
 console.log(`Synced version ${version} to all packages`);
