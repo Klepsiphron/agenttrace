@@ -2387,7 +2387,7 @@ const isMain = (() => {
     // Resolve symlinks (npm bin symlinks point to dist/index.js)
     let resolved: string;
     try {
-      resolved = require('node:fs').realpathSync(invoked);
+      resolved = realpathSync(invoked);
     } catch {
       resolved = invoked;
     }
