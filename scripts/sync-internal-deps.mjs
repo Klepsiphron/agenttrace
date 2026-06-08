@@ -34,10 +34,10 @@ for (const pkg of packages) {
 for (const pkg of packages) {
   const pkgJsonPath = join(rootDir, pkg, 'package.json');
   if (!existsSync(pkgJsonPath)) continue;
-  
+
   const pkgJson = JSON.parse(readFileSync(pkgJsonPath, 'utf-8'));
   let changed = false;
-  
+
   for (const key of ['dependencies', 'devDependencies', 'peerDependencies']) {
     if (!pkgJson[key]) continue;
     for (const dep of Object.keys(pkgJson[key])) {
@@ -48,7 +48,7 @@ for (const pkg of packages) {
       }
     }
   }
-  
+
   if (changed) {
     writeFileSync(pkgJsonPath, JSON.stringify(pkgJson, null, 2) + '\n');
     console.log(`Updated internal deps in ${pkg}`);
