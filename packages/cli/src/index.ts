@@ -2370,17 +2370,16 @@ function main(): void | Promise<void> {
 // Run CLI main() only when this file is executed directly (bin or `node dist/index.js`).
 // Prevents side effects (e.g. printing help) when the module is imported (tests, `require`/`import`).
 const isMain = (() => {
-  try {
-    const invoked = process.argv[1];
-    if (!invoked) return false;
-    const thisFile = fileURLToPath(import.meta.url);
-    // Normalize paths: resolve .., ., and symlinks
-    const { realpathSync } = await import('node:fs');
-    return realpathSync(invoked) === realpathSync(thisFile);
-  } catch (_) {
-    return false;
-  }
-})();
+  const isMain = (() => {
+    try {
+      const invoked = process.argv[1];
+      if (!invoked) return false;
+      // Check if this file is being run directly (via bin symlink or direct path)
+      return invoked.includes('agenttrace-io') && invoked.endsWith('dist/index.js');
+    } catch (_) {
+      return false;
+    }
+  })();
 
 if (isMain) {
   const result = main();
