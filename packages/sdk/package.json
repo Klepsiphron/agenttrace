@@ -39,15 +39,15 @@
       "optional": false
     }
   },
-  "devDependencies": {
-    "@types/better-sqlite3": "^7.6.12"
-  }
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "dev": "tsc -p tsconfig.json --watch",
     "test": "vitest run --config ../../vitest.config.ts packages/sdk"
   },
   "devDependencies": {
-    "@types/better-sqlite3": "^7.6.11"
+    "@types/better-sqlite3": "^7.6.12"
   }
 }
