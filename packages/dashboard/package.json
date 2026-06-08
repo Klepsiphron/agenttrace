@@ -39,7 +39,7 @@
   },
   "dependencies": {
     "express": "^5.2.1",
-    "@agenttrace-io/sdk": "0.4.13"
+    ""@agenttrace-io/sdk": "0.4.13"": "0.4.15"
   },
   "devDependencies": {
     "@types/express": "^5.0.6",
