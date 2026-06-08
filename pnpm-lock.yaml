@@ -57,17 +57,17 @@ importers:
   packages/cli:
     dependencies:
       '@agenttrace-io/dashboard':
-        specifier: workspace:*
-        version: link:../dashboard
+        specifier: 0.4.7
+        version: 0.4.7(better-sqlite3@12.10.0)
       '@agenttrace-io/sdk':
-        specifier: workspace:*
-        version: link:../sdk
+        specifier: 0.4.7
+        version: 0.4.7(better-sqlite3@12.10.0)
 
   packages/dashboard:
     dependencies:
       '@agenttrace-io/sdk':
-        specifier: workspace:*
-        version: link:../sdk
+        specifier: 0.4.7
+        version: 0.4.7(better-sqlite3@12.10.0)
       express:
         specifier: ^5.2.1
         version: 5.2.1
@@ -82,8 +82,8 @@ importers:
   packages/middleware-langgraph:
     dependencies:
       '@agenttrace-io/sdk':
-        specifier: workspace:*
-        version: link:../sdk
+        specifier: 0.4.7
+        version: 0.4.7(better-sqlite3@12.10.0)
 
   packages/sdk:
     dependencies:
@@ -96,6 +96,14 @@ importers:
         version: 7.6.13
 
 packages:
+
+  '@agenttrace-io/dashboard@0.4.7':
+    resolution: {integrity: sha512-8tZG3//UKKA/a1v0pEpZ9vISHRocOLVOhjy3sUt/QiZ5YerQAysJFJx3aXSO7yeJUyu1FJR0oBuSL/78Bdb8SA==}
+
+  '@agenttrace-io/sdk@0.4.7':
+    resolution: {integrity: sha512-uWY9x9E4C1sOFYWoWvW4xklYc358KkkPHp9AdwtnIak0jfAVEsX2CUscQvwqFKRydmS6sld1+cQtrwSwMW+AUw==}
+    peerDependencies:
+      better-sqlite3: ^11.0.0
 
   '@asamuzakjp/css-color@5.1.11':
     resolution: {integrity: sha512-KVw6qIiCTUQhByfTd78h2yD1/00waTmm9uy/R7Ck/ctUyAPj+AEDLkQIdJW0T8+qGgj3j5bpNKK7Q3G+LedJWg==}
@@ -1477,6 +1485,18 @@ packages:
     engines: {node: '>=10'}
 
 snapshots:
+
+  '@agenttrace-io/dashboard@0.4.7(better-sqlite3@12.10.0)':
+    dependencies:
+      '@agenttrace-io/sdk': 0.4.7(better-sqlite3@12.10.0)
+      express: 5.2.1
+    transitivePeerDependencies:
+      - better-sqlite3
+      - supports-color
+
+  '@agenttrace-io/sdk@0.4.7(better-sqlite3@12.10.0)':
+    dependencies:
+      better-sqlite3: 12.10.0
 
   '@asamuzakjp/css-color@5.1.11':
     dependencies:

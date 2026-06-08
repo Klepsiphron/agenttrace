@@ -5,3 +5,5 @@ allowBuilds:
   esbuild: true
 minimumReleaseAgeExclude:
   - '@types/node@25.9.2'
+  - '@agenttrace-io/dashboard@0.4.7'
+  - '@agenttrace-io/sdk@0.4.7'
