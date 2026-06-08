@@ -22,7 +22,7 @@ import {
   TraceStorage,
 } from '@agenttrace-io/sdk';
 import { startDashboard } from '@agenttrace-io/dashboard';
-import { existsSync, writeFileSync, readFileSync, mkdirSync } from 'node:fs';
+import { existsSync, writeFileSync, readFileSync, mkdirSync, realpathSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { homedir } from 'node:os';
