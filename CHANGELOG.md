@@ -65,7 +65,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 - Comprehensive security audit: 0 hits across 10 categories
-- Removed all internal references (hermes, owl, ryano paths) from public files
+- Removed all internal references from public files
 - Removed AGENTS.md, benchmarks/, docs/plans/, billing/, docker-compose.prod.yml, FUNDING.yml, RELEAS.md, hermes-bridge.py, QUICKREF.md
 - All tokens/secrets stored as GitHub secrets only
 
