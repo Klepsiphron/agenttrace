@@ -50,6 +50,10 @@ for (const pkg of packages) {
       const tsPath = join(srcDir, tsFile);
       if (existsSync(tsPath)) {
         let content = readFileSync(tsPath, 'utf-8');
+        // Skip files that use readVersion() pattern (runtime version from package.json)
+        if (content.includes('readVersion()')) {
+          continue;
+        }
         content = content.replace(
           /export const VERSION = '[^']*';?\s*\/\/.*$/,
           `export const VERSION = '${version}';`,
