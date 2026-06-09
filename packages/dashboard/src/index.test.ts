@@ -40,7 +40,7 @@ async function seedForDashboard(dbPath: string) {
 
 describe('@agenttrace-io/dashboard', () => {
   it('exports the package version', () => {
-    expect(VERSION).toMatch(/^\d+\.\d+\.\d+/);
+    expect(VERSION).toBe('0.2.0');
   });
 
   it('exports the package name', () => {
