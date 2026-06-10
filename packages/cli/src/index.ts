@@ -216,6 +216,28 @@ async function backfillFromExistingProcesses(storage: TraceStorage): Promise<num
             backfilled: true,
           },
         });
+        // Also create a usage record so `activity` shows detected agents
+        storage.recordAgentUsage({
+          id: `usage-${runId}`,
+          agentName: agent.name,
+          agentType: agent.framework || 'unknown',
+          sessionId: runId,
+          action: 'process_detected',
+          target: agent.cmdline?.substring(0, 100) || undefined,
+          tokensUsed: 0,
+          costUsd: 0,
+          durationMs: 0,
+          status: 'success',
+          metadata: {
+            pid: agent.pid,
+            runtime: agent.runtime,
+            platform: agent.platform,
+            framework: agent.framework || 'unknown',
+            autoDetected: true,
+            backfilled: true,
+          },
+          createdAt: Date.now(),
+        });
         imported++;
       }
     } catch {
