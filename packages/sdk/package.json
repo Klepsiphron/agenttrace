@@ -1,7 +1,7 @@
 {
   "name": "@agenttrace-io/sdk",
-  "version": "0.4.21",
-  "description": "Drop-in tracing SDK for AI agents — track tokens, cost, latency, and tool calls",
+  "version": "0.4.22",
+  "description": "Drop-in tracing SDK for AI agents \u2014 track tokens, cost, latency, and tool calls",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",
