@@ -1,6 +1,6 @@
 {
   "name": "@agenttrace-io/middleware-langgraph",
-  "version": "0.4.23",
+  "version": "0.4.24",
   "description": "LangGraph middleware for AgentTrace - automatic tracing of node executions",
   "license": "MIT",
   "type": "module",

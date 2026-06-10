@@ -64,9 +64,11 @@ class _FakeToolEnd:
 
 
 def test_version_exports():
+    import re
     from agenttrace_middleware import VERSION, PACKAGE_NAME
 
-    assert VERSION == "0.4.12"
+    # Assert format rather than a hardcoded value so releases don't break this test.
+    assert re.match(r"^\d+\.\d+\.\d+", VERSION), f"unexpected VERSION format: {VERSION}"
     assert PACKAGE_NAME == "agenttrace-io-middleware-crewai"
 
 

@@ -26,6 +26,7 @@ COPY packages/sdk/package.json packages/sdk/
 COPY packages/dashboard/package.json packages/dashboard/
 COPY packages/cli/package.json packages/cli/
 COPY packages/middleware-langgraph/package.json packages/middleware-langgraph/
+COPY packages/auto-instrument/package.json packages/auto-instrument/
 # Python packages (not pnpm but copied for completeness / future)
 COPY packages/sdk-python/pyproject.toml packages/sdk-python/
 COPY packages/middleware-crewai/pyproject.toml packages/middleware-crewai/
