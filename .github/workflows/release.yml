@@ -83,6 +83,18 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
+      - name: Publish @agenttrace-io/auto-instrument to npm
+        run: pnpm publish --access public --no-git-checks
+        working-directory: packages/auto-instrument
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish @agenttrace-io/middleware-langgraph to npm
+        run: pnpm publish --access public --no-git-checks
+        working-directory: packages/middleware-langgraph
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
   release-pypi:
     needs: ci
     runs-on: ubuntu-latest
