@@ -619,11 +619,12 @@ class TraceStorage:
         now = int(time.time() * 1000)
         self.conn.execute(
             """
-            INSERT INTO agent_usage (id, agent_name, agent_type, session_id, action, target, tokens_used, cost_usd, duration_ms, status, metadata, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO agent_usage (id, tenant_id, agent_name, agent_type, session_id, action, target, tokens_used, cost_usd, duration_ms, status, metadata, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 p.get("id") or str(__import__("uuid").uuid4()),
+                p.get("tenantId") or p.get("tenant_id"),
                 p.get("agentName") or p.get("agent_name"),
                 p.get("agentType") or p.get("agent_type"),
                 p.get("sessionId") or p.get("session_id"),

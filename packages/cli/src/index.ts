@@ -523,6 +523,7 @@ function printUsage(): void {
   console.log(`Usage: agenttrace <command> [options]  (alias: agenttrace-io)
 
 Commands:
+  status               Show daemon, dashboard, and database status at a glance
   init                 Create empty agenttrace.db in current dir
   wrap                 Trace any CLI command (zero-config)
   dashboard            Start the local dashboard server
@@ -556,7 +557,7 @@ Options (by command):
   traces, export, costs:
     --run-id ID          Filter by run ID
   export:
-    --format json|csv    Output format (default: json)
+    --format json|csv|otel    Output format (default: json)
     --output FILE        Write to file instead of stdout
   costs:
     --daily              Breakdown costs by day instead of by model
@@ -603,6 +604,8 @@ Global:
   --help               Show this help
 
 Examples:
+  agenttrace status
+  agenttrace status --json
   agenttrace init
   agenttrace wrap claude "Write a hello world function"
   agenttrace runs --limit 5 --status success,running
@@ -1092,20 +1095,17 @@ async function runMain(): Promise<void> {
         trace.close();
         console.log(`Created ${dbp}`);
       }
-      // Backfill: scan existing processes and import as historical runs (non-blocking)
-      // Fire and forget -- don't block the init command
-      (async () => {
-        try {
-          const storage = new TraceStorage(dbp);
-          const imported = await backfillFromExistingProcesses(storage);
-          if (imported > 0) {
-            console.log(`Backfilled ${imported} existing agent process(es) from this machine.`);
-          }
-          storage.close();
-        } catch {
-          /* non-fatal */
+      // Backfill: scan existing processes and import as historical runs
+      try {
+        const storage = new TraceStorage(dbp);
+        const imported = await backfillFromExistingProcesses(storage);
+        if (imported > 0) {
+          console.log(`Backfilled ${imported} existing agent process(es) from this machine.`);
         }
-      })();
+        storage.close();
+      } catch {
+        /* non-fatal */
+      }
       break;
     }
 
@@ -1130,9 +1130,11 @@ async function runMain(): Promise<void> {
           const child = spawn(cmd, cmdArgs, { stdio: 'pipe', shell: true });
           child.stdout.on('data', (d: Buffer) => {
             stdout += d.toString();
+            process.stdout.write(d); // stream to user's terminal in real time
           });
           child.stderr.on('data', (d: Buffer) => {
             stderr += d.toString();
+            process.stderr.write(d); // stream to user's terminal in real time
           });
           child.on('close', (code: number | null) => {
             exitCode = code ?? 0;
@@ -1238,7 +1240,7 @@ async function runMain(): Promise<void> {
           }
 
           if (agents.length > 0) {
-            // Record discovered agents as runs
+            // Record discovered agents as runs + usage records
             for (const agent of agents) {
               const runId = `watch-${agent.pid}-${agent.name}`;
               try {
@@ -1258,6 +1260,28 @@ async function runMain(): Promise<void> {
                       autoDetected: true,
                       watcherScan: scanCount,
                     },
+                  });
+                  // Also create a usage record so `activity` shows detected agents
+                  storage.recordAgentUsage({
+                    id: `usage-${runId}`,
+                    agentName: agent.name,
+                    agentType: agent.framework || 'unknown',
+                    sessionId: runId,
+                    action: 'process_detected',
+                    target: agent.cmdline?.substring(0, 100) || undefined,
+                    tokensUsed: 0,
+                    costUsd: 0,
+                    durationMs: 0,
+                    status: 'success',
+                    metadata: {
+                      pid: agent.pid,
+                      runtime: agent.runtime,
+                      platform: agent.platform,
+                      framework: agent.framework || 'unknown',
+                      autoDetected: true,
+                      watcherScan: scanCount,
+                    },
+                    createdAt: Date.now(),
                   });
                 }
               } catch {
@@ -2417,7 +2441,7 @@ async function runMain(): Promise<void> {
     }
 
     case 'daemon': {
-      const sub = (() => {
+      let sub = (() => {
         const argvArgs = process.argv.slice(2);
         const idx = argvArgs.indexOf('daemon');
         if (idx === -1) return undefined;
@@ -2458,6 +2482,24 @@ async function runMain(): Promise<void> {
         break;
       }
 
+      if (sub === 'restart') {
+        // Stop if running
+        if (existsSync(pidFile)) {
+          const pid = parseInt(readFileSync(pidFile, 'utf-8').trim(), 10);
+          try {
+            process.kill(pid, 'SIGTERM');
+            console.log(`Daemon stopped (PID ${pid}).`);
+          } catch {
+            /* already dead */
+          }
+          try { unlinkSync(pidFile); } catch { /* ignore */ }
+          // Wait for process to fully exit
+          await new Promise((r) => setTimeout(r, 1000));
+        }
+        // Fall through to start logic below
+        sub = undefined as any; // triggers the start path
+      }
+
       if (sub === 'status') {
         if (!existsSync(pidFile)) {
           console.log('Daemon: stopped');
@@ -2475,8 +2517,7 @@ async function runMain(): Promise<void> {
         break;
       }
 
-      // Default: start daemon
-      // Check if already running
+      // Check if already running (applies to both start and __run)
       if (existsSync(pidFile)) {
         const pid = parseInt(readFileSync(pidFile, 'utf-8').trim(), 10);
         try {
@@ -2485,6 +2526,11 @@ async function runMain(): Promise<void> {
           process.exit(1);
         } catch {
           /* stale PID file, continue */
+          try {
+            unlinkSync(pidFile);
+          } catch {
+            /* ignore */
+          }
         }
       }
 
@@ -2492,6 +2538,36 @@ async function runMain(): Promise<void> {
       const port = parseInt((flags['port'] as string) || '4317', 10);
       const host = (flags['host'] as string) || '127.0.0.1';
 
+      // 'start' (or default): spawn a DETACHED child running '__run', then return.
+      // '__run' is the internal worker that actually blocks and serves.
+      if (sub !== '__run') {
+        const { spawn } = await import('node:child_process');
+        const selfPath = process.argv[1] || 'agenttrace';
+        const childArgs = [selfPath, 'daemon', '__run'];
+        if (flags['port']) childArgs.push('--port', String(port));
+        if (flags['host']) childArgs.push('--host', host);
+        if (flags['scan'] === false) childArgs.push('--no-scan');
+        if (flags['scan-interval'])
+          childArgs.push('--scan-interval', String(flags['scan-interval']));
+
+        const out = openSync(logFile, 'a');
+        const child = spawn(process.execPath, childArgs, {
+          detached: true,
+          stdio: ['ignore', out, out],
+          env: process.env,
+        });
+        child.unref();
+
+        // Wait briefly and confirm the child wrote its PID file / is alive.
+        await new Promise((r) => setTimeout(r, 600));
+        console.log(`[AgentTrace] Daemon started (PID ${child.pid}).`);
+        console.log(`[AgentTrace] Dashboard: http://${host}:${port}`);
+        console.log(`[AgentTrace] Log: ${logFile}`);
+        console.log(`[AgentTrace] Stop with: agenttrace daemon stop`);
+        process.exit(0);
+      }
+
+      // ---- __run worker (blocking) ----
       // Write PID file
       writeFileSync(pidFile, String(process.pid), 'utf-8');
 
@@ -2590,18 +2666,18 @@ async function runMain(): Promise<void> {
       })();
 
       if (sub === 'install') {
+        const binPath = process.argv[1] || 'agenttrace';
         if (process.platform === 'win32') {
           console.log('On Windows, use Task Scheduler:');
           console.log('  1. Open Task Scheduler');
           console.log('  2. Create Basic Task → "AgentTrace Daemon"');
           console.log('  3. Trigger: At startup');
           console.log('  4. Action: Start a program');
-          console.log('     Program: agenttrace');
-          console.log('     Arguments: daemon start');
+          console.log(`     Program: ${binPath}`);
+          console.log('     Arguments: daemon __run');
           break;
         }
 
-        const binPath = process.argv[1] || 'agenttrace';
         const systemdDir = join(homedir(), '.config', 'systemd', 'user');
         const systemdFile = join(systemdDir, 'agenttrace.service');
 
@@ -2620,12 +2696,12 @@ async function runMain(): Promise<void> {
   <array>
     <string>${binPath}</string>
     <string>daemon</string>
-    <string>start</string>
+    <string>__run</string>
   </array>
   <key>RunAtLoad</key>
   <true/>
   <key>KeepAlive</key>
-  <false/>
+  <true/>
   <key>StandardOutPath</key>
   <string>${join(homedir(), '.local', 'share', 'agenttrace', 'daemon.log')}</string>
   <key>StandardErrorPath</key>
@@ -2650,7 +2726,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=${binPath} daemon start
+ExecStart=${binPath} daemon __run
 Restart=on-failure
 RestartSec=5
 StandardOutput=append:${join(homedir(), '.local', 'share', 'agenttrace', 'daemon.log')}
@@ -2704,6 +2780,107 @@ WantedBy=default.target
       }
 
       console.log('Usage: agenttrace service <install|uninstall>');
+      break;
+    }
+
+    case 'status': {
+      // Single-glance overview: daemon, dashboard, agents, recent activity
+      const dbp = getDbPath();
+      const useJsonLocal = useJson;
+      const GREEN = '\x1b[32m';
+      const YELLOW = '\x1b[33m';
+      const RED = '\x1b[31m';
+      const RESET = '\x1b[0m';
+
+      const statusData: Record<string, unknown> = { version: VERSION };
+
+      // Daemon status
+      const agenttraceDir = (() => {
+        const home = homedir();
+        const xdgData = process.env.XDG_DATA_HOME || join(home, '.local', 'share');
+        return join(xdgData, 'agenttrace');
+      })();
+      const pidFile = join(agenttraceDir, 'daemon.pid');
+      let daemonRunning = false;
+      let daemonPid: number | null = null;
+      if (existsSync(pidFile)) {
+        try {
+          daemonPid = parseInt(readFileSync(pidFile, 'utf-8').trim(), 10);
+          if (daemonPid) process.kill(daemonPid, 0);
+          daemonRunning = true;
+        } catch {
+          daemonRunning = false;
+        }
+      }
+      statusData.daemon = { running: daemonRunning, pid: daemonPid };
+
+      // Dashboard check
+      let dashRunning = false;
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 1500);
+        const resp = await fetch('http://127.0.0.1:4317/api/health', {
+          signal: controller.signal,
+        });
+        clearTimeout(timeout);
+        if (resp.ok) {
+          const data = (await resp.json()) as Record<string, unknown>;
+          dashRunning = data?.status === 'healthy';
+          const checks = data?.checks as Record<string, unknown> | undefined;
+          const dbCheck = checks?.database as Record<string, unknown> | undefined;
+          statusData.dashboard = { running: dashRunning, uptime: data?.uptime, activeAgents: checks?.activeAgents, totalTraces: dbCheck?.traceCount };
+        }
+      } catch {
+        /* not reachable */
+      }
+      if (!dashRunning) statusData.dashboard = { running: false };
+
+      // Database stats
+      let dbOk = false;
+      let dbTraces = 0;
+      let dbSize = 0;
+      try {
+        const tr = new AgentTrace({ dbPath: dbp, silent: true });
+        const h = tr.getHealth();
+        dbOk = h.status === 'ok';
+        dbTraces = h.traceCount;
+        dbSize = h.dbSize;
+        tr.close();
+      } catch {
+        /* empty db or missing */
+      }
+      statusData.database = { ok: dbOk, path: dbp, traces: dbTraces, size: dbSize };
+
+      if (useJsonLocal) {
+        console.log(JSON.stringify(statusData, null, 2));
+      } else {
+        const daemonStr = daemonRunning
+          ? `${GREEN}running${RESET} (PID ${daemonPid})`
+          : `${YELLOW}stopped${RESET}`;
+        const dashStr = dashRunning
+          ? `${GREEN}running${RESET} (http://127.0.0.1:4317)`
+          : `${YELLOW}not running${RESET}`;
+        const dbStr = dbOk ? `${GREEN}ok${RESET}` : `${RED}unavailable${RESET}`;
+
+        console.log(`AgentTrace Status`);
+        console.log(`================`);
+        console.log(`Version:    ${VERSION}`);
+        console.log(`Daemon:     ${daemonStr}`);
+        console.log(`Dashboard:  ${dashStr}`);
+        console.log(`Database:   ${dbStr} (${dbp})`);
+        if (dbOk) {
+          console.log(`  Traces: ${dbTraces}  Size: ${dbSize}B`);
+        }
+        if (dashRunning && statusData.dashboard) {
+          const d = statusData.dashboard as Record<string, unknown>;
+          if (d.activeAgents) console.log(`  Active agents: ${d.activeAgents}`);
+        }
+        if (!daemonRunning) {
+          console.log(`\nStart daemon: ${GREEN}agenttrace daemon start${RESET}`);
+        } else if (!dashRunning) {
+          console.log(`\nDashboard not responding despite daemon running. Check logs.`);
+        }
+      }
       break;
     }
 

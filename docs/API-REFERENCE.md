@@ -1585,7 +1585,7 @@ agenttrace version
 
 ```bash
 agenttrace runs --limit 5 --status success,running
-agenttrace-io traces --run-id 123e4567 --json
+agenttrace traces --run-id 123e4567 --json
 ```
 
 ### stats / costs

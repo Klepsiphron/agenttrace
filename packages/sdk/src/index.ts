@@ -887,7 +887,7 @@ export class AgentTrace {
     const webhooks = this.getWebhooks();
     const wh = webhooks.find((w) => w.id === id);
     if (!wh) {
-      throw new Error(`Webhook '${id}' not found. List webhooks with: agenttrace-io webhook list`);
+      throw new Error(`Webhook '${id}' not found. List webhooks with: agenttrace webhook list`);
     }
     if (!wh.enabled) {
       throw new Error(`Webhook '${id}' is disabled.`);

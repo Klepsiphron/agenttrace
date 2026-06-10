@@ -54,7 +54,7 @@ agenttrace stats
 ```bash
 npm install -g @agenttrace-io/cli
 # or use npx without installing:
-npx agenttrace <command>
+npx @agenttrace-io/cli <command>
 ```
 
 ### Trace Your First Agent
@@ -66,7 +66,7 @@ agenttrace wrap python my_agent.py
 
 # View your traces
 agenttrace runs --limit 10
-agenttrace-io traces --run-id <id>
+agenttrace traces --run-id <id>
 
 # See aggregate stats
 agenttrace stats
