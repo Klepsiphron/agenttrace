@@ -780,11 +780,7 @@ class AgentUsageTracker:
 
 # ---- Singleton / module level API ----
 
-<<<<<<< HEAD
-VERSION = "0.2.0"
-=======
 VERSION = "0.4.20"
->>>>>>> 0eb7a9b (fix: security hardening, performance improvements, and bug fixes)
 PACKAGE_NAME = "agenttrace-io"
 
 _instance: Optional[AgentTrace] = None
