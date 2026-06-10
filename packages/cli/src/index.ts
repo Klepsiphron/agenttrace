@@ -115,7 +115,8 @@ function detectAgents(
       }
     }
     if (!detectedFramework) {
-      const procName = line.split(/[,\s]/)[0].replace(/"/g, '').toLowerCase();
+      const first = line.split(/[,\s]/)[0];
+      const procName = first ? first.replace(/"/g, '').toLowerCase() : '';
       const isAgentLike =
         lower.includes('agent') ||
         lower.includes('llm') ||
