@@ -301,7 +301,7 @@ function scanAgents(json: boolean, verbose: boolean): void {
   }
 }
 
-function extractName(cmdline: string, runtime: string): string {
+function extractName(cmdline: string, _runtime: string): string {
   const match = cmdline.match(/(?:node|node\.exe|python|python3|python\.exe)\s+(.+?)(?:\s|$)/);
   if (match) {
     const script = match[1];

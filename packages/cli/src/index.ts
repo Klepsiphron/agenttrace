@@ -30,7 +30,6 @@ import {
   realpathSync,
   openSync,
   writeSync,
-  closeSync,
   unlinkSync,
 } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -2492,7 +2491,11 @@ async function runMain(): Promise<void> {
           } catch {
             /* already dead */
           }
-          try { unlinkSync(pidFile); } catch { /* ignore */ }
+          try {
+            unlinkSync(pidFile);
+          } catch {
+            /* ignore */
+          }
           // Wait for process to fully exit
           await new Promise((r) => setTimeout(r, 1000));
         }
@@ -2828,7 +2831,12 @@ WantedBy=default.target
           dashRunning = data?.status === 'healthy';
           const checks = data?.checks as Record<string, unknown> | undefined;
           const dbCheck = checks?.database as Record<string, unknown> | undefined;
-          statusData.dashboard = { running: dashRunning, uptime: data?.uptime, activeAgents: checks?.activeAgents, totalTraces: dbCheck?.traceCount };
+          statusData.dashboard = {
+            running: dashRunning,
+            uptime: data?.uptime,
+            activeAgents: checks?.activeAgents,
+            totalTraces: dbCheck?.traceCount,
+          };
         }
       } catch {
         /* not reachable */
