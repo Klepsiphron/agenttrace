@@ -31,12 +31,9 @@ jobs:
       - run: pnpm lint
       - run: pnpm format:check
 
-  release:
+  release-npm:
     needs: ci
     runs-on: ubuntu-latest
-    environment:
-      name: release
-      url: https://pypi.org/project/agenttrace-io/
     steps:
       - uses: actions/checkout@v6
         with:
@@ -51,9 +48,6 @@ jobs:
           node-version: '22'
           registry-url: 'https://registry.npmjs.org'
           cache: pnpm
-      - uses: actions/setup-python@v6
-        with:
-          python-version: '3.12'
 
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
@@ -71,26 +65,39 @@ jobs:
               --repo ${{ github.repository }}
           fi
 
-      # --- npm publish (pnpm handles workspace:* -> version resolution) ---
       - name: Publish @agenttrace-io/sdk to npm
-        run: pnpm publish --access public --no-git-checks || true
+        run: pnpm publish --access public --no-git-checks
         working-directory: packages/sdk
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish @agenttrace-io/dashboard to npm
-        run: pnpm publish --access public --no-git-checks || true
+        run: pnpm publish --access public --no-git-checks
         working-directory: packages/dashboard
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish @agenttrace-io/cli to npm
-        run: pnpm publish --access public --no-git-checks || true
+        run: pnpm publish --access public --no-git-checks
         working-directory: packages/cli
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      # --- PyPI publish (OIDC Trusted Publishing, with token fallback) ---
+  release-pypi:
+    needs: ci
+    runs-on: ubuntu-latest
+    environment:
+      name: release
+      url: https://pypi.org/project/agenttrace-io/
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
       - name: Build Python package
         run: |
           cd packages/sdk-python
@@ -109,12 +116,18 @@ jobs:
         run: |
           pip install twine
           twine upload packages/sdk-python/dist/*
-        continue-on-error: true
         env:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
 
-      # --- Docker publish to GHCR ---
+  release-docker:
+    needs: [release-npm, release-pypi]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
