@@ -239,7 +239,7 @@ function recordTrace(
       error: data.error,
       metadata: { autoInstrumented: true },
     });
-    storage.completeRun(data.status === 'success' ? 'success' : 'error');
+    storage.completeRun(runId, data.status === 'success' ? 'success' : 'error');
     storage.close();
   } catch {
     // Never crash the host application
