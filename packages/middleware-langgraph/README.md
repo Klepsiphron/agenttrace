@@ -91,7 +91,7 @@ new AgentTraceMiddleware({
 Use the AgentTrace CLI/dashboard as usual:
 
 ```bash
-npx agenttrace-io dashboard --db ./traces.db
+npx agenttrace dashboard --db ./traces.db
 ```
 
 ## License

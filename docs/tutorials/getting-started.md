@@ -17,7 +17,7 @@ npm install -g @agenttrace-io/cli
 
 ```bash
 pip install agenttrace-io
-# CLI is Node-based: use npx agenttrace-io ... (or npm i -g @agenttrace-io/cli ; alias npx agenttrace also works)
+# CLI is Node-based: use npx agenttrace ... (or npm i -g @agenttrace-io/cli ; alias npx agenttrace also works)
 ```
 
 ## Trace your first function
@@ -107,9 +107,10 @@ After running your code (which populates `agenttrace.db`):
 
 ```bash
 # From project root
-npx agenttrace-io dashboard
+npx agenttrace dashboard
 # or
 npx @agenttrace-io/cli dashboard --port 3000
+# (the package is @agenttrace-io/cli on npm; the CLI command itself is `agenttrace`)
 ```
 
 Open http://localhost:3000 — you'll see runs, traces, latency, costs, tool calls, and errors.
@@ -117,9 +118,9 @@ Open http://localhost:3000 — you'll see runs, traces, latency, costs, tool cal
 Use the CLI to inspect without the UI:
 
 ```bash
-npx agenttrace-io runs --limit 5
-npx agenttrace-io traces --limit 20
-npx agenttrace-io stats
+npx agenttrace runs --limit 5
+npx agenttrace traces --limit 20
+npx agenttrace stats
 ```
 
 ## Export traces
@@ -128,13 +129,13 @@ npx agenttrace-io stats
 
 ```bash
 # All traces as JSON
-npx agenttrace-io export --format json --output traces.json
+npx agenttrace export --format json --output traces.json
 
 # Just one run
-npx agenttrace-io export --format csv --run-id <run-uuid> --output run.csv
+npx agenttrace export --format csv --run-id <run-uuid> --output run.csv
 
 # OpenTelemetry format (OTLP JSON)
-npx agenttrace-io export --format otel --output otel.json
+npx agenttrace export --format otel --output otel.json
 ```
 
 ### Via SDK code

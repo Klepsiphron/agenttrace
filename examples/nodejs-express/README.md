@@ -105,13 +105,13 @@ Alerts are auto-checked after each trace. Set `webhook` to receive Slack/Discord
 
 ```bash
 # CLI stats
-npx agenttrace-io stats --db ./agenttrace-express.db
+npx agenttrace stats --db ./agenttrace-express.db
 
 # Runs
-npx agenttrace-io runs --db ./agenttrace-express.db
+npx agenttrace runs --db ./agenttrace-express.db
 
 # Dashboard
-npx agenttrace-io dashboard --db ./agenttrace-express.db
+npx agenttrace dashboard --db ./agenttrace-express.db
 ```
 
 ## Clean up

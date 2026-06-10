@@ -386,7 +386,7 @@
         '</div>' +
         (state.runs.length
           ? ''
-          : '<small>Run <code>npx agenttrace-io dashboard</code> after instrumenting.</small>');
+          : '<small>Run <code>npx agenttrace dashboard</code> after instrumenting.</small>');
       c.appendChild(empty);
       return;
     }

@@ -21,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Auto-instrument package (`@agenttrace-io/auto-instrument`) for zero-code tracing
-- Process scanning: `agenttrace-io watch` auto-detects running agents
+- Process scanning: `agenttrace watch` auto-detects running agents
 - Module-level hooks intercept `require()` to auto-patch LangChain, OpenAI SDK
 - WSL-to-Windows process bridge
 - Dashboard `--no-auth` flag for local dev

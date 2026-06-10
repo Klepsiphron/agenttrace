@@ -30,7 +30,7 @@ webhook.
 Three interfaces consume the same storage layer:
 
 - **SDK** -- TypeScript and Python libraries that agents import to record traces
-- **CLI** -- `agenttrace-io` terminal commands for querying, exporting, and
+- **CLI** -- `agenttrace` terminal commands for querying, exporting, and
   launching the dashboard
 - **Dashboard** -- Express web UI + REST API served locally on port 4317
 
@@ -59,7 +59,7 @@ graph TB
     end
 
     subgraph Interfaces["Interfaces"]
-        CLI["CLI<br/>agenttrace-io<br/>(terminal)"]
+        CLI["CLI<br/>agenttrace<br/>(terminal)"]
         DASH["Dashboard<br/>Express :4317<br/>(Web UI + REST API)"]
     end
 
@@ -388,7 +388,7 @@ Two mechanisms control storage growth:
 2. **Retention days** (`config.retentionDays`, default 30). A scheduled
    interval removes all traces, runs, and agent usage older than N days.
 
-Both are configurable at SDK init time or via `agenttrace-io retention set`.
+Both are configurable at SDK init time or via `agenttrace retention set`.
 
 ---
 
@@ -484,7 +484,7 @@ store by default. The first key can be created via `POST /api/v1/keys`.
 ### CLI Interface
 
 ```
-agenttrace-io <command> [options]
+agenttrace <command> [options]
 
 Commands:
   init          Create empty agenttrace.db
@@ -668,9 +668,9 @@ const webhookId = agent.addWebhook(
 );
 
 // Via CLI
-// agenttrace-io alerts list
-// agenttrace-io alerts test --name high-error-rate
-// agenttrace-io alerts history
+// agenttrace alerts list
+// agenttrace alerts test --name high-error-rate
+// agenttrace alerts history
 ```
 
 ---

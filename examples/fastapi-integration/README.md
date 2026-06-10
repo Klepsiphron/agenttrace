@@ -99,12 +99,12 @@ Each `trace()` call writes a row to the SQLite DB (`./agenttrace.db`) with:
 
 ```bash
 # Using the AgentTrace CLI
-npx agenttrace-io stats --db ./agenttrace.db
-npx agenttrace-io runs --db ./agenttrace.db --limit 10
-npx agenttrace-io export --db ./agenttrace.db --format json
+npx agenttrace stats --db ./agenttrace.db
+npx agenttrace runs --db ./agenttrace.db --limit 10
+npx agenttrace export --db ./agenttrace.db --format json
 
 # Launch the dashboard
-npx agenttrace-io dashboard --db ./agenttrace.db
+npx agenttrace dashboard --db ./agenttrace.db
 ```
 
 ## Integration patterns demonstrated

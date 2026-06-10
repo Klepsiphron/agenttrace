@@ -96,7 +96,7 @@ def main() -> None:
     at.close()
 
     print("\nTip: install agenttrace-io-middleware-crewai + crewai for automatic event hooking.")
-    print("Dashboard: npx agenttrace-io dashboard --db ./agenttrace.db")
+    print("Dashboard: npx agenttrace dashboard --db ./agenttrace.db")
 
 
 if __name__ == "__main__":

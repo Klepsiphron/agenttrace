@@ -22,7 +22,17 @@ import {
   TraceStorage,
 } from '@agenttrace-io/sdk';
 import { startDashboard } from '@agenttrace-io/dashboard';
-import { existsSync, writeFileSync, readFileSync, mkdirSync, realpathSync } from 'node:fs';
+import {
+  existsSync,
+  writeFileSync,
+  readFileSync,
+  mkdirSync,
+  realpathSync,
+  openSync,
+  writeSync,
+  closeSync,
+  unlinkSync,
+} from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { homedir } from 'node:os';
@@ -107,9 +117,26 @@ function detectAgents(
     else if (lower.includes('java ') || lower.includes('java.exe')) runtime = 'java';
     else if (lower.includes('dotnet ') || lower.includes('dotnet.exe')) runtime = 'dotnet';
     if (runtime === 'unknown') continue;
+
+    // Extract command/script name for matching (avoid false positives from paths)
+    let cmdName = '';
+    if (runtime === 'node') {
+      const m = line.match(/node(?:\.exe)?\s+(.+?)(?:\s|$)/);
+      if (m?.[1]) cmdName = (m[1].split(/[/\\]/).pop() || '').toLowerCase();
+    } else if (runtime === 'python') {
+      // Handle -m module pattern first
+      const mM = line.match(/python(?:3)?(?:\.exe)?\s+-m\s+(\S+)/);
+      if (mM?.[1]) cmdName = mM[1].toLowerCase();
+      else {
+        const m = line.match(/python(?:3)?(?:\.exe)?\s+(.+?)(?:\s|$)/);
+        if (m?.[1]) cmdName = (m[1].split(/[/\\]/).pop() || '').toLowerCase();
+      }
+    }
+    const matchTarget = cmdName || lower; // fallback to full line if no cmd extracted
+
     let detectedFramework = '';
     for (const [, sig] of Object.entries(AGENT_SIGNATURES)) {
-      if (sig.patterns.some((p) => lower.includes(p.toLowerCase()))) {
+      if (sig.patterns.some((p) => matchTarget.includes(p.toLowerCase()))) {
         detectedFramework = sig.framework;
         break;
       }
@@ -141,8 +168,13 @@ function detectAgents(
       const m = line.match(/node(?:\.exe)?\s+(.+?)(?:\s|$)/);
       if (m?.[1]) name = m[1].split(/[/\\]/).pop() || m[1];
     } else if (runtime === 'python') {
-      const m = line.match(/python(?:3)?(?:\.exe)?\s+(.+?)(?:\s|$)/);
-      if (m?.[1]) name = m[1].split(/[/\\]/).pop() || m[1];
+      // Handle -m module pattern first
+      const mM = line.match(/python(?:3)?(?:\.exe)?\s+-m\s+(\S+)/);
+      if (mM?.[1]) name = mM[1].replace(/\.[^.]+$/, '');
+      else {
+        const m = line.match(/python(?:3)?(?:\.exe)?\s+(.+?)(?:\s|$)/);
+        if (m?.[1]) name = m[1].split(/[/\\]/).pop() || m[1];
+      }
     }
     agents.push({
       pid,
@@ -488,7 +520,7 @@ function printTraceTree(node: TraceTreeNode | null | undefined, prefix = '', isL
 }
 
 function printUsage(): void {
-  console.log(`Usage: agenttrace-io <command> [options]  (alias: agenttrace)
+  console.log(`Usage: agenttrace <command> [options]  (alias: agenttrace-io)
 
 Commands:
   init                 Create empty agenttrace.db in current dir
@@ -503,6 +535,8 @@ Commands:
   tree                 Show parent/child/related trace tree (multi-agent)
   alerts               Manage alerts: list | test --name N | history
   health               Check health of gateway, dashboard, and database
+  daemon               Start/stop background daemon (dashboard + auto-detect)
+  service              Install/uninstall system service (systemd/launchd)
   self-stats           Show self-tracked usage stats
   budget               Manage per-agent token budgets: set | list | status | check
   who                  Show active agents (usage tracking)
@@ -569,37 +603,37 @@ Global:
   --help               Show this help
 
 Examples:
-  agenttrace-io init
-  agenttrace-io wrap claude "Write a hello world function"
-  agenttrace-io runs --limit 5 --status success,running
-  agenttrace-io traces --run-id 123e4567 --json
-  agenttrace-io export --format csv --output out.csv --run-id abc
-  agenttrace-io dashboard
-  agenttrace-io costs
-  agenttrace-io costs --daily --json
-  agenttrace-io costs --run-id abc123
-  agenttrace-io alerts list
-  agenttrace-io alerts test --name high-error-rate
-  agenttrace-io alerts history
-  agenttrace-io tree --trace-id abc123def
-  agenttrace-io self-stats
-  agenttrace-io self-stats --json
-  agenttrace-io who --active --limit 10
-  agenttrace-io cost --format table
-  agenttrace-io cost --agent researcher-1 --from 2026-01-01
-  agenttrace-io sessions --active
-  agenttrace-io activity --since 2h --limit 20
-  agenttrace-io cleanup
-  agenttrace-io cleanup --days 7 --dry-run
-  agenttrace-io retention show
-  agenttrace-io retention set 60
-  agenttrace-io retention set 90 --interval 12
-  agenttrace-io webhook add https://example.com/hook trace.complete run.complete
-  agenttrace-io webhook list
-  agenttrace-io webhook test abc12345
-  agenttrace-io webhook remove abc12345
-  npx agenttrace-io version
-  # alias also works: npx agenttrace ...
+  agenttrace init
+  agenttrace wrap claude "Write a hello world function"
+  agenttrace runs --limit 5 --status success,running
+  agenttrace traces --run-id 123e4567 --json
+  agenttrace export --format csv --output out.csv --run-id abc
+  agenttrace dashboard
+  agenttrace costs
+  agenttrace costs --daily --json
+  agenttrace costs --run-id abc123
+  agenttrace alerts list
+  agenttrace alerts test --name high-error-rate
+  agenttrace alerts history
+  agenttrace tree --trace-id abc123def
+  agenttrace self-stats
+  agenttrace self-stats --json
+  agenttrace who --active --limit 10
+  agenttrace cost --format table
+  agenttrace cost --agent researcher-1 --from 2026-01-01
+  agenttrace sessions --active
+  agenttrace activity --since 2h --limit 20
+  agenttrace cleanup
+  agenttrace cleanup --days 7 --dry-run
+  agenttrace retention show
+  agenttrace retention set 60
+  agenttrace retention set 90 --interval 12
+  agenttrace webhook add https://example.com/hook trace.complete run.complete
+  agenttrace webhook list
+  agenttrace webhook test abc12345
+  agenttrace webhook remove abc12345
+  npx agenttrace version
+  # agenttrace-io also works as an alias
 `);
 }
 
@@ -968,7 +1002,7 @@ function getAgentTrace(requireDb = true): AgentTrace {
   const dbp = getDbPath();
   if (requireDb && !existsSync(dbp)) {
     console.error(`No ${dbp} found in current directory.`);
-    console.error('Run "agenttrace-io init" to create one.');
+    console.error('Run "agenttrace init" to create one.');
     process.exit(1);
   }
   return new AgentTrace({ dbPath: dbp, silent: true });
@@ -1079,7 +1113,7 @@ async function runMain(): Promise<void> {
       const argvArgs = process.argv.slice(2);
       const cmd = argvArgs[1];
       if (!cmd) {
-        console.error('Usage: agenttrace-io wrap <command> [args...]');
+        console.error('Usage: agenttrace wrap <command> [args...]');
         process.exit(1);
       }
       const cmdArgs = argvArgs.slice(2);
@@ -1388,7 +1422,7 @@ async function runMain(): Promise<void> {
         | string
         | undefined;
       if (!traceId) {
-        console.error('Usage: agenttrace-io tree --trace-id <id>');
+        console.error('Usage: agenttrace tree --trace-id <id>');
         process.exit(1);
       }
       const tr = getAgentTrace();
@@ -1420,7 +1454,7 @@ async function runMain(): Promise<void> {
       const dbExists = existsSync(dbp);
       if (!dbExists && (sub === 'test' || sub === 'history')) {
         console.error(`No ${dbp} found in current directory.`);
-        console.error('Run "agenttrace-io init" to create one.');
+        console.error('Run "agenttrace init" to create one.');
         process.exit(1);
       }
       if (sub === 'list' || sub === '') {
@@ -1474,7 +1508,7 @@ async function runMain(): Promise<void> {
       if (sub === 'test') {
         const name = flags.name || flags['name'] ? String(flags.name || flags['name']) : '';
         if (!name) {
-          console.error('Usage: agenttrace-io alerts test --name <name>');
+          console.error('Usage: agenttrace alerts test --name <name>');
           agent.close();
           process.exit(1);
         }
@@ -1838,7 +1872,7 @@ async function runMain(): Promise<void> {
       // For add/remove/test, require existing db
       if (!dbExists) {
         console.error(`No ${dbp} found in current directory.`);
-        console.error('Run "agenttrace-io init" to create one.');
+        console.error('Run "agenttrace init" to create one.');
         process.exit(1);
       }
       const agent = new AgentTrace({ dbPath: dbp, silent: true });
@@ -1848,7 +1882,7 @@ async function runMain(): Promise<void> {
           const eventsRaw = flags.events ? String(flags.events) : '';
           if (!url) {
             console.error(
-              'Usage: agenttrace-io webhook add --url <url> [--events <event1,event2,...>]',
+              'Usage: agenttrace webhook add --url <url> [--events <event1,event2,...>]',
             );
             console.error(
               'Events: trace.complete, trace.error, run.complete, run.error, cost.threshold, agent.inactive',
@@ -1882,7 +1916,7 @@ async function runMain(): Promise<void> {
         if (sub === 'remove') {
           const id = flags.id ? String(flags.id) : '';
           if (!id) {
-            console.error('Usage: agenttrace-io webhook remove --id <id>');
+            console.error('Usage: agenttrace webhook remove --id <id>');
             process.exit(1);
           }
           const webhooks = agent.getWebhooks();
@@ -1902,7 +1936,7 @@ async function runMain(): Promise<void> {
         if (sub === 'test') {
           const id = flags.id ? String(flags.id) : '';
           if (!id) {
-            console.error('Usage: agenttrace-io webhook test --id <id>');
+            console.error('Usage: agenttrace webhook test --id <id>');
             process.exit(1);
           }
           const webhooks = agent.getWebhooks();
@@ -1936,7 +1970,7 @@ async function runMain(): Promise<void> {
       const dbp = getDbPath();
       if (!existsSync(dbp)) {
         console.error(`No ${dbp} found in current directory.`);
-        console.error('Run "agenttrace-io init" to create one.');
+        console.error('Run "agenttrace init" to create one.');
         process.exit(1);
       }
       const storage = new TraceStorage(dbp);
@@ -1979,7 +2013,7 @@ async function runMain(): Promise<void> {
           if (useJson) {
             console.log(JSON.stringify({ error: 'no database' }, null, 2));
           } else {
-            console.log('No database found. Run "agenttrace-io init" first.');
+            console.log('No database found. Run "agenttrace init" first.');
           }
           break;
         }
@@ -2014,7 +2048,7 @@ async function runMain(): Promise<void> {
 
       if (!dbExists) {
         console.error(`No ${dbp} found in current directory.`);
-        console.error('Run "agenttrace-io init" to create one.');
+        console.error('Run "agenttrace init" to create one.');
         process.exit(1);
       }
       const storage = new TraceStorage(dbp);
@@ -2022,7 +2056,7 @@ async function runMain(): Promise<void> {
       if (sub === 'set') {
         const rawDays = flags.days ? parseInt(String(flags.days), 10) : NaN;
         if (!Number.isFinite(rawDays) || rawDays < 0) {
-          console.error('Usage: agenttrace-io retention set --days <N> [--interval <H>]');
+          console.error('Usage: agenttrace retention set --days <N> [--interval <H>]');
           storage.close();
           process.exit(1);
         }
@@ -2098,7 +2132,7 @@ async function runMain(): Promise<void> {
 
       if (!dbExists) {
         console.error(`No ${dbp} found in current directory.`);
-        console.error('Run "agenttrace-io init" to create one.');
+        console.error('Run "agenttrace init" to create one.');
         process.exit(1);
       }
       const storage = new TraceStorage(dbp);
@@ -2106,7 +2140,7 @@ async function runMain(): Promise<void> {
       if (sub === 'create') {
         const name = flags.name ? String(flags.name) : '';
         if (!name) {
-          console.error('Usage: agenttrace-io key create --name <name>');
+          console.error('Usage: agenttrace key create --name <name>');
           storage.close();
           process.exit(1);
         }
@@ -2139,7 +2173,7 @@ async function runMain(): Promise<void> {
       if (sub === 'revoke' || sub === 'delete' || sub === 'remove') {
         const id = flags.id ? String(flags.id) : '';
         if (!id) {
-          console.error('Usage: agenttrace-io key revoke --id <id>');
+          console.error('Usage: agenttrace key revoke --id <id>');
           storage.close();
           process.exit(1);
         }
@@ -2279,7 +2313,7 @@ async function runMain(): Promise<void> {
         if (sub === 'set') {
           const name = agent || '';
           if (!name) {
-            console.error('Usage: agenttrace-io budget set <agent-name> --tokens <N> --cost <M>');
+            console.error('Usage: agenttrace budget set <agent-name> --tokens <N> --cost <M>');
             process.exit(1);
           }
           const maxTokens = flags.tokens ? parseInt(String(flags.tokens), 10) || 0 : 0;
@@ -2312,7 +2346,7 @@ async function runMain(): Promise<void> {
         const name = agent || '';
         if (!name) {
           console.error(
-            'Usage: agenttrace-io budget status <agent-name>  or  budget check <agent-name>',
+            'Usage: agenttrace budget status <agent-name>  or  budget check <agent-name>',
           );
           process.exit(1);
         }
@@ -2379,6 +2413,297 @@ async function runMain(): Promise<void> {
       } finally {
         storage.close();
       }
+      break;
+    }
+
+    case 'daemon': {
+      const sub = (() => {
+        const argvArgs = process.argv.slice(2);
+        const idx = argvArgs.indexOf('daemon');
+        if (idx === -1) return undefined;
+        for (let k = idx + 1; k < argvArgs.length; k++) {
+          const c = argvArgs[k];
+          if (typeof c === 'string' && !c.startsWith('-')) return c;
+        }
+        return undefined;
+      })();
+
+      const agenttraceDir = (() => {
+        const home = homedir();
+        const xdgData = process.env.XDG_DATA_HOME || join(home, '.local', 'share');
+        const dir = join(xdgData, 'agenttrace');
+        if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+        return dir;
+      })();
+      const pidFile = join(agenttraceDir, 'daemon.pid');
+      const logFile = join(agenttraceDir, 'daemon.log');
+
+      if (sub === 'stop') {
+        if (!existsSync(pidFile)) {
+          console.log('Daemon is not running.');
+          break;
+        }
+        const pid = parseInt(readFileSync(pidFile, 'utf-8').trim(), 10);
+        try {
+          process.kill(pid, 'SIGTERM');
+          console.log(`Daemon stopped (PID ${pid}).`);
+        } catch {
+          console.log(`Daemon not running (stale PID file removed).`);
+        }
+        try {
+          unlinkSync(pidFile);
+        } catch {
+          /* ignore */
+        }
+        break;
+      }
+
+      if (sub === 'status') {
+        if (!existsSync(pidFile)) {
+          console.log('Daemon: stopped');
+          break;
+        }
+        const pid = parseInt(readFileSync(pidFile, 'utf-8').trim(), 10);
+        try {
+          process.kill(pid, 0);
+          console.log(`Daemon: running (PID ${pid})`);
+          console.log(`  PID file: ${pidFile}`);
+          console.log(`  Log file: ${logFile}`);
+        } catch {
+          console.log('Daemon: stopped (stale PID file)');
+        }
+        break;
+      }
+
+      // Default: start daemon
+      // Check if already running
+      if (existsSync(pidFile)) {
+        const pid = parseInt(readFileSync(pidFile, 'utf-8').trim(), 10);
+        try {
+          process.kill(pid, 0);
+          console.log(`Daemon already running (PID ${pid}). Use 'agenttrace daemon stop' first.`);
+          process.exit(1);
+        } catch {
+          /* stale PID file, continue */
+        }
+      }
+
+      const dbPath = getDbPath();
+      const port = parseInt((flags['port'] as string) || '4317', 10);
+      const host = (flags['host'] as string) || '127.0.0.1';
+
+      // Write PID file
+      writeFileSync(pidFile, String(process.pid), 'utf-8');
+
+      // Open log file
+      const logFd = openSync(logFile, 'a');
+
+      // Redirect stdout/stderr to log file
+      process.stdout.write = ((chunk: any) => {
+        writeSync(logFd, typeof chunk === 'string' ? chunk : chunk.toString());
+        return true;
+      }) as any;
+      process.stderr.write = ((chunk: any) => {
+        writeSync(logFd, typeof chunk === 'string' ? chunk : chunk.toString());
+        return true;
+      }) as any;
+
+      console.log(`[AgentTrace] Daemon starting (PID ${process.pid})`);
+      console.log(`[AgentTrace] DB: ${dbPath}`);
+      console.log(`[AgentTrace] Dashboard: http://${host}:${port}`);
+      console.log(`[AgentTrace] Log: ${logFile}`);
+
+      // Start dashboard
+      const { startDashboard } = await import('@agenttrace-io/dashboard');
+      const server = startDashboard({ port, host, dbPath });
+
+      // Start background agent scanning
+      const scanIntervalMs = parseInt((flags['scan-interval'] as string) || '30000', 10);
+      const doScan = flags['scan'] !== false; // default true
+
+      let scanTimer: ReturnType<typeof setInterval> | null = null;
+      if (doScan) {
+        const runScan = async () => {
+          try {
+            const { execSync } = await import('node:child_process');
+            const localList = execSync('ps aux', { encoding: 'utf8', timeout: 5000 });
+            const trace = new AgentTrace({ dbPath, silent: true });
+            const agents = detectAgents(localList, 'linux');
+            for (const agent of agents) {
+              trace.recordAgentUsage({
+                agentName: agent.name,
+                agentType: agent.framework || 'unknown',
+                action: 'detected',
+                target: agent.cmdline.substring(0, 200),
+                status: 'success',
+                tokensUsed: 0,
+                costUsd: 0,
+                durationMs: 0,
+                metadata: { pid: agent.pid, runtime: agent.runtime, platform: agent.platform },
+              });
+            }
+            trace.close();
+          } catch {
+            /* non-fatal */
+          }
+        };
+
+        // Initial scan
+        runScan();
+        scanTimer = setInterval(runScan, scanIntervalMs);
+      }
+
+      // Graceful shutdown
+      const cleanup = () => {
+        console.log('[AgentTrace] Daemon shutting down...');
+        if (scanTimer) clearInterval(scanTimer);
+        server.close();
+        try {
+          unlinkSync(pidFile);
+        } catch {
+          /* ignore */
+        }
+        process.exit(0);
+      };
+
+      process.on('SIGINT', cleanup);
+      process.on('SIGTERM', cleanup);
+      process.on('exit', () => {
+        if (scanTimer) clearInterval(scanTimer);
+      });
+
+      // Keep alive
+      // (server.listen already keeps the event loop alive)
+      break;
+    }
+
+    case 'service': {
+      const sub = (() => {
+        const argvArgs = process.argv.slice(2);
+        const idx = argvArgs.indexOf('service');
+        if (idx === -1) return undefined;
+        for (let k = idx + 1; k < argvArgs.length; k++) {
+          const c = argvArgs[k];
+          if (typeof c === 'string' && !c.startsWith('-')) return c;
+        }
+        return undefined;
+      })();
+
+      if (sub === 'install') {
+        if (process.platform === 'win32') {
+          console.log('On Windows, use Task Scheduler:');
+          console.log('  1. Open Task Scheduler');
+          console.log('  2. Create Basic Task → "AgentTrace Daemon"');
+          console.log('  3. Trigger: At startup');
+          console.log('  4. Action: Start a program');
+          console.log('     Program: agenttrace');
+          console.log('     Arguments: daemon start');
+          break;
+        }
+
+        const binPath = process.argv[1] || 'agenttrace';
+        const systemdDir = join(homedir(), '.config', 'systemd', 'user');
+        const systemdFile = join(systemdDir, 'agenttrace.service');
+
+        if (process.platform === 'darwin') {
+          // macOS launchd
+          const plistDir = join(homedir(), 'Library', 'LaunchAgents');
+          const plistFile = join(plistDir, 'com.agenttrace.daemon.plist');
+          if (!existsSync(plistDir)) mkdirSync(plistDir, { recursive: true });
+          const plist = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.agenttrace.daemon</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>${binPath}</string>
+    <string>daemon</string>
+    <string>start</string>
+  </array>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <false/>
+  <key>StandardOutPath</key>
+  <string>${join(homedir(), '.local', 'share', 'agenttrace', 'daemon.log')}</string>
+  <key>StandardErrorPath</key>
+  <string>${join(homedir(), '.local', 'share', 'agenttrace', 'daemon.log')}</string>
+</dict>
+</plist>`;
+          writeFileSync(plistFile, plist, 'utf-8');
+          console.log(`Installed launchd plist: ${plistFile}`);
+          console.log(
+            'Start now:  launchctl load ~/Library/LaunchAgents/com.agenttrace.daemon.plist',
+          );
+          console.log(
+            'Stop:       launchctl unload ~/Library/LaunchAgents/com.agenttrace.daemon.plist',
+          );
+          console.log('Status:     launchctl list | grep agenttrace');
+        } else {
+          // Linux systemd
+          if (!existsSync(systemdDir)) mkdirSync(systemdDir, { recursive: true });
+          const unit = `[Unit]
+Description=AgentTrace Daemon - Local AI agent observability
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=${binPath} daemon start
+Restart=on-failure
+RestartSec=5
+StandardOutput=append:${join(homedir(), '.local', 'share', 'agenttrace', 'daemon.log')}
+StandardError=append:${join(homedir(), '.local', 'share', 'agenttrace', 'daemon.log')}
+
+[Install]
+WantedBy=default.target
+`;
+          writeFileSync(systemdFile, unit, 'utf-8');
+          console.log(`Installed systemd user service: ${systemdFile}`);
+          console.log('');
+          console.log('Start now:  systemctl --user start agenttrace');
+          console.log('Enable:     systemctl --user enable agenttrace');
+          console.log('Status:     systemctl --user status agenttrace');
+          console.log('Logs:       journalctl --user -u agenttrace -f');
+        }
+        break;
+      }
+
+      if (sub === 'uninstall') {
+        if (process.platform === 'darwin') {
+          const plistFile = join(
+            homedir(),
+            'Library',
+            'LaunchAgents',
+            'com.agenttrace.daemon.plist',
+          );
+          if (existsSync(plistFile)) {
+            unlinkSync(plistFile);
+            console.log(`Removed: ${plistFile}`);
+            console.log(
+              'Unload:  launchctl unload ~/Library/LaunchAgents/com.agenttrace.daemon.plist',
+            );
+          } else {
+            console.log('No launchd plist found.');
+          }
+        } else if (process.platform !== 'win32') {
+          const systemdFile = join(homedir(), '.config', 'systemd', 'user', 'agenttrace.service');
+          if (existsSync(systemdFile)) {
+            unlinkSync(systemdFile);
+            console.log(`Removed: ${systemdFile}`);
+            console.log('Disable: systemctl --user disable agenttrace');
+            console.log('Reload:  systemctl --user daemon-reload');
+          } else {
+            console.log('No systemd service found.');
+          }
+        } else {
+          console.log('On Windows, remove the Task Scheduler entry manually.');
+        }
+        break;
+      }
+
+      console.log('Usage: agenttrace service <install|uninstall>');
       break;
     }
 
@@ -2456,7 +2781,7 @@ const isMain = (() => {
         t.endsWith('dist/index.js') ||
         t.includes('@agenttrace-io/cli') ||
         t.includes('agenttrace-io/cli') ||
-        t.endsWith('/agenttrace-io') ||
+        t.endsWith('/agenttrace-io') || // also matches agenttrace-io
         t.endsWith('/agenttrace')
       ) {
         return true;

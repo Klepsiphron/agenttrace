@@ -64,9 +64,9 @@ finally:
 ### With CLI (fastest)
 
 ```bash
-npx agenttrace-io traces --status error --limit 10
+npx agenttrace traces --status error --limit 10
 # or for a specific run
-npx agenttrace-io traces --run-id <rid> --json
+npx agenttrace traces --run-id <rid> --json
 ```
 
 Look for the trace with `status: "error"` and the `error` field.
@@ -136,14 +136,14 @@ Python equivalent uses `t.tool_calls` (snake_case on the dataclass).
 ### CLI
 
 ```bash
-npx agenttrace-io stats
+npx agenttrace stats
 # shows avgLatencyMs, top slow tools etc.
 ```
 
 Filter slow traces:
 
 ```bash
-npx agenttrace-io traces --min-latency 2000   # >2s
+npx agenttrace traces --min-latency 2000   # >2s
 ```
 
 ### Code
@@ -189,7 +189,7 @@ print("top tools:", stats.top_tools)
 If you link steps with `createChild` (TS) or manual parentId, use the tree view:
 
 ```bash
-npx agenttrace-io tree --trace-id <root-id>
+npx agenttrace tree --trace-id <root-id>
 ```
 
 #### TypeScript
@@ -207,6 +207,6 @@ This surfaces the exact execution path that led to the failure or the slow path.
 
 - Always pass `input` so you can see what arguments reached the bad tool.
 - Use `metadata: { userId, session }` for filtering later.
-- After a bad run, `agenttrace-io export --run-id X --format json` to attach to a bug report.
+- After a bad run, `agenttrace export --run-id X --format json` to attach to a bug report.
 
 Next: learn how to [score traces automatically](./evaluation.md) so you can quantify "good" vs "bad" runs beyond just pass/fail.

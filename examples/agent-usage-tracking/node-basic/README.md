@@ -56,9 +56,9 @@ Total actions logged: 2
 
 ```bash
 # From repo root or this dir (adjust --db)
-npx agenttrace-io stats --db ./agenttrace.db
-npx agenttrace-io runs --db ./agenttrace.db
-npx agenttrace-io dashboard --db ./agenttrace.db
+npx agenttrace stats --db ./agenttrace.db
+npx agenttrace runs --db ./agenttrace.db
+npx agenttrace dashboard --db ./agenttrace.db
 ```
 
 ## Clean up

@@ -92,10 +92,10 @@ async function trackedAgent(input: string) {
 
 ```bash
 # Start the dashboard
-npx agenttrace-io dashboard
+npx agenttrace dashboard
 
 # Or query from CLI
-npx agenttrace-io runs --limit 10
-npx agenttrace-io stats
-npx agenttrace-io export --format json --output traces.json
+npx agenttrace runs --limit 10
+npx agenttrace stats
+npx agenttrace export --format json --output traces.json
 ```

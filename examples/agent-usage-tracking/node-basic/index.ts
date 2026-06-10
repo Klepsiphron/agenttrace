@@ -138,8 +138,8 @@ async function main() {
     // Cleanup
     at.close();
     console.log('\n=== Done. DB written to agenttrace.db ===');
-    console.log('Inspect with: npx agenttrace-io stats --db ./agenttrace.db');
-    console.log('Dashboard: npx agenttrace-io dashboard --db ./agenttrace.db');
+    console.log('Inspect with: npx agenttrace stats --db ./agenttrace.db');
+    console.log('Dashboard: npx agenttrace dashboard --db ./agenttrace.db');
   }
 }
 

@@ -70,7 +70,7 @@ const res = await trace('langchain-llm', () => llm.invoke(...), {
 ## View traces
 
 ```bash
-npx agenttrace-io dashboard --db ./agenttrace.db
+npx agenttrace dashboard --db ./agenttrace.db
 ```
 
 See the main README for the broader agent-focused guide.

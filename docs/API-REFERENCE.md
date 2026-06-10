@@ -1571,9 +1571,9 @@ agenttrace-io <command> [options]
 | `version`   | Show CLI version                            |
 
 ```bash
-agenttrace-io init
-agenttrace-io dashboard
-agenttrace-io version
+agenttrace init
+agenttrace dashboard
+agenttrace version
 ```
 
 ### runs / traces
@@ -1584,7 +1584,7 @@ agenttrace-io version
 | `traces` | `--limit N`, `--status FILTER`, `--run-id ID` | List traces (most recent first)      |
 
 ```bash
-agenttrace-io runs --limit 5 --status success,running
+agenttrace runs --limit 5 --status success,running
 agenttrace-io traces --run-id 123e4567 --json
 ```
 
@@ -1596,10 +1596,10 @@ agenttrace-io traces --run-id 123e4567 --json
 | `costs` | `--daily`, `--run-id ID` | Cost breakdown by model (or `--daily`) |
 
 ```bash
-agenttrace-io stats
-agenttrace-io costs
-agenttrace-io costs --daily --json
-agenttrace-io costs --run-id abc123
+agenttrace stats
+agenttrace costs
+agenttrace costs --daily --json
+agenttrace costs --run-id abc123
 ```
 
 ### export / tree
@@ -1610,8 +1610,8 @@ agenttrace-io costs --run-id abc123
 | `tree`   | `--trace-id ID` (required) | Show parent/child/related trace tree |
 
 ```bash
-agenttrace-io export --format csv --output out.csv --run-id abc
-agenttrace-io tree --trace-id abc123def
+agenttrace export --format csv --output out.csv --run-id abc
+agenttrace tree --trace-id abc123def
 ```
 
 ### alerts / health
@@ -1622,10 +1622,10 @@ agenttrace-io tree --trace-id abc123def
 | `health` |                                       | Check health of gateway, dashboard, DB |
 
 ```bash
-agenttrace-io alerts list
-agenttrace-io alerts test --name high-error-rate
-agenttrace-io alerts history
-agenttrace-io health
+agenttrace alerts list
+agenttrace alerts test --name high-error-rate
+agenttrace alerts history
+agenttrace health
 ```
 
 ### self-stats / who / cost / sessions / activity
@@ -1639,13 +1639,13 @@ agenttrace-io health
 | `activity`   | `--agent NAME`, `--type ACTION`, `--limit N`, `--since DUR`        | Recent agent activity timeline |
 
 ```bash
-agenttrace-io self-stats
-agenttrace-io self-stats --json
-agenttrace-io who --active --limit 10
+agenttrace self-stats
+agenttrace self-stats --json
+agenttrace who --active --limit 10
 agenttrace-io cost --format table
 agenttrace-io cost --agent researcher-1 --from 2026-01-01
-agenttrace-io sessions --active
-agenttrace-io activity --since 2h --limit 20
+agenttrace sessions --active
+agenttrace activity --since 2h --limit 20
 ```
 
 ### cleanup / retention
@@ -1656,11 +1656,11 @@ agenttrace-io activity --since 2h --limit 20
 | `retention` | `show`, `set <days> [--interval H]` | Manage data retention policy        |
 
 ```bash
-agenttrace-io cleanup
-agenttrace-io cleanup --days 7 --dry-run
-agenttrace-io retention show
-agenttrace-io retention set 60
-agenttrace-io retention set 90 --interval 12
+agenttrace cleanup
+agenttrace cleanup --days 7 --dry-run
+agenttrace retention show
+agenttrace retention set 60
+agenttrace retention set 90 --interval 12
 ```
 
 ### benchmark
@@ -1670,7 +1670,7 @@ agenttrace-io retention set 90 --interval 12
 | `benchmark` |         | Run performance benchmark suite (prints JSON results) |
 
 ```bash
-agenttrace-io benchmark
+agenttrace benchmark
 ```
 
 ### Global Options

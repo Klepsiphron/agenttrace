@@ -38,8 +38,8 @@ You will see trace stats, usage aggregates, filtered records, and per-run cost b
 ## Inspect
 
 ```bash
-npx agenttrace-io stats --db ./agenttrace.db
-npx agenttrace-io dashboard --db ./agenttrace.db
+npx agenttrace stats --db ./agenttrace.db
+npx agenttrace dashboard --db ./agenttrace.db
 ```
 
 See the sibling `node-basic/` for the TypeScript version. See the main README for the full guide.

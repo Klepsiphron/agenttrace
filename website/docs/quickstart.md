@@ -11,10 +11,10 @@ Get full visibility into your AI agents in under a minute. Local SQLite database
 ```bash
 npm install -g @agenttrace-io/cli
 # or without installing anything:
-# npx agenttrace-io <command>
+# npx agenttrace <command>
 ```
 
-The CLI provides both `agenttrace-io` and the shorter `agenttrace` alias.
+The CLI command is `agenttrace`. (`agenttrace-io` also works as an alias.)
 
 ### TypeScript / Node SDK
 
@@ -107,36 +107,36 @@ with agent.trace("analyze", input={"q": "foo"}) as t:
 
 ```bash
 # Create a fresh DB in current directory
-npx agenttrace-io init
+npx agenttrace init
 
 # Run your instrumented code (it will write to ./agenttrace.db)
 
 # High-level stats
-npx agenttrace-io stats
+npx agenttrace stats
 
 # Cost breakdown (by model or --daily)
-npx agenttrace-io costs --daily
+npx agenttrace costs --daily
 
 # Recent traces
-npx agenttrace-io traces --limit 30
+npx agenttrace traces --limit 30
 
 # Full multi-agent tree for a trace
-npx agenttrace-io tree --trace-id <trace-id>
+npx agenttrace tree --trace-id <trace-id>
 
 # Self-tracked agent usage (for meta-agents and autonomous patterns)
-npx agenttrace-io self-stats
+npx agenttrace self-stats
 
 # Export for audits or downstream tools
-npx agenttrace-io export --format csv --output traces.csv
-npx agenttrace-io export --format otel   # OTLP JSON (no external deps)
+npx agenttrace export --format csv --output traces.csv
+npx agenttrace export --format otel   # OTLP JSON (no external deps)
 ```
 
 ## 5. Launch the Local Dashboard
 
 ```bash
-npx agenttrace-io dashboard
+npx agenttrace dashboard
 # or with options:
-npx agenttrace-io dashboard --port 4500 --host 0.0.0.0
+npx agenttrace dashboard --port 4500 --host 0.0.0.0
 ```
 
 Opens a fast, private web UI at http://localhost:4317 (default). All data stays on your machine.
@@ -176,7 +176,7 @@ export AGENTTRACE_DB_PATH=/path/to/shared/agenttrace.db
 ## Troubleshooting
 
 **"No agenttrace.db found"**  
-Run `npx agenttrace-io init` (or set `AGENTTRACE_DB_PATH`) before using CLI commands that read data.
+Run `npx agenttrace init` (or set `AGENTTRACE_DB_PATH`) before using CLI commands that read data.
 
 **Dashboard shows "Failed to load data"**  
 Make sure the dashboard process is running and you are hitting the right port. The CLI prints the exact URL on start.

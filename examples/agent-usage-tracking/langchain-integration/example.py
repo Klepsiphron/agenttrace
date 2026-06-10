@@ -160,7 +160,7 @@ def main() -> None:
     print("cost_breakdown:", mw.at.get_cost_breakdown().total_cost_usd)
 
     mw.close()
-    print("\nDone. Use npx agenttrace-io dashboard --db ./agenttrace.db to explore.")
+    print("\nDone. Use npx agenttrace dashboard --db ./agenttrace.db to explore.")
 
 
 if __name__ == "__main__":

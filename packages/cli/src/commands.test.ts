@@ -213,7 +213,7 @@ describe('CLI commands', () => {
       const o = out();
       expect(o).toContain('No ');
       expect(o).toContain('agenttrace.db');
-      expect(o).toContain('Run "agenttrace-io init"');
+      expect(o).toContain('Run "agenttrace init"');
     });
 
     it('runs on missing DB prints error', async () => {
@@ -223,7 +223,7 @@ describe('CLI commands', () => {
 
     it('tree without DB still requires --trace-id first (arg error before DB)', async () => {
       await runCmd(['tree']);
-      expect(out()).toContain('Usage: agenttrace-io tree --trace-id');
+      expect(out()).toContain('Usage: agenttrace tree --trace-id');
     });
   });
 
@@ -233,7 +233,7 @@ describe('CLI commands', () => {
       await runCmd(['init']);
       clearLogs();
       await runCmd(['tree']);
-      expect(out()).toContain('Usage: agenttrace-io tree --trace-id <id>');
+      expect(out()).toContain('Usage: agenttrace tree --trace-id <id>');
     });
   });
 

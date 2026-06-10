@@ -55,7 +55,7 @@ For air-gapped or highly sensitive environments, run the entire stack inside you
 
 ## Team Dashboards & Collaboration
 
-The local dashboard (`agenttrace-io dashboard`) is zero-config and private by default. For teams:
+The local dashboard (`agenttrace dashboard`) is zero-config and private by default. For teams:
 
 - Share a single `agenttrace.db` via a network filesystem, Docker volume, or a small internal server.
 - Use the Team plan hosted dashboard (when available) for browser-based access with role separation.
@@ -161,7 +161,7 @@ Typical teams see 12–30% reduction in token spend within the first month after
 
 1. Install the CLI and SDK exactly as in the [Quickstart](./quickstart.md).
 2. Instrument a pilot agent or use the LangGraph / CrewAI middleware.
-3. Run `agenttrace-io dashboard` and explore the data with your team.
+3. Run `agenttrace dashboard` and explore the data with your team.
 4. Add a few `registerAlert()` calls for cost and error thresholds.
 5. Decide on retention policy and export cadence for compliance.
 6. Talk to us about hosted team dashboards or on-prem deployment.

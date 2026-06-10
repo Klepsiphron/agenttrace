@@ -21,11 +21,11 @@ A clean, modern, universal tool for tracing any agentic system. One wrapper. Com
 
 ```bash
 # Trace any agent in one line
-agenttrace-io wrap claude "Write a hello world function"
+agenttrace wrap claude "Write a hello world function"
 
 # See what happened
-agenttrace-io runs
-agenttrace-io stats
+agenttrace runs
+agenttrace stats
 ```
 
 [Features](#features) · [Quick Start](#quick-start) · [SDK Usage](#sdk-usage) · [Dashboard](#dashboard) · [CLI Reference](#cli-reference) · [Self-Hosting](#self-hosting) · [License](#license)
@@ -34,7 +34,7 @@ agenttrace-io stats
 
 ## Features
 
-- **Zero-config tracing** -- `agenttrace-io wrap <command>` traces any CLI agent with zero code changes
+- **Zero-config tracing** -- `agenttrace wrap <command>` traces any CLI agent with zero code changes
 - **Token & cost tracking** -- Every LLM call tracked with per-model pricing
 - **Multi-agent correlation** -- Trace across agent trees with parent/child linking
 - **Budget alerts** -- Set per-agent token limits, get alerts before overspend
@@ -54,41 +54,41 @@ agenttrace-io stats
 ```bash
 npm install -g @agenttrace-io/cli
 # or use npx without installing:
-npx agenttrace-io <command>
+npx agenttrace <command>
 ```
 
 ### Trace Your First Agent
 
 ```bash
 # Wrap any CLI command -- zero config, zero code changes
-agenttrace-io wrap claude "Write a hello world function"
-agenttrace-io wrap python my_agent.py
+agenttrace wrap claude "Write a hello world function"
+agenttrace wrap python my_agent.py
 
 # View your traces
-agenttrace-io runs --limit 10
+agenttrace runs --limit 10
 agenttrace-io traces --run-id <id>
 
 # See aggregate stats
-agenttrace-io stats
+agenttrace stats
 ```
 
 ### Set Budget Alerts
 
 ```bash
 # Set a daily token budget for an agent
-agenttrace-io budget set my-agent --tokens 1000000 --cost 50
+agenttrace budget set my-agent --tokens 1000000 --cost 50
 
 # Check budget status
-agenttrace-io budget status my-agent
+agenttrace budget status my-agent
 
 # List all budgets
-agenttrace-io budget list
+agenttrace budget list
 ```
 
 ### Launch the Dashboard
 
 ```bash
-agenttrace-io dashboard
+agenttrace dashboard
 # → Opens at http://127.0.0.1:4317
 ```
 
@@ -159,7 +159,7 @@ def my_function():
 The local dashboard provides a dark-themed web UI for exploring traces.
 
 ```bash
-agenttrace-io dashboard
+agenttrace dashboard
 ```
 
 Features:

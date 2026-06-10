@@ -131,8 +131,8 @@ def main() -> None:
     finally:
         agent.close()
         print("\n=== Done. Inspect with CLI or dashboard ===")
-        print("npx agenttrace-io stats --db", db_path)
-        print("npx agenttrace-io dashboard --db", db_path)
+        print("npx agenttrace stats --db", db_path)
+        print("npx agenttrace dashboard --db", db_path)
 
 
 if __name__ == "__main__":

@@ -82,7 +82,7 @@ mw = AgentTraceCrewAI(db_path="./prod-traces.db")
 ## Viewing traces
 
 ```bash
-npx agenttrace-io dashboard --db ./traces.db
+npx agenttrace dashboard --db ./traces.db
 ```
 
 ## License
