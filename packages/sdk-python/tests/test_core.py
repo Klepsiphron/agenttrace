@@ -38,7 +38,8 @@ def cleanup_db(path: str) -> None:
 
 
 def test_version_and_package():
-    assert VERSION == "0.4.23"
+    # Assert format rather than a hardcoded value so releases don't break this test.
+    assert re.match(r"^\d+\.\d+\.\d+", VERSION), f"unexpected VERSION format: {VERSION}"
     assert PACKAGE_NAME == "agenttrace-io"
 
 
