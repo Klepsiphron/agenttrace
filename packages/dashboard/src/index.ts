@@ -86,7 +86,23 @@ function authMiddleware(req: Request, res: Response, next: NextFunction): void {
     return;
   }
 
+  // Allow localhost requests without API key (local development)
+  // But if an API key IS provided, always validate it (even on localhost)
   const key = req.headers['x-api-key'] as string | undefined;
+  if (!key) {
+    const origin = req.headers.origin || '';
+    const isLocalhost =
+      !origin ||
+      origin.startsWith('http://localhost:') ||
+      origin.startsWith('http://127.0.0.1:') ||
+      origin.startsWith('https://localhost:') ||
+      origin.startsWith('https://127.0.0.1:');
+    if (isLocalhost) {
+      next();
+      return;
+    }
+  }
+
   const record = validateApiKey(key);
   if (!record) {
     res.status(401).json({ error: 'Invalid or missing API key', code: 'UNAUTHORIZED' });
