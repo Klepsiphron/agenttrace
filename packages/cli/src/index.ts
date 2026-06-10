@@ -1240,6 +1240,7 @@ async function runMain(): Promise<void> {
               const winList = execSync('cmd.exe /c tasklist /fo csv /nh', {
                 encoding: 'utf8',
                 timeout: 10000,
+                cwd: WIN_EXEC_CWD,
               });
               agents.push(...detectAgents(winList, 'windows'));
             } catch {
