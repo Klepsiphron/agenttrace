@@ -181,10 +181,7 @@ export function createDashboardApp(dbPath?: string): DashboardApp {
   // Serve the static frontend without auth (assets, index.html)
   app.use(express.static(PUBLIC_DIR, { index: 'index.html' }));
 
-  // Authentication middleware — protects /api/* only, skips /api/health
-  app.use(authMiddleware);
-
-  // ---------- API Key Management Routes ----------
+  // ---------- API Key Management Routes (before auth middleware) ----------
 
   app.get('/api/v1/keys', (_req: Request, res: Response) => {
     const keys = Array.from(apiKeyStore.values()).map((r) => ({
@@ -224,6 +221,9 @@ export function createDashboardApp(dbPath?: string): DashboardApp {
     }
     res.status(204).send();
   });
+
+  // Authentication middleware — protects /api/* only, skips /api/health
+  app.use(authMiddleware);
 
   // ---------- API Routes ----------
 
