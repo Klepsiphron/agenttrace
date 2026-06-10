@@ -237,11 +237,14 @@ function scanAgents(json: boolean, verbose: boolean): void {
     /* ignore */
   }
 
-  // Scan Windows processes from WSL
+  // Scan Windows processes from WSL. Pin cwd to a Windows-native path so
+  // cmd.exe doesn't emit the "UNC paths are not supported" warning when the
+  // process is launched from a `\\wsl.localhost\...` working directory.
   try {
     const tasklist = execSync('cmd.exe /c tasklist /fo csv /nh 2>nul', {
       encoding: 'utf8',
       timeout: 5000,
+      cwd: fs.existsSync('/mnt/c') ? '/mnt/c' : undefined,
     });
     for (const line of tasklist.split('\n')) {
       if (!line.trim()) continue;
