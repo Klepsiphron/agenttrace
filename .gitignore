@@ -38,3 +38,7 @@ MEMORY.md
 AGENTS.md
 CLAUDE.md
 .cursorrules
+
+# Stray Windows CMD redirect artifact (contains local paths)
+nul
+[Nn]ul
