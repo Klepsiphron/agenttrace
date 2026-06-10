@@ -1,7 +1,7 @@
 {
   "name": "@agenttrace-io/dashboard",
   "version": "0.4.21",
-  "description": "Local web dashboard for AgentTrace \u2014 view runs, traces, costs, and stats",
+  "description": "Local web dashboard for AgentTrace — view runs, traces, costs, and stats",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",
