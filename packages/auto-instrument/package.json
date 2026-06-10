@@ -6,8 +6,8 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
-    "agenttrace-instrument": "dist/cli.cjs",
-    "agenttrace-auto": "dist/cli.cjs"
+    "agenttrace-instrument": "dist/cli.js",
+    "agenttrace-auto": "dist/cli.js"
   },
   "exports": {
     ".": {
