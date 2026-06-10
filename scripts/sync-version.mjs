@@ -77,13 +77,13 @@ for (const pkg of packages) {
   const pyCore = join(srcDir, 'agenttrace', 'core.py');
   if (existsSync(pyCore)) {
     let content = readFileSync(pyCore, 'utf-8');
-    content = content.replace(/VERSION = "0\.0\.0"/, `VERSION = "${version}"`);
+    content = content.replace(/VERSION = "[^"]*"/, `VERSION = "${version}"`);
     writeFileSync(pyCore, content);
   }
   const pyInit = join(srcDir, 'agenttrace_middleware', '__init__.py');
   if (existsSync(pyInit)) {
     let content = readFileSync(pyInit, 'utf-8');
-    content = content.replace(/VERSION = "0\.0\.0"/, `VERSION = "${version}"`);
+    content = content.replace(/VERSION = "[^"]*"/, `VERSION = "${version}"`);
     writeFileSync(pyInit, content);
   }
 }
