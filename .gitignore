@@ -30,3 +30,4 @@ ENV/
 *.egg
 agenttrace.db*-test-*.db*
 :memory:
+beta-test.mjs

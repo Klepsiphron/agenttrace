@@ -924,141 +924,150 @@ export class TraceStorage {
   getAgentWho(
     filter: { activeOnly?: boolean; agentType?: string; limit?: number } = {},
   ): AgentWho[] {
-    const f: AgentUsageFilter = {};
-    if (filter.agentType) f.agentType = filter.agentType;
+    const conditions: string[] = [];
+    const params: (string | number)[] = [];
+
+    if (filter.agentType) {
+      conditions.push('agent_type = ?');
+      params.push(filter.agentType);
+    }
     if (filter.activeOnly) {
-      f.fromDate = Date.now() - 30 * 60 * 1000;
+      conditions.push('created_at >= ?');
+      params.push(Date.now() - 30 * 60 * 1000);
     }
-    const recs = this.getAgentUsage({ ...f, limit: 20000 });
-    const map = new Map<
-      string,
-      {
-        type?: string;
-        lastSession?: string;
-        lastAction: string;
-        lastTs: number;
-        actions: number;
-        tokens: number;
-        cost: number;
-      }
-    >();
-    for (const r of recs) {
-      let g = map.get(r.agentName);
-      if (!g) {
-        g = {
-          type: r.agentType,
-          lastAction: r.action,
-          lastTs: r.createdAt,
-          actions: 0,
-          tokens: 0,
-          cost: 0,
-        };
-        map.set(r.agentName, g);
-      }
-      if (r.agentType && !g.type) g.type = r.agentType;
-      if (r.createdAt >= g.lastTs) {
-        g.lastTs = r.createdAt;
-        g.lastAction = r.action;
-        if (r.sessionId) g.lastSession = r.sessionId;
-      }
-      g.actions += 1;
-      g.tokens += r.tokensUsed || 0;
-      g.cost += r.costUsd || 0;
-    }
-    const list: Array<AgentWho & { lastActive: number }> = Array.from(map.entries()).map(
-      ([name, g]) => ({
-        agentName: name,
-        agentType: g.type,
-        sessionId: g.lastSession,
-        lastAction: g.lastAction,
-        actions: g.actions,
-        tokens: g.tokens,
-        costUsd: g.cost,
-        lastActive: g.lastTs,
-      }),
-    );
-    list.sort((a, b) => b.lastActive - a.lastActive);
+
+    const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
     const lim = filter.limit && filter.limit > 0 ? filter.limit : 100;
-    return list.slice(0, lim).map(({ lastActive: _lastActive, ...rest }) => rest as AgentWho);
+
+    // Use SQL GROUP BY instead of loading 20K rows into memory
+    // Subquery to get the most recent action per agent
+    const rows = this.db
+      .prepare(
+        `SELECT
+           agent_name AS agentName,
+           agent_type AS agentType,
+           MAX(session_id) AS sessionId,
+           MAX(created_at) AS lastActive,
+           (SELECT action FROM agent_usage AS sub
+            WHERE sub.agent_name = main.agent_name
+            ${filter.activeOnly ? 'AND sub.created_at >= ?' : ''}
+            ORDER BY sub.created_at DESC LIMIT 1) AS lastAction,
+           COUNT(*) AS actions,
+           SUM(COALESCE(tokens_used, 0)) AS tokens,
+           SUM(COALESCE(cost_usd, 0)) AS costUsd,
+           MAX(created_at) AS maxCreatedAt
+         FROM agent_usage AS main
+         ${where}
+         GROUP BY agent_name
+         ORDER BY maxCreatedAt DESC
+         LIMIT ?`,
+      )
+      .all(...params, ...(filter.activeOnly ? [params[params.length - 1]] : []), lim) as Array<{
+      agentName: string;
+      agentType: string | null;
+      sessionId: string | null;
+      lastActive: number;
+      lastAction: string | null;
+      actions: number;
+      tokens: number;
+      costUsd: number;
+    }>;
+
+    return rows.map((r) => ({
+      agentName: r.agentName,
+      agentType: r.agentType || undefined,
+      sessionId: r.sessionId || undefined,
+      lastAction: r.lastAction || '',
+      lastActive: r.lastActive,
+      actions: r.actions,
+      tokens: r.tokens,
+      costUsd: r.costUsd,
+    }));
   }
 
   getAgentSessions(
     filter: { agentName?: string; activeOnly?: boolean; limit?: number } = {},
   ): AgentSession[] {
-    const f: AgentUsageFilter = {};
-    if (filter.agentName) f.agentName = filter.agentName;
-    if (filter.activeOnly) {
-      f.fromDate = Date.now() - 30 * 60 * 1000;
+    const conditions: string[] = [];
+    const params: unknown[] = [];
+
+    if (filter.agentName) {
+      conditions.push('agent_name = ?');
+      params.push(filter.agentName);
     }
-    const recs = this.getAgentUsage({ ...f, limit: 20000 });
-    // group by agent + sessionId (synthetic for missing sessionId)
-    type SessGroup = {
+    const activeCutoff = Date.now() - 30 * 60 * 1000;
+    if (filter.activeOnly) {
+      conditions.push('created_at >= ?');
+      params.push(activeCutoff);
+    }
+
+    const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+    const lim = filter.limit && filter.limit > 0 ? filter.limit : 100;
+
+    // Use SQL aggregation instead of loading 20K rows into memory
+    const rows = this.db
+      .prepare(
+        `SELECT
+           agent_name AS agentName,
+           COALESCE(session_id, '') AS sessionId,
+           MIN(created_at) AS startedAt,
+           MAX(created_at) AS lastAt,
+           MAX(created_at) - MIN(created_at) AS durationMs,
+           COUNT(*) AS actions,
+           SUM(COALESCE(tokens_used, 0)) AS tokens,
+           SUM(COALESCE(cost_usd, 0)) AS costUsd,
+           MAX(created_at) AS maxTs,
+           -- Get the status of the most recent action
+           (SELECT status FROM agent_usage AS sub
+            WHERE sub.agent_name = main.agent_name
+            AND COALESCE(sub.session_id, '') = COALESCE(main.session_id, '')
+            ORDER BY sub.created_at DESC LIMIT 1) AS lastStatus,
+           -- Check if any action in the group is failure/timeout
+           MAX(CASE WHEN status IN ('failure','timeout') THEN 1 ELSE 0 END) AS hasBadStatus,
+           SUM(CASE WHEN status = 'failure' THEN 1 ELSE 0 END) AS failureCount
+         FROM agent_usage AS main
+         ${where}
+         GROUP BY agent_name, COALESCE(session_id, '')
+         ORDER BY maxTs DESC
+         LIMIT ?`,
+      )
+      .all(...params, lim) as Array<{
       agentName: string;
-      ts: number[];
+      sessionId: string;
+      startedAt: number;
+      durationMs: number;
       actions: number;
       tokens: number;
-      cost: number;
-      statuses: AgentSession['status'][];
-      lastStatus: AgentSession['status'];
-      lastTs: number;
-    };
-    const groups = new Map<string, SessGroup>();
-    for (const r of recs) {
-      const sid = r.sessionId || '';
-      const key = `${r.agentName}::${sid}`;
-      let g = groups.get(key);
-      if (!g) {
-        g = {
-          agentName: r.agentName,
-          ts: [],
-          actions: 0,
-          tokens: 0,
-          cost: 0,
-          statuses: [],
-          lastStatus: r.status,
-          lastTs: r.createdAt,
-        };
-        groups.set(key, g);
+      costUsd: number;
+      lastStatus: string;
+      hasBadStatus: number;
+      failureCount: number;
+    }>;
+
+    let list = rows.map((r) => {
+      let status: AgentSession['status'] = r.lastStatus as AgentSession['status'];
+      if (r.hasBadStatus) {
+        status = r.failureCount > 0 ? 'failure' : 'timeout';
       }
-      g.ts.push(r.createdAt);
-      g.actions += 1;
-      g.tokens += r.tokensUsed || 0;
-      g.cost += r.costUsd || 0;
-      g.statuses.push(r.status);
-      if (r.createdAt >= g.lastTs) {
-        g.lastTs = r.createdAt;
-        g.lastStatus = r.status;
-      }
-    }
-    let list: AgentSession[] = Array.from(groups.entries()).map(([key, g]) => {
-      const sorted = [...g.ts].sort((a, b) => a - b);
-      const startedAt = sorted[0] ?? g.lastTs;
-      const last = sorted[sorted.length - 1] ?? g.lastTs;
-      const dur = Math.max(0, last - startedAt);
-      // session status: use last action's status, or 'failure' if any bad
-      let status = g.lastStatus;
-      if (g.statuses.some((s) => s === 'failure' || s === 'timeout')) {
-        status = g.statuses.includes('failure') ? 'failure' : 'timeout';
-      }
-      const sid = key.split('::')[1] || 'n/a';
       return {
-        sessionId: sid,
-        agentName: g.agentName,
-        startedAt,
-        durationMs: dur,
-        actions: g.actions,
-        tokens: g.tokens,
-        costUsd: g.cost,
+        sessionId: r.sessionId || 'n/a',
+        agentName: r.agentName,
+        startedAt: r.startedAt,
+        durationMs: r.durationMs,
+        actions: r.actions,
+        tokens: r.tokens,
+        costUsd: r.costUsd,
         status,
       };
     });
+
     if (filter.activeOnly) {
-      const cutoff = Date.now() - 30 * 60 * 1000;
-      list = list.filter((s) => s.startedAt + s.durationMs >= cutoff || s.startedAt >= cutoff);
+      list = list.filter(
+        (s) => s.startedAt + s.durationMs >= activeCutoff || s.startedAt >= activeCutoff,
+      );
     }
-    list.sort((a, b) => b.startedAt - a.startedAt);
-    const lim = filter.limit && filter.limit > 0 ? filter.limit : 100;
-    return list.slice(0, lim);
+
+    return list;
   }
 
   getAgentCostSummary(filter: { agentName?: string; fromDate?: number; toDate?: number } = {}): {
@@ -1066,27 +1075,64 @@ export class TraceStorage {
     costByAgent: Record<string, number>;
     costByModel: Record<string, number>;
   } {
-    const recs = this.getAgentUsage({
-      agentName: filter.agentName,
-      fromDate: filter.fromDate,
-      toDate: filter.toDate,
-      limit: 100000,
-    });
-    let totalCostUsd = 0;
-    const costByAgent: Record<string, number> = {};
-    const costByModel: Record<string, number> = {};
-    for (const r of recs) {
-      const c = r.costUsd || 0;
-      totalCostUsd += c;
-      costByAgent[r.agentName] = (costByAgent[r.agentName] || 0) + c;
-      const meta = r.metadata || {};
-      const model =
-        typeof (meta as Record<string, unknown>).model === 'string'
-          ? ((meta as Record<string, unknown>).model as string)
-          : 'unknown';
-      costByModel[model] = (costByModel[model] || 0) + c;
+    const conditions: string[] = [];
+    const params: unknown[] = [];
+
+    if (filter.agentName) {
+      conditions.push('agent_name = ?');
+      params.push(filter.agentName);
     }
-    return { totalCostUsd, costByAgent, costByModel };
+    if (filter.fromDate) {
+      conditions.push('created_at >= ?');
+      params.push(filter.fromDate);
+    }
+    if (filter.toDate) {
+      conditions.push('created_at <= ?');
+      params.push(filter.toDate);
+    }
+
+    const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    // Use SQL aggregation instead of loading 100K rows into memory
+    const totalRow = this.db
+      .prepare(`SELECT COALESCE(SUM(cost_usd), 0) AS total FROM agent_usage${where}`)
+      .get(...params) as { total: number };
+
+    const byAgentRows = this.db
+      .prepare(
+        `SELECT agent_name, COALESCE(SUM(cost_usd), 0) AS cost FROM agent_usage${where} GROUP BY agent_name ORDER BY cost DESC`,
+      )
+      .all(...params) as Array<{ agent_name: string; cost: number }>;
+
+    const costByAgent: Record<string, number> = {};
+    for (const r of byAgentRows) {
+      costByAgent[r.agent_name] = r.cost;
+    }
+
+    // costByModel requires parsing metadata JSON — use LIKE query to filter
+    const modelConditions = [...conditions];
+    const modelParams = [...params];
+    modelConditions.push('metadata LIKE \'%"model":%\'');
+    const modelWhere = modelConditions.length > 0 ? `WHERE ${modelConditions.join(' AND ')}` : '';
+
+    const byModelRows = this.db
+      .prepare(
+        `SELECT metadata, COALESCE(SUM(cost_usd), 0) AS cost FROM agent_usage${modelWhere} GROUP BY metadata`,
+      )
+      .all(...modelParams) as Array<{ metadata: string; cost: number }>;
+
+    const costByModel: Record<string, number> = {};
+    for (const r of byModelRows) {
+      try {
+        const meta = JSON.parse(r.metadata || '{}');
+        const model = typeof meta.model === 'string' ? meta.model : 'unknown';
+        costByModel[model] = (costByModel[model] || 0) + r.cost;
+      } catch {
+        costByModel['unknown'] = (costByModel['unknown'] || 0) + r.cost;
+      }
+    }
+
+    return { totalCostUsd: totalRow.total, costByAgent, costByModel };
   }
 
   // ---- API Key management (stored hashed with SHA-256) ----
@@ -1620,14 +1666,15 @@ export class TraceStorage {
   }
 
   getEnabledWebhooksForEvent(event: string): WebhookConfig[] {
+    // Use SQL LIKE to filter by event in the JSON events array
     const rows = this.db
       .prepare(
         `
       SELECT id, url, secret, events, enabled, created_at, last_triggered_at, failure_count
-      FROM webhooks WHERE enabled = 1
+      FROM webhooks WHERE enabled = 1 AND events LIKE ?
     `,
       )
-      .all() as Record<string, unknown>[];
+      .all(`%${event}%`) as Record<string, unknown>[];
     return rows
       .map((r) => ({
         id: r.id as string,

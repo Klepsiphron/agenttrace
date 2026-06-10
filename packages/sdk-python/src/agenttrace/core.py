@@ -154,7 +154,8 @@ class _TraceContext:
         cost_usd = self.agent._cost_calculator(tokens, self.options.get("model"))
 
         trace_id = str(uuid.uuid4())
-        run_id = self.agent._current_run_id or str(uuid.uuid4())
+        # Auto-create a run if none is active (ensures FK constraint satisfaction)
+        run_id = self.agent._current_run_id or self.agent.start_run("auto-run")
 
         tr = Trace(
             id=trace_id,
@@ -207,7 +208,8 @@ class _TraceContext:
                     )
                 cost_usd = self.agent._cost_calculator(tokens, self.options.get("model"))
                 trace_id = str(uuid.uuid4())
-                run_id = self.agent._current_run_id or str(uuid.uuid4())
+                # Auto-create a run if none is active (ensures FK constraint satisfaction)
+                run_id = self.agent._current_run_id or self.agent.start_run("auto-run")
                 tr = Trace(
                     id=trace_id,
                     run_id=run_id,
@@ -339,7 +341,8 @@ class AgentTrace:
                     )
                 cost_usd = self._cost_calculator(tokens, opts.get("model"))
                 trace_id = str(uuid.uuid4())
-                run_id = self._current_run_id or str(uuid.uuid4())
+                # Auto-create a run if none is active (ensures FK constraint satisfaction)
+                run_id = self._current_run_id or self.start_run("auto-run")
                 tr = Trace(
                     id=trace_id,
                     run_id=run_id,
@@ -458,7 +461,13 @@ class AgentTrace:
                 )
             return json.dumps(data, indent=2)
 
-        # CSV (mirrors TS)
+        # CSV — properly escape fields containing commas, quotes, or newlines
+        def _escape_csv(val: Any) -> str:
+            s = "" if val is None else str(val)
+            if "," in s or '"' in s or "\n" in s or "\r" in s:
+                return '"' + s.replace('"', '""') + '"'
+            return s
+
         headers = [
             "id",
             "runId",
@@ -483,9 +492,9 @@ class AgentTrace:
                     t.created_at,
                 ]
             )
-        lines = [",".join(str(h) for h in headers)]
+        lines = [",".join(_escape_csv(h) for h in headers)]
         for r in rows:
-            lines.append(",".join("" if x is None else str(x) for x in r))
+            lines.append(",".join(_escape_csv(x) for x in r))
         return "\n".join(lines)
 
     # ---- Evaluation ----
@@ -771,7 +780,11 @@ class AgentUsageTracker:
 
 # ---- Singleton / module level API ----
 
+<<<<<<< HEAD
 VERSION = "0.2.0"
+=======
+VERSION = "0.4.20"
+>>>>>>> 0eb7a9b (fix: security hardening, performance improvements, and bug fixes)
 PACKAGE_NAME = "agenttrace-io"
 
 _instance: Optional[AgentTrace] = None

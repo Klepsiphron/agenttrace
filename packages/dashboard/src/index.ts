@@ -157,7 +157,18 @@ export function createDashboardApp(dbPath?: string): DashboardApp {
   app.use(express.json({ limit: '1mb' }));
 
   app.use((req, res, next) => {
-    res.setHeader('Access-Control-Allow-Origin', req.headers.origin || 'http://localhost:3000');
+    const origin = req.headers.origin;
+    // Only allow same-origin or localhost origins (never reflect arbitrary Origin)
+    const allowed =
+      !origin ||
+      origin.startsWith('http://localhost:') ||
+      origin.startsWith('http://127.0.0.1:') ||
+      origin.startsWith('https://localhost:') ||
+      origin.startsWith('https://127.0.0.1:');
+    if (allowed) {
+      res.setHeader('Access-Control-Allow-Origin', origin || 'http://localhost:3000');
+      res.setHeader('Vary', 'Origin');
+    }
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key');
     if (req.method === 'OPTIONS') {
@@ -542,7 +553,7 @@ export function createDashboardApp(dbPath?: string): DashboardApp {
   });
 
   // Fallback: serve index.html for unknown GET paths (SPA-friendly client routing).
-  // Placed after static + API routes. Compatible with Express 5 / path-to-regexp v8.
+  // Placed after static + API routes. Only serves HTML for non-API, non-asset paths.
   app.use((req: Request, res: Response, _next?: unknown) => {
     if (req.method === 'GET' && !req.path.includes('.') && !req.path.startsWith('/api/')) {
       return res.sendFile(path.join(PUBLIC_DIR, 'index.html'));

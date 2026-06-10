@@ -38,7 +38,11 @@ def cleanup_db(path: str) -> None:
 
 
 def test_version_and_package():
+<<<<<<< HEAD
     assert VERSION == "0.2.0"
+=======
+    assert VERSION == "0.4.20"
+>>>>>>> 0eb7a9b (fix: security hardening, performance improvements, and bug fixes)
     assert PACKAGE_NAME == "agenttrace-io"
 
 
@@ -296,7 +300,7 @@ def test_trace_without_start_run_auto_creates_run():
         assert len(traces) == 1
         r = agent.get_run(traces[0].run_id)
         assert r is not None  # auto-created stub
-        assert r.name.startswith("run-")
+        assert r.name == "auto-run"
         agent.close()
     finally:
         cleanup_db(db)

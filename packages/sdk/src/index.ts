@@ -432,9 +432,11 @@ export class AgentTrace {
       // Restore previous context (supports nesting; top-level restores to null)
       this.activeTraceContext = prevContext;
 
+      // Auto-create a run if none is active (ensures FK constraint satisfaction)
+      const effectiveRunId = this.currentRunId || this.startRun(name);
       const trace: Omit<Trace, 'createdAt' | 'updatedAt'> = {
         id: traceId,
-        runId: this.currentRunId || randomUUID(),
+        runId: effectiveRunId,
         name,
         status,
         input: options.input ?? null,
@@ -794,10 +796,44 @@ export class AgentTrace {
       };
 
       if (wh.secret) {
-        const sig = createHash('sha256')
-          .update(wh.secret + '.' + bodyStr)
-          .digest('hex');
+        const sig = createHmac('sha256', wh.secret).update(bodyStr).digest('hex');
         headers['X-AgentTrace-Signature'] = `sha256=${sig}`;
+      }
+
+      // URL validation: block private/internal IPs and require HTTPS
+      try {
+        const parsed = new URL(wh.url);
+        if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+          throw new Error(`Unsupported protocol: ${parsed.protocol}`);
+        }
+        // Block private/internal addresses (SSRF protection)
+        const hostname = parsed.hostname.toLowerCase();
+        if (
+          hostname === 'localhost' ||
+          hostname === '127.0.0.1' ||
+          hostname === '0.0.0.0' ||
+          hostname.startsWith('169.254.') ||
+          hostname.startsWith('10.') ||
+          hostname.startsWith('172.1') ||
+          hostname.startsWith('172.2') ||
+          hostname.startsWith('172.3') ||
+          hostname.startsWith('192.168.')
+        ) {
+          throw new Error('Private/internal URLs are not allowed for webhooks');
+        }
+      } catch (urlErr) {
+        this.storage.incrementWebhookFailures(wh.id);
+        results.push({
+          id: randomUUID(),
+          webhookId: wh.id,
+          event,
+          payload: bodyStr,
+          status: 'failure',
+          httpStatus: undefined,
+          error: `URL validation failed: ${urlErr instanceof Error ? urlErr.message : String(urlErr)}`,
+          createdAt: timestamp,
+        });
+        continue;
       }
 
       let deliveryStatus: 'success' | 'failure' = 'failure';
@@ -805,11 +841,15 @@ export class AgentTrace {
       let errorMsg: string | undefined;
 
       try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 10000); // 10s timeout
         const resp = await fetch(wh.url, {
           method: 'POST',
           headers,
           body: bodyStr,
+          signal: controller.signal,
         });
+        clearTimeout(timeout);
         httpStatus = resp.ok ? resp.status : resp.status;
         deliveryStatus = resp.ok ? 'success' : 'failure';
         if (resp.ok) {
@@ -857,15 +897,25 @@ export class AgentTrace {
       timestamp: Date.now(),
       message: 'AgentTrace webhook test',
     };
+    const bodyStr = JSON.stringify(payload);
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'User-Agent': `AgentTrace/${VERSION}`,
+    };
+    if (wh.secret) {
+      const sig = createHmac('sha256', wh.secret).update(bodyStr).digest('hex');
+      headers['X-AgentTrace-Signature'] = `sha256=${sig}`;
+    }
     try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10000);
       const resp = await fetch(wh.url, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'User-Agent': `AgentTrace/${VERSION}`,
-        },
-        body: JSON.stringify(payload),
+        headers,
+        body: bodyStr,
+        signal: controller.signal,
       });
+      clearTimeout(timeout);
       if (resp.ok) {
         this.storage.resetWebhookFailures(id);
       } else {
@@ -1276,7 +1326,14 @@ export class AgentTrace {
       return JSON.stringify(otlp, null, 2);
     }
 
-    // CSV
+    // CSV — properly escape fields containing commas, quotes, or newlines
+    const escapeCsv = (val: unknown): string => {
+      const s = String(val ?? '');
+      if (s.includes(',') || s.includes('"') || s.includes('\n') || s.includes('\r')) {
+        return `"${s.replace(/"/g, '""')}"`;
+      }
+      return s;
+    };
     const headers = [
       'id',
       'runId',
@@ -1297,7 +1354,7 @@ export class AgentTrace {
       t.tokens.totalTokens,
       t.createdAt,
     ]);
-    return [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+    return [headers.join(','), ...rows.map((r) => r.map(escapeCsv).join(','))].join('\n');
   }
   /**
    * Close the database connection

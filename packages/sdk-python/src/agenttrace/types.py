@@ -11,7 +11,7 @@ from typing import Any, Callable, Literal, Optional, Union
 
 Status = Literal["success", "failure", "error", "timeout"]
 RunStatus = Literal["running", "success", "failure", "error"]
-ExportFormat = Literal["json", "csv"]
+ExportFormat = Literal["json", "csv", "otel"]
 
 
 @dataclass
