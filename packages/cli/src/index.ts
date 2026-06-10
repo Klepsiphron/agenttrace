@@ -55,15 +55,26 @@ const AGENT_SIGNATURES: Record<string, { framework: string; patterns: string[] }
 
 // Known AI agent process names (image names from tasklist / process list)
 const AGENT_PROCESS_NAMES = new Set([
-  'hermes', 'hermes.exe', 'hermes-agent', 'hermes-agent.exe',
-  'aider', 'aider.exe',
-  'cursor-agent', 'cursor-agent.exe',
-  'open-interpreter', 'interpreter',
-  'claude-code', 'claude',
-  'codex', 'openai-codex',
+  'hermes',
+  'hermes.exe',
+  'hermes-agent',
+  'hermes-agent.exe',
+  'aider',
+  'aider.exe',
+  'cursor-agent',
+  'cursor-agent.exe',
+  'open-interpreter',
+  'interpreter',
+  'claude-code',
+  'claude',
+  'codex',
+  'openai-codex',
   'windsurf',
-  'agent.exe', 'ai-agent.exe',
-  'langchain', 'crewai', 'autogen',
+  'agent.exe',
+  'ai-agent.exe',
+  'langchain',
+  'crewai',
+  'autogen',
 ]);
 
 function detectAgents(
