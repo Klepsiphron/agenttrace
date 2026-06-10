@@ -13,6 +13,7 @@ const packages = [
   'packages/sdk',
   'packages/cli',
   'packages/dashboard',
+  'packages/auto-instrument',
   'packages/middleware-langgraph',
   'packages/middleware-crewai',
   'packages/sdk-python',
