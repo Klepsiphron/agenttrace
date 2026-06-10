@@ -187,6 +187,14 @@ function detectAgents(
   return agents;
 }
 
+// When invoking Windows executables (cmd.exe, tasklist) from inside WSL, the
+// child inherits a `\\wsl.localhost\...` UNC working directory that Windows
+// cannot use, so it prints a noisy "UNC paths are not supported" warning to
+// stderr before defaulting to the Windows directory. Pin the cwd to a
+// Windows-native path so the warning never appears. `/mnt/c` maps to `C:\`
+// under the default WSL drvfs mount; fall back to omitting cwd if it's absent.
+const WIN_EXEC_CWD = existsSync('/mnt/c') ? '/mnt/c' : undefined;
+
 // Version is read from package.json at runtime (no hardcoded version)
 function readVersion(): string {
   try {
@@ -234,6 +242,7 @@ async function backfillFromExistingProcesses(storage: TraceStorage): Promise<num
       const winList = execSync('cmd.exe /c tasklist /fo csv /nh', {
         encoding: 'utf8',
         timeout: 10000,
+        cwd: WIN_EXEC_CWD,
       });
       agents.push(...detectAgents(winList, 'windows'));
     } catch {
