@@ -32,13 +32,15 @@ function cleanupDb(dbPath: string): void {
   }
 }
 
-/** Insert a trace directly via the raw DB for timestamp-control tests */
-function insertTrace(
+/**
+ * Insert a parent run idempotently. Traces carry a NOT NULL FK to runs(id)
+ * with foreign_keys = ON, so a parent run must exist before inserting traces.
+ * INSERT OR IGNORE keeps any run an explicit insertRun() call already created.
+ */
+function ensureRun(
   storage: TraceStorage,
   id: string,
-  createdAt: number,
-  runId: string = 'run-1',
-  name: string = 'trace-1',
+  startedAt: number,
   status: string = 'success',
 ): void {
   const db = (
@@ -49,8 +51,31 @@ function insertTrace(
     }
   ).db;
   db.prepare(
-    'INSERT INTO traces (id, run_id, name, status, latency_ms, cost_usd, tokens, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-  ).run(id, runId, name, status, 100, 0.001, 50, createdAt);
+    'INSERT OR IGNORE INTO runs (id, name, status, metadata, started_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+  ).run(id, 'run-auto', status, '{}', startedAt, startedAt, startedAt);
+}
+
+/** Insert a trace directly via the raw DB for timestamp-control tests */
+function insertTrace(
+  storage: TraceStorage,
+  id: string,
+  createdAt: number,
+  runId: string = 'run-1',
+  name: string = 'trace-1',
+  status: string = 'success',
+): void {
+  // Satisfy the NOT NULL FK to runs(id) (foreign_keys = ON).
+  ensureRun(storage, runId, createdAt, status);
+  const db = (
+    storage as unknown as {
+      db: {
+        prepare: (sql: string) => { run: (...args: unknown[]) => void };
+      };
+    }
+  ).db;
+  db.prepare(
+    'INSERT INTO traces (id, run_id, name, status, latency_ms, cost_usd, total_tokens, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+  ).run(id, runId, name, status, 100, 0.001, 50, createdAt, createdAt);
 }
 
 function insertRun(
@@ -68,8 +93,8 @@ function insertRun(
     }
   ).db;
   db.prepare(
-    'INSERT INTO runs (id, name, status, metadata, created_at, started_at, ended_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-  ).run(id, name, status, '{}', startedAt, startedAt, startedAt + 1000);
+    'INSERT INTO runs (id, name, status, metadata, created_at, started_at, completed_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+  ).run(id, name, status, '{}', startedAt, startedAt, startedAt + 1000, startedAt);
 }
 
 function insertAgentUsage(
@@ -99,8 +124,8 @@ function insertScore(storage: TraceStorage, traceId: string, value: number = 0.9
     }
   ).db;
   db.prepare(
-    'INSERT INTO scores (id, trace_id, value, scorer, reason, created_at) VALUES (?, ?, ?, ?, ?, ?)',
-  ).run(randomUUID(), traceId, value, 'test-scorer', 'reason', Date.now());
+    'INSERT INTO scores (id, trace_id, name, value, created_at) VALUES (?, ?, ?, ?, ?)',
+  ).run(randomUUID(), traceId, 'test-scorer', value, Date.now());
 }
 
 function insertTraceLink(storage: TraceStorage, sourceId: string, targetId: string): void {
@@ -112,8 +137,8 @@ function insertTraceLink(storage: TraceStorage, sourceId: string, targetId: stri
     }
   ).db;
   db.prepare(
-    'INSERT INTO trace_links (source_trace_id, target_trace_id, link_type) VALUES (?, ?, ?)',
-  ).run(sourceId, targetId, 'child');
+    'INSERT INTO trace_links (id, source_trace_id, target_trace_id, relation, created_at) VALUES (?, ?, ?, ?, ?)',
+  ).run(randomUUID(), sourceId, targetId, 'child', Date.now());
 }
 
 // ============================================================================
