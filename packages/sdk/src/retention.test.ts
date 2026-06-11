@@ -92,8 +92,11 @@ function insertRun(
       };
     }
   ).db;
+  // OR IGNORE: a parent run may already exist if insertTrace()/ensureRun()
+  // created it first (e.g. getStorageStats count tests). Avoids a UNIQUE PK
+  // violation without OR REPLACE, which would CASCADE-delete child traces.
   db.prepare(
-    'INSERT INTO runs (id, name, status, metadata, created_at, started_at, completed_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+    'INSERT OR IGNORE INTO runs (id, name, status, metadata, created_at, started_at, completed_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
   ).run(id, name, status, '{}', startedAt, startedAt, startedAt + 1000, startedAt);
 }
 
@@ -144,7 +147,7 @@ function insertTraceLink(storage: TraceStorage, sourceId: string, targetId: stri
 // ============================================================================
 // 1. TraceStorage.cleanupOldTraces
 // ============================================================================
-describe.skip('TraceStorage.cleanupOldTraces', () => {
+describe('TraceStorage.cleanupOldTraces', () => {
   let dbPath: string;
   let storage: TraceStorage;
 
@@ -238,7 +241,7 @@ describe.skip('TraceStorage.cleanupOldTraces', () => {
 // ============================================================================
 // 2. TraceStorage.cleanupOldRuns
 // ============================================================================
-describe.skip('TraceStorage.cleanupOldRuns', () => {
+describe('TraceStorage.cleanupOldRuns', () => {
   let dbPath: string;
   let storage: TraceStorage;
 
@@ -292,7 +295,7 @@ describe.skip('TraceStorage.cleanupOldRuns', () => {
 // ============================================================================
 // 3. TraceStorage.cleanupOldAgentUsage
 // ============================================================================
-describe.skip('TraceStorage.cleanupOldAgentUsage', () => {
+describe('TraceStorage.cleanupOldAgentUsage', () => {
   let dbPath: string;
   let storage: TraceStorage;
 
@@ -342,7 +345,7 @@ describe.skip('TraceStorage.cleanupOldAgentUsage', () => {
 // ============================================================================
 // 4. TraceStorage.getStorageStats
 // ============================================================================
-describe.skip('TraceStorage.getStorageStats', () => {
+describe('TraceStorage.getStorageStats', () => {
   let dbPath: string;
   let storage: TraceStorage;
 
